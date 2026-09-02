@@ -22,3 +22,7 @@ test-results/
 .idea/
 .vscode/*
 !.vscode/extensions.json
+
+# WXT
+.output/
+.wxt/

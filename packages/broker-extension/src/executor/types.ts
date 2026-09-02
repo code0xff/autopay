@@ -6,6 +6,7 @@ import type { Identity } from "../refstore/refstore.js";
 export interface VerifiedCheckout {
   amount: number; // 결제창에서 파싱한 실제 금액(원)
   merchantName: string;
+  origin: string; // 실제 결제 탭의 origin(정책 머천트 바인딩)
   snapshot: string; // 결제 대상 핵심 필드 해시(TOCTOU 재검증 기준)
 }
 
@@ -18,7 +19,7 @@ export interface PayInput {
 
 export type PayOutcome =
   | { status: "approved"; orderId: string; amount: number }
-  | { status: "canceled" }
+  | { status: "canceled"; reason: "user" | "content_changed" }
   | { status: "timeout" }
   | { status: "failed"; error: string };
 
@@ -33,12 +34,13 @@ export interface SimplePayAdapter {
 export interface CheckoutView {
   amount: number;
   merchantName: string;
+  origin: string; // 결제 탭의 실제 origin
   itemsKey: string; // 상품·수량 정규화 키(스냅샷 구성용)
 }
 
 export type CompletionResult =
   | { status: "approved"; orderId: string }
-  | { status: "canceled" }
+  | { status: "canceled" } // 사용자 취소(폰/원터치)
   | { status: "timeout" }
   | { status: "failed"; error: string };
 

@@ -9,6 +9,7 @@ import type { CheckoutDriver, CheckoutView, CompletionResult, SimplePayAdapter }
 
 export interface PageBridge {
   readText(tabId: number, selector: string): Promise<string | null>;
+  origin(tabId: number): Promise<string>; // 결제 탭의 실제 origin(location.origin)
   fill(tabId: number, selector: string, value: string): Promise<void>;
   click(tabId: number, selector: string): Promise<void>;
   /** 완료/취소/타임아웃/비번UI 등장을 관찰해 결과로 반환(대기는 브리지가 소유). */
@@ -98,7 +99,9 @@ class DomCheckoutDriver implements CheckoutDriver {
     const amount = parseWon(await this.bridge.readText(tabId, s.amount));
     const merchant = (await this.bridge.readText(tabId, s.merchant)) ?? this.cfg.merchantName;
     const itemsKey = ((await this.bridge.readText(tabId, s.items)) ?? "").trim();
-    return { amount, merchantName: merchant.trim(), itemsKey };
+    const origin = await this.bridge.origin(tabId);
+    // 페이지 문자열은 길이 상한으로 방어(로그·API 유출 최소화, coding-guide §4).
+    return { amount, merchantName: cap(merchant.trim(), 80), origin, itemsKey: cap(itemsKey, 200) };
   }
 
   async startPayment(tabId: number, ctx: { identity?: Identity }): Promise<void> {
@@ -136,4 +139,9 @@ export function parseWon(text: string | null): number {
   if (!text) return Number.NaN;
   const digits = text.replace(/[^\d]/g, "");
   return digits === "" ? Number.NaN : Number.parseInt(digits, 10);
+}
+
+/** 페이지 유래 문자열 길이 상한(로그·API 유출 표면 축소). */
+function cap(s: string, max: number): string {
+  return s.length > max ? s.slice(0, max) : s;
 }

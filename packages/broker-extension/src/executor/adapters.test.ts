@@ -12,6 +12,7 @@ function fakeBridge(over: Partial<PageBridge> = {}): PageBridge {
         if (sel.includes("items")) return "usb-hub x1";
         return null;
       }),
+    origin: over.origin ?? vi.fn(async () => "https://coupang.com"),
     fill: over.fill ?? vi.fn(async () => {}),
     click: over.click ?? vi.fn(async () => {}),
     waitForOutcome:

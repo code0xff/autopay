@@ -6,15 +6,25 @@
   "scripts": {
     "typecheck": "tsc --noEmit",
     "test": "vitest run",
-    "test:coverage": "vitest run --coverage"
+    "test:coverage": "vitest run --coverage",
+    "dev": "wxt",
+    "build": "wxt build",
+    "postinstall": "wxt prepare"
   },
   "dependencies": {
     "@autopay/shared": "workspace:*",
+    "react": "19.2.8",
+    "react-dom": "19.2.8",
     "zod": "3.25.76"
   },
   "devDependencies": {
+    "@types/chrome": "0.2.8",
+    "@types/react": "19.2.18",
+    "@types/react-dom": "19.2.5",
+    "@vitejs/plugin-react": "4.3.4",
     "@vitest/coverage-v8": "2.1.9",
     "typescript": "5.9.3",
-    "vitest": "2.1.9"
+    "vitest": "2.1.9",
+    "wxt": "0.19.29"
   }
 }

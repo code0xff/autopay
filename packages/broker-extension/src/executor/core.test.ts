@@ -2,7 +2,12 @@ import { describe, expect, it, vi } from "vitest";
 import { SimplePayCore } from "./core.js";
 import type { CheckoutDriver, CheckoutView, CompletionResult } from "./types.js";
 
-const view: CheckoutView = { amount: 23_500, merchantName: "쿠팡", itemsKey: "usb-hub#1" };
+const view: CheckoutView = {
+  amount: 23_500,
+  merchantName: "쿠팡",
+  origin: "https://coupang.com",
+  itemsKey: "usb-hub#1",
+};
 
 function fakeDriver(
   over: Partial<CheckoutDriver> & { views?: CheckoutView[] } = {},
@@ -38,12 +43,17 @@ describe("SimplePayCore", () => {
   });
 
   it("C. TOCTOU: 승인 후 대상 변경 → 재검증 불일치 → canceled(결제 안 함)", async () => {
-    const changed: CheckoutView = { amount: 250_000, merchantName: "쿠팡", itemsKey: "tv#1" };
+    const changed: CheckoutView = {
+      amount: 250_000,
+      merchantName: "쿠팡",
+      origin: "https://coupang.com",
+      itemsKey: "tv#1",
+    };
     const start = vi.fn(async () => {});
     const core = new SimplePayCore(fakeDriver({ views: [view, changed], startPayment: start }));
     const { snapshot } = await core.verify(1); // view 기준 승인
     const out = await core.pay({ tabId: 1, timeoutMs: 1000, approvedSnapshot: snapshot });
-    expect(out).toEqual({ status: "canceled" });
+    expect(out).toEqual({ status: "canceled", reason: "content_changed" });
     expect(start).not.toHaveBeenCalled(); // 결제 시작 자체를 안 함
   });
 

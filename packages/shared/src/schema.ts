@@ -161,7 +161,7 @@ export const PaymentResult = z.discriminatedUnion("status", [
   z.object({ status: z.literal("pending_user_confirmation") }),
   z.object({
     status: z.literal("canceled"),
-    reason: z.enum(["user_declined", "phone_declined", "confirm_timeout"]),
+    reason: z.enum(["user_declined", "phone_declined", "confirm_timeout", "content_changed"]),
   }),
   z.object({ status: z.literal("failed"), error: z.string() }), // timeout 포함
 ]);

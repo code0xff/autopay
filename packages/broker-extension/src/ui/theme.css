@@ -1,0 +1,283 @@
+/* AutoPay UI — shadcn/ui neutral, 각진 4px, Geist (docs/spec/ui.md, docs/design/ui-mockup.html) */
+:root {
+  --background: 0 0% 100%;
+  --foreground: 0 0% 3.9%;
+  --card: 0 0% 100%;
+  --muted: 0 0% 96.1%;
+  --muted-foreground: 0 0% 44%;
+  --border: 0 0% 88%;
+  --input: 0 0% 86%;
+  --primary: 0 0% 9%;
+  --primary-foreground: 0 0% 98%;
+  --secondary: 0 0% 95%;
+  --accent: 0 0% 94%;
+  --ring: 0 0% 55%;
+  --destructive: 0 72% 48%;
+  --success: 142 66% 34%;
+  --success-bg: 143 55% 94%;
+  --warning: 33 92% 40%;
+  --warning-bg: 40 90% 93%;
+  --info: 214 82% 45%;
+  --info-bg: 214 90% 95%;
+  --radius: 4px;
+  color-scheme: light;
+}
+@media (prefers-color-scheme: dark) {
+  :root:not([data-theme="light"]) {
+    --background: 0 0% 7%;
+    --foreground: 0 0% 96%;
+    --card: 0 0% 9.5%;
+    --muted: 0 0% 15%;
+    --muted-foreground: 0 0% 61%;
+    --border: 0 0% 18%;
+    --input: 0 0% 22%;
+    --primary: 0 0% 96%;
+    --primary-foreground: 0 0% 9%;
+    --secondary: 0 0% 16%;
+    --accent: 0 0% 18%;
+    --ring: 0 0% 46%;
+    --destructive: 0 62% 50%;
+    --success: 142 52% 55%;
+    --success-bg: 143 42% 13%;
+    --warning: 38 90% 60%;
+    --warning-bg: 38 55% 13%;
+    --info: 214 85% 66%;
+    --info-bg: 214 52% 15%;
+    color-scheme: dark;
+  }
+}
+:root[data-theme="dark"] {
+  --background: 0 0% 7%;
+  --foreground: 0 0% 96%;
+  --card: 0 0% 9.5%;
+  --muted: 0 0% 15%;
+  --muted-foreground: 0 0% 61%;
+  --border: 0 0% 18%;
+  --input: 0 0% 22%;
+  --primary: 0 0% 96%;
+  --primary-foreground: 0 0% 9%;
+  --secondary: 0 0% 16%;
+  --accent: 0 0% 18%;
+  --ring: 0 0% 46%;
+  --destructive: 0 62% 50%;
+  --success: 142 52% 55%;
+  --success-bg: 143 42% 13%;
+  --warning: 38 90% 60%;
+  --warning-bg: 38 55% 13%;
+  --info: 214 85% 66%;
+  --info-bg: 214 52% 15%;
+  color-scheme: dark;
+}
+
+* {
+  box-sizing: border-box;
+}
+body {
+  margin: 0;
+  background: hsl(var(--background));
+  color: hsl(var(--foreground));
+  font-family: "Geist", system-ui, -apple-system, sans-serif;
+  line-height: 1.5;
+  -webkit-font-smoothing: antialiased;
+}
+.mono {
+  font-family: "Geist Mono", ui-monospace, monospace;
+  font-variant-numeric: tabular-nums;
+}
+.head {
+  display: flex;
+  align-items: center;
+  gap: 9px;
+  padding: 12px 14px;
+  border-bottom: 1px solid hsl(var(--border));
+}
+.logo {
+  width: 25px;
+  height: 25px;
+  border-radius: 4px;
+  background: hsl(var(--primary));
+  color: hsl(var(--primary-foreground));
+  display: grid;
+  place-items: center;
+  font-weight: 700;
+}
+.brand {
+  font-weight: 600;
+  letter-spacing: -.01em;
+}
+.spacer {
+  flex: 1;
+}
+.tabs {
+  display: flex;
+  gap: 4px;
+  padding: 8px 12px 0;
+  border-bottom: 1px solid hsl(var(--border));
+}
+.tabs button {
+  font: inherit;
+  font-size: 13px;
+  font-weight: 500;
+  border: 0;
+  background: transparent;
+  color: hsl(var(--muted-foreground));
+  padding: 8px 10px;
+  cursor: pointer;
+  border-bottom: 2px solid transparent;
+  margin-bottom: -1px;
+}
+.tabs button[aria-selected="true"] {
+  color: hsl(var(--foreground));
+  border-bottom-color: hsl(var(--primary));
+}
+.body {
+  padding: 14px;
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
+}
+.card {
+  background: hsl(var(--card));
+  border: 1px solid hsl(var(--border));
+  border-radius: 4px;
+  padding: 14px;
+}
+.row {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+}
+.between {
+  justify-content: space-between;
+}
+.muted {
+  color: hsl(var(--muted-foreground));
+}
+.label {
+  font-size: 10.5px;
+  font-weight: 600;
+  letter-spacing: .05em;
+  text-transform: uppercase;
+  color: hsl(var(--muted-foreground));
+}
+.amount {
+  font-size: 26px;
+  font-weight: 700;
+  letter-spacing: -.02em;
+}
+.btn {
+  font: inherit;
+  font-size: 13px;
+  font-weight: 500;
+  border-radius: 4px;
+  padding: 9px 14px;
+  cursor: pointer;
+  border: 1px solid transparent;
+}
+.btn-primary {
+  background: hsl(var(--primary));
+  color: hsl(var(--primary-foreground));
+}
+.btn-outline {
+  background: hsl(var(--card));
+  color: hsl(var(--foreground));
+  border-color: hsl(var(--border));
+}
+.btn-block {
+  width: 100%;
+}
+.badge {
+  display: inline-flex;
+  align-items: center;
+  gap: 5px;
+  font-size: 11px;
+  font-weight: 500;
+  padding: 3px 8px;
+  border-radius: 3px;
+}
+.badge.ok {
+  background: hsl(var(--success-bg));
+  color: hsl(var(--success));
+}
+.badge.warn {
+  background: hsl(var(--warning-bg));
+  color: hsl(var(--warning));
+}
+.badge.info {
+  background: hsl(var(--info-bg));
+  color: hsl(var(--info));
+}
+.badge.danger {
+  background: hsl(var(--destructive) / 0.12);
+  color: hsl(var(--destructive));
+}
+.badge.solid {
+  background: hsl(var(--secondary));
+}
+.field {
+  display: flex;
+  flex-direction: column;
+  gap: 5px;
+  margin-bottom: 10px;
+}
+.field > span {
+  font-size: 12px;
+  font-weight: 500;
+}
+.input {
+  font: inherit;
+  font-size: 13px;
+  padding: 8px 11px;
+  background: hsl(var(--background));
+  color: hsl(var(--foreground));
+  border: 1px solid hsl(var(--input));
+  border-radius: 4px;
+  width: 100%;
+}
+.grid2 {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 10px;
+}
+.listrow {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 10px;
+  padding: 10px 0;
+  border-top: 1px solid hsl(var(--border));
+}
+.listrow:first-child {
+  border-top: 0;
+}
+.options {
+  max-width: 680px;
+  margin: 0 auto;
+  padding: 24px 20px 60px;
+}
+.icon-btn {
+  border: 1px solid hsl(var(--border));
+  background: hsl(var(--card));
+  color: hsl(var(--foreground));
+  border-radius: 4px;
+  padding: 6px 9px;
+  cursor: pointer;
+  font-size: 12px;
+}
+table {
+  width: 100%;
+  border-collapse: collapse;
+  font-size: 12px;
+}
+th,
+td {
+  text-align: left;
+  padding: 7px 6px;
+  border-bottom: 1px solid hsl(var(--border));
+}
+th {
+  color: hsl(var(--muted-foreground));
+  font-weight: 500;
+  font-size: 10.5px;
+  text-transform: uppercase;
+}

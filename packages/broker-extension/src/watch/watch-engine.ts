@@ -74,8 +74,20 @@ export class WatchEngine {
     });
   }
 
+  private readonly checking = new Set<string>(); // 동시 check 중복 트리거 방지
+
   /** 한 항목의 현재가·재고 확인 → 조건 평가 → 충족 시 트리거. */
   async check(id: string): Promise<void> {
+    if (this.checking.has(id)) return;
+    this.checking.add(id);
+    try {
+      await this.checkInner(id);
+    } finally {
+      this.checking.delete(id);
+    }
+  }
+
+  private async checkInner(id: string): Promise<void> {
     const list = await this.all();
     const watch = list.find((w) => w.id === id);
     if (!watch || watch.status === "paused" || watch.status === "purchased") return;
@@ -112,8 +124,10 @@ export class WatchEngine {
   }
 }
 
-/** 조건: 재고 있음(또는 buyOnRestock 무관) + 현재가 ≤ maxPrice + (무료배송 요구 시 충족). */
+/** 조건: 유효 가격 + 재고 있음 + 현재가 ≤ maxPrice + (무료배송 요구 시 충족).
+ *  가격이 NaN/음수/비유한이면 fail-closed(미충족) — 파싱 실패로 결제 유발 금지. */
 export function meetsCondition(watch: WatchSpec, o: Observed): boolean {
+  if (!Number.isFinite(o.price) || o.price < 0) return false;
   if (!o.inStock) return false; // 품절이면 미충족(재입고 대기)
   if (o.price > watch.maxPrice) return false;
   if (watch.freeShippingOnly && !o.freeShipping) return false;

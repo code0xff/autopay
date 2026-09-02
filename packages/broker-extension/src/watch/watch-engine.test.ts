@@ -95,6 +95,32 @@ describe("WatchEngine", () => {
     expect((await eng.list())[0]?.status).toBe("paused");
   });
 
+  it("8. 가격 파싱 실패(NaN)·음수 → fail-closed(미충족)", async () => {
+    const metNaN = vi.fn();
+    const engNaN = new WatchEngine(
+      new MemoryKv(),
+      reader({ price: Number.NaN, inStock: true, freeShipping: true }),
+      metNaN,
+      now,
+      idgen,
+    );
+    const wa = await engNaN.add(baseSpec);
+    await engNaN.check(wa.id);
+    expect(metNaN).not.toHaveBeenCalled();
+
+    const metNeg = vi.fn();
+    const engNeg = new WatchEngine(
+      new MemoryKv(),
+      reader({ price: -1, inStock: true, freeShipping: true }),
+      metNeg,
+      now,
+      idgen,
+    );
+    const wb = await engNeg.add(baseSpec);
+    await engNeg.check(wb.id);
+    expect(metNeg).not.toHaveBeenCalled();
+  });
+
   it("7. add/list/remove", async () => {
     const eng = new WatchEngine(new MemoryKv(), reader(okObserved), vi.fn(), now, idgen);
     const w = await eng.add(baseSpec);

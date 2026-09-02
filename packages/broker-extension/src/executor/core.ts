@@ -26,6 +26,7 @@ export class SimplePayCore implements SimplePayAdapter {
     return {
       amount: view.amount,
       merchantName: view.merchantName,
+      origin: view.origin,
       snapshot: await snapshotOf(view),
     };
   }
@@ -35,7 +36,7 @@ export class SimplePayCore implements SimplePayAdapter {
     const current = await this.driver.readCheckout(input.tabId);
     const snapshot = await snapshotOf(current);
     if (snapshot !== input.approvedSnapshot) {
-      return { status: "canceled" }; // TOCTOU — 승인한 것 ≠ 결제되는 것
+      return { status: "canceled", reason: "content_changed" }; // TOCTOU
     }
 
     await this.driver.startPayment(input.tabId, { identity: input.identity });
@@ -43,13 +44,17 @@ export class SimplePayCore implements SimplePayAdapter {
     if (result.status === "approved") {
       return { status: "approved", orderId: result.orderId, amount: current.amount };
     }
+    if (result.status === "canceled") {
+      return { status: "canceled", reason: "user" };
+    }
     return result;
   }
 }
 
-/** 결제 대상 스냅샷 해시. 금액·가맹점·상품키를 정규화해 SHA-256. */
+/** 결제 대상 스냅샷 해시. 금액·가맹점·origin·상품키를 JSON 정규화(구분자 충돌
+ *  없음)해 SHA-256. origin을 포함해 탭 바꿔치기까지 스냅샷에 바인딩한다. */
 export async function snapshotOf(view: CheckoutView): Promise<string> {
-  const canonical = `${view.amount}|${view.merchantName}|${view.itemsKey}`;
+  const canonical = JSON.stringify([view.amount, view.merchantName, view.origin, view.itemsKey]);
   const digest = await crypto.subtle.digest("SHA-256", new TextEncoder().encode(canonical));
   return [...new Uint8Array(digest)].map((b) => b.toString(16).padStart(2, "0")).join("");
 }

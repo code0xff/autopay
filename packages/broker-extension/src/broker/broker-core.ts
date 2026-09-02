@@ -4,6 +4,7 @@ import type {
   PaymentPolicy,
   PaymentRequest,
   PaymentResult,
+  PolicyViolation,
 } from "@autopay/shared";
 import { PaymentRequest as PaymentRequestSchema } from "@autopay/shared";
 import type { AuditLog } from "../audit/audit-log.js";
@@ -17,6 +18,12 @@ import type { RefStore } from "../refstore/refstore.js";
 // 에이전트 노출 표면: requestPayment / getPaymentResult / getPolicySummary.
 // confirm 해소(resolveConfirmation)는 UI 전용 내부 인터페이스.
 // 감사에는 종단 결과 1건만 기록(pending confirm은 비종단이라 미기록).
+
+export interface PendingConfirmation {
+  requestId: string;
+  merchant: string;
+  amount: number;
+}
 
 export interface PolicySummary {
   remainingDailyBudget: number;
@@ -53,6 +60,7 @@ export class BrokerCore {
   private readonly now: () => Date;
   private readonly idgen: () => string;
   private readonly payTimeoutMs: number;
+  private readonly inFlight = new Set<string>(); // 같은 워커 내 중복 실행 방지
 
   constructor(private readonly deps: BrokerDeps) {
     this.now = deps.now ?? (() => new Date());
@@ -62,10 +70,23 @@ export class BrokerCore {
 
   async requestPayment(input: unknown): Promise<{ requestId: string }> {
     const requestId = this.idgen();
-    // 1. 경계 검증 — 스키마 실패면 신뢰 영역 진입 금지(fail-closed).
+    try {
+      return await this.doRequestPayment(requestId, input);
+    } catch {
+      // 어떤 예외든 종단 실패로 수렴(fail-closed, coding-guide §5).
+      await this.store(requestId, null, { status: "failed", error: "internal_error" });
+      return { requestId };
+    }
+  }
+
+  private async doRequestPayment(
+    requestId: string,
+    input: unknown,
+  ): Promise<{ requestId: string }> {
+    // 1. 경계 검증 — 스키마 실패면 신뢰 영역 진입 금지(fail-closed). 결제 시도가
+    //    아니므로 감사에 기록하지 않고 실패만 반환.
     const parsed = PaymentRequestSchema.safeParse(input);
     if (!parsed.success) {
-      await this.audit(requestId, null, { type: "allow" }, "failed");
       await this.store(requestId, null, { status: "failed", error: "invalid_request" });
       return { requestId };
     }
@@ -73,34 +94,43 @@ export class BrokerCore {
     const policy = await this.deps.getPolicy();
     const adapter = this.deps.adapterFor(req.method);
 
-    // 3. 실제 금액 독립 파싱 + 스냅샷 → 4. 사용량 스냅샷 → 5. 정책 판정
+    // 3. 실제 금액·origin 독립 파싱 + 스냅샷
     const verified = await adapter.verify(req.checkoutTabId);
-    const usage = await this.deps.audit.usageFor(this.now());
-    const decision = evaluate(req, policy, usage, verified.amount);
 
     const state: RequestState = {
       req,
       snapshot: verified.snapshot,
       verifiedAmount: verified.amount,
       merchantName: verified.merchantName,
-      decision,
+      decision: { type: "allow" },
       result: { status: "pending_user_confirmation" },
     };
 
+    // 2. origin 바인딩 — 실제 결제 탭 origin이 요청 머천트와 다르면 거절.
+    //    (탭 바꿔치기·엉뚱한 페이지 방어. AGENTS §2.6/§4)
+    if (!sameOrigin(verified.origin, req.merchant.origin)) {
+      state.decision = { type: "deny", violation: "merchant_not_allowed" };
+      return this.reject(requestId, state, policy, "merchant_not_allowed");
+    }
+
+    // 4. 사용량 스냅샷 → 5. 정책 판정
+    const usage = await this.deps.audit.usageFor(this.now());
+    let decision = evaluate(req, policy, usage, verified.amount);
+
+    // 패턴 C(외부 게이트 없음, 예: 쿠팡 원터치)는 allow라도 우리 확인을 강제한다
+    // (AGENTS §2.5). 정책 confirm/deny는 그대로 존중.
+    if (decision.type === "allow" && !adapter.hasExternalApproval) {
+      decision = { type: "confirm", reason: "always" };
+    }
+    state.decision = decision;
+
     if (decision.type === "deny") {
-      await this.audit(requestId, state, decision, "rejected");
-      await this.setResult(requestId, state, { status: "rejected", violation: decision.violation });
-      await this.emit(policy, {
-        kind: "rejected",
-        merchant: verified.merchantName,
-        amount: verified.amount,
-        violation: decision.violation,
-      });
-      return { requestId };
+      return this.reject(requestId, state, policy, decision.violation);
     }
 
     if (decision.type === "confirm") {
       await this.saveState(requestId, state); // pending — 감사 미기록(비종단)
+      await this.addPending(requestId, verified.merchantName, verified.amount);
       await this.emit(policy, {
         kind: "confirm_required",
         merchant: verified.merchantName,
@@ -115,10 +145,28 @@ export class BrokerCore {
     return { requestId };
   }
 
+  private async reject(
+    requestId: string,
+    state: RequestState,
+    policy: PaymentPolicy,
+    violation: PolicyViolation,
+  ): Promise<{ requestId: string }> {
+    await this.audit(requestId, state, state.decision, "rejected");
+    await this.setResult(requestId, state, { status: "rejected", violation });
+    await this.emit(policy, {
+      kind: "rejected",
+      merchant: state.merchantName,
+      amount: state.verifiedAmount,
+      violation,
+    });
+    return { requestId };
+  }
+
   /** UI [승인]/[거절] 또는 confirm 타임아웃으로 pending을 해소. */
   async resolveConfirmation(requestId: string, approved: boolean): Promise<void> {
     const state = await this.loadState(requestId);
     if (!state || state.result.status !== "pending_user_confirmation") return;
+    await this.removePending(requestId);
     if (!approved) {
       await this.audit(requestId, state, state.decision, "canceled");
       await this.setResult(requestId, state, { status: "canceled", reason: "user_declined" });
@@ -130,6 +178,21 @@ export class BrokerCore {
   async getPaymentResult(requestId: string): Promise<PaymentResult> {
     const state = await this.loadState(requestId);
     return state?.result ?? { status: "failed", error: "unknown_request" };
+  }
+
+  /** confirm 승인 대기 목록(UI 표시용). 비밀 없음 — 금액·가맹점·id만. */
+  async listPending(): Promise<PendingConfirmation[]> {
+    return (await this.deps.kv.get<PendingConfirmation[]>("pending")) ?? [];
+  }
+
+  private async addPending(requestId: string, merchant: string, amount: number): Promise<void> {
+    const list = await this.listPending();
+    list.push({ requestId, merchant, amount });
+    await this.deps.kv.set("pending", list);
+  }
+  private async removePending(requestId: string): Promise<void> {
+    const list = (await this.listPending()).filter((p) => p.requestId !== requestId);
+    await this.deps.kv.set("pending", list);
   }
 
   async getPolicySummary(): Promise<PolicySummary> {
@@ -146,88 +209,121 @@ export class BrokerCore {
 
   // ── 내부 ──────────────────────────────────
   private async execute(requestId: string): Promise<void> {
-    const state = await this.loadState(requestId);
-    if (!state) return;
-    const policy = await this.deps.getPolicy();
-    const adapter = this.deps.adapterFor(state.req.method);
+    // 동시/중복 실행 방지: in-flight 가드 + 종단 상태 가드(멱등).
+    if (this.inFlight.has(requestId)) return;
+    this.inFlight.add(requestId);
+    try {
+      const state = await this.loadState(requestId);
+      if (!state || state.result.status !== "pending_user_confirmation") return;
+      const policy = await this.deps.getPolicy();
+      const adapter = this.deps.adapterFor(state.req.method);
 
-    let identity: { phone: string; birth: string } | undefined;
-    if (adapter.hasExternalApproval) {
-      const id = await this.deps.refstore.getIdentity();
-      if (!id) {
-        await this.audit(requestId, state, state.decision, "failed");
-        await this.setResult(requestId, state, { status: "failed", error: "no_profile" });
+      let identity: { phone: string; birth: string } | undefined;
+      if (adapter.hasExternalApproval) {
+        let id: { phone: string; birth: string } | null = null;
+        try {
+          id = await this.deps.refstore.getIdentity();
+        } catch {
+          id = null; // 잠금/복호화 실패 → 프로필 없음과 동일 처리
+        }
+        if (!id) {
+          await this.fail(requestId, state, policy, "no_profile", "failed");
+          return;
+        }
+        identity = id;
+        await this.emit(policy, {
+          kind: "approve_on_phone",
+          merchant: state.merchantName,
+          amount: state.verifiedAmount,
+          method: state.req.method as "kakaopay" | "tosspay",
+        });
+      }
+
+      const outcome = await adapter.pay({
+        tabId: state.req.checkoutTabId,
+        identity,
+        timeoutMs: this.payTimeoutMs,
+        approvedSnapshot: state.snapshot,
+      });
+
+      if (outcome.status === "approved") {
+        await this.audit(requestId, state, state.decision, "approved", outcome.orderId);
+        await this.setResult(requestId, state, {
+          status: "approved",
+          receipt: {
+            amount: outcome.amount,
+            merchant: state.merchantName,
+            orderId: outcome.orderId,
+            at: this.now().toISOString(),
+          },
+        });
+        await this.emit(policy, {
+          kind: "completed",
+          merchant: state.merchantName,
+          amount: outcome.amount,
+          orderId: outcome.orderId,
+        });
+        return;
+      }
+
+      if (outcome.status === "canceled") {
+        const reason =
+          outcome.reason === "content_changed"
+            ? "content_changed"
+            : adapter.hasExternalApproval
+              ? "phone_declined"
+              : "user_declined";
+        await this.audit(requestId, state, state.decision, "canceled");
+        await this.setResult(requestId, state, { status: "canceled", reason });
         await this.emit(policy, {
           kind: "failed",
           merchant: state.merchantName,
           amount: state.verifiedAmount,
-          error: "no_profile",
+          error: reason,
         });
         return;
       }
-      identity = id;
-      await this.emit(policy, {
-        kind: "approve_on_phone",
-        merchant: state.merchantName,
-        amount: state.verifiedAmount,
-        method: state.req.method as "kakaopay" | "tosspay",
-      });
+
+      const isTimeout = outcome.status === "timeout";
+      await this.fail(
+        requestId,
+        state,
+        policy,
+        isTimeout ? "timeout" : outcome.error,
+        isTimeout ? "timeout" : "failed",
+      );
+    } catch {
+      // 결제 실행 중 예외 → 종단 실패로 수렴(미결제 상태로 안전 수렴).
+      const state = await this.loadState(requestId);
+      if (state && state.result.status === "pending_user_confirmation") {
+        await this.audit(requestId, state, state.decision, "failed");
+        await this.setResult(requestId, state, { status: "failed", error: "internal_error" });
+      }
+    } finally {
+      this.inFlight.delete(requestId);
     }
+  }
 
-    const outcome = await adapter.pay({
-      tabId: state.req.checkoutTabId,
-      identity,
-      timeoutMs: this.payTimeoutMs,
-      approvedSnapshot: state.snapshot,
-    });
-
-    if (outcome.status === "approved") {
-      await this.audit(requestId, state, state.decision, "approved", outcome.orderId);
-      await this.setResult(requestId, state, {
-        status: "approved",
-        receipt: {
-          amount: outcome.amount,
-          merchant: state.merchantName,
-          orderId: outcome.orderId,
-          at: this.now().toISOString(),
-        },
-      });
-      await this.emit(policy, {
-        kind: "completed",
-        merchant: state.merchantName,
-        amount: outcome.amount,
-        orderId: outcome.orderId,
-      });
-      return;
-    }
-
-    if (outcome.status === "canceled") {
-      await this.audit(requestId, state, state.decision, "canceled");
-      await this.setResult(requestId, state, { status: "canceled", reason: "phone_declined" });
-      await this.emit(policy, {
-        kind: "failed",
-        merchant: state.merchantName,
-        amount: state.verifiedAmount,
-        error: "canceled",
-      });
-      return;
-    }
-
-    const isTimeout = outcome.status === "timeout";
-    await this.audit(requestId, state, state.decision, isTimeout ? "timeout" : "failed");
-    await this.setResult(requestId, state, {
-      status: "failed",
-      error: isTimeout ? "timeout" : outcome.error,
-    });
+  private async fail(
+    requestId: string,
+    state: RequestState,
+    policy: PaymentPolicy,
+    error: string,
+    outcome: "failed" | "timeout",
+  ): Promise<void> {
+    await this.audit(requestId, state, state.decision, outcome);
+    await this.setResult(requestId, state, { status: "failed", error });
     await this.emit(policy, {
       kind: "failed",
       merchant: state.merchantName,
       amount: state.verifiedAmount,
-      error: isTimeout ? "timeout" : outcome.error,
+      error,
     });
   }
 
   private async emit(policy: PaymentPolicy, event: NotifyEvent): Promise<void> {
+    // 정책의 notifyOnRejection이 false면 거절 알림은 발송하지 않는다(spec/notify §3).
+    if (event.kind === "rejected" && !policy.notifications.notifyOnRejection) return;
     await this.deps.notify.notify(event, policy.notifications.channels);
   }
 
@@ -271,5 +367,14 @@ export class BrokerCore {
       outcome,
       ...(orderId ? { orderId } : {}),
     });
+  }
+}
+
+/** 두 URL의 origin이 같은지. 파싱 실패는 불일치(fail-closed). */
+function sameOrigin(a: string, b: string): boolean {
+  try {
+    return new URL(a).origin === new URL(b).origin;
+  } catch {
+    return false;
   }
 }
