@@ -91,7 +91,7 @@ confirmation: requireUserConfirmationAbove 30_000, alwaysConfirm false
 | 2 | amount 40,000 (>30k 임계) | `confirm(threshold)` |
 | 3 | alwaysConfirm=true, amount 10,000 | `confirm(always)` |
 | 4 | amount 60,000 (>perTx 50k) | `deny(over_per_transaction)` |
-| 5 | amount 50,000 (=perTx) | `allow` (경계 허용) |
+| 5 | amount 50,000 (=perTx) | `confirm(threshold)` — =perTx는 deny 아님(`>` 경계). 단 30k 임계도 초과하므로 confirm |
 | 6 | merchant.origin "https://evil.example" | `deny(merchant_not_allowed)` |
 | 7 | merchants.mode="any" + 위 evil origin | `allow` |
 | 8 | item category "gift" (allowlist 밖) | `deny(category_not_allowed)` |
@@ -106,3 +106,10 @@ confirmation: requireUserConfirmationAbove 30_000, alwaysConfirm false
 | 17 | verifiedAmount 20,000, totalAmount 20,000 | `allow` |
 | 18 | 다중 위반: evil origin + amount 60,000 | `deny(merchant_not_allowed)` (순서상 머천트 먼저) |
 | 19 | 다중 위반: amount_mismatch + over_per_tx | `deny(amount_mismatch)` (최우선) |
+| 20 | amount 30,000 (=임계) | `allow` (confirm은 `>` 경계) |
+| 21 | countToday 2 (=max-1) | `allow` (횟수 경계) |
+| 22 | spentThisMonth 280,000, amount 20,000 (=monthly) | `allow` (월 경계) |
+| 23 | denylist, item category 미지정 | `allow` (denylist는 미지정 통과) |
+| 24 | 다중 item 중 하나가 allowlist 밖 | `deny(category_not_allowed)` |
+| 25 | alwaysConfirm=true + over perTx | `deny(over_per_transaction)` (confirm이 deny를 못 덮음) |
+| 26 | 순수성: 입력 객체 불변 | evaluate가 request·policy·usage를 변형하지 않음 |

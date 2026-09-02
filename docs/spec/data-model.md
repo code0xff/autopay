@@ -25,6 +25,10 @@ export const Amount = z.number().int().nonnegative(); // 원 단위 정수
 export const PaymentMethod = z.enum(["kakaopay", "tosspay", "coupay"]);
 export type PaymentMethod = z.infer<typeof PaymentMethod>;
 
+// 오리진 URL: https, 자격증명·경로·쿼리·프래그먼트 없음 (비밀/PII 차단)
+export const OriginUrl = z.string().url().refine(/* https origin only */ () => true);
+// ※ 인바운드 객체는 모두 .strict() (미지 필드 거절, fail-closed). 아래 예시는 생략.
+
 export const LineItem = z.object({
   title: z.string().min(1),
   category: z.string().optional(),   // 정책 카테고리 매칭용
@@ -34,7 +38,7 @@ export const LineItem = z.object({
 
 // ── 결제 요청 (에이전트 → 브로커) ──────────────
 export const Merchant = z.object({
-  origin: z.string().url(),          // 쇼핑몰 origin (정책 머천트 매칭 키)
+  origin: OriginUrl,                 // 쇼핑몰 origin (정책 머천트 매칭 키)
   name: z.string().min(1),
 });
 
@@ -58,7 +62,7 @@ export const PaymentPolicy = z.object({
   }),
   merchants: z.object({
     mode: z.enum(["allowlist", "any"]),
-    origins: z.array(z.string().url()),
+    origins: z.array(OriginUrl),
   }),
   categories: z.object({
     mode: z.enum(["allowlist", "denylist"]),
@@ -136,7 +140,12 @@ export type AuditRecord = z.infer<typeof AuditRecord>;
 
 - 어떤 스키마에도 카드번호·CVV·결제 비밀번호·빌링키 원문 필드가 없다.
 - `Amount`는 항상 정수·음수 아님. 파싱 단계에서 강제.
-- `PaymentResult`/`Decision`/`AuditRecord`는 판별 유니온으로 상태 누락 불가.
+- `PaymentResult`/`Decision`은 판별 유니온으로 상태 누락 불가.
+- **인바운드 객체는 `.strict()`** — 미지의 필드(cardNumber/cvv/billingKey 등)를
+  조용히 버리지 않고 **거절**한다(fail-closed). `safeParse.success`만 확인해도
+  비밀 필드가 실린 페이로드는 통과하지 못한다.
+- **`origin`은 `OriginUrl`** — https 오리진만 허용(자격증명 `user:pass@`·경로·
+  쿼리·프래그먼트 불가). URL에 비밀/PII가 실려 정책·감사에 남는 것을 차단.
 
 ## 4. 수용 기준
 
@@ -153,3 +162,5 @@ export type AuditRecord = z.infer<typeof AuditRecord>;
 4. `merchant.origin: "not-a-url"` → 실패
 5. `items: []` → 실패(min 1)
 6. `Decision` 각 변형 라운드트립(parse→infer) 일치
+7. 미지의 필드(cardNumber/cvv) 포함 → `.strict()`로 실패(조용히 버리지 않음)
+8. `origin`에 자격증명(`user:pass@`)·경로/쿼리·비-https → 실패; 순수 오리진 → 성공
