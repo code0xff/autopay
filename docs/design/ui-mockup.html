@@ -1,0 +1,432 @@
+<title>AutoPay Console</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Geist:wght@400;500;600;700&family=Geist+Mono:wght@400;500&display=swap">
+<style>
+  /* ── shadcn/ui · neutral 토큰 ─────────────────────────────────── */
+  :root {
+    --background: 0 0% 100%;
+    --foreground: 0 0% 3.9%;
+    --card: 0 0% 100%;
+    --muted: 0 0% 96.1%;
+    --muted-foreground: 0 0% 44%;
+    --border: 0 0% 88%;
+    --input: 0 0% 86%;
+    --primary: 0 0% 9%;
+    --primary-foreground: 0 0% 98%;
+    --secondary: 0 0% 95%;
+    --secondary-foreground: 0 0% 12%;
+    --accent: 0 0% 94%;
+    --ring: 0 0% 55%;
+    --destructive: 0 72% 48%;
+    --success: 142 66% 34%;
+    --success-bg: 143 55% 94%;
+    --warning: 33 92% 40%;
+    --warning-bg: 40 90% 93%;
+    --info: 214 82% 45%;
+    --info-bg: 214 90% 95%;
+    --canvas: 0 0% 92%;
+    --radius: 4px;
+    --shadow: 0 1px 1px hsl(0 0% 0% / .04), 0 12px 32px -14px hsl(0 0% 0% / .18);
+    color-scheme: light;
+  }
+  @media (prefers-color-scheme: dark) {
+    :root:not([data-theme="light"]) {
+      --background: 0 0% 7%; --foreground: 0 0% 96%; --card: 0 0% 9.5%;
+      --muted: 0 0% 15%; --muted-foreground: 0 0% 61%; --border: 0 0% 18%;
+      --input: 0 0% 22%; --primary: 0 0% 96%; --primary-foreground: 0 0% 9%;
+      --secondary: 0 0% 16%; --secondary-foreground: 0 0% 96%; --accent: 0 0% 18%;
+      --ring: 0 0% 46%; --destructive: 0 62% 50%;
+      --success: 142 52% 55%; --success-bg: 143 42% 13%;
+      --warning: 38 90% 60%; --warning-bg: 38 55% 13%;
+      --info: 214 85% 66%; --info-bg: 214 52% 15%;
+      --canvas: 0 0% 3%;
+      --shadow: 0 1px 1px hsl(0 0% 0% / .5), 0 16px 40px -16px hsl(0 0% 0% / .7);
+      color-scheme: dark;
+    }
+  }
+  :root[data-theme="dark"] {
+    --background: 0 0% 7%; --foreground: 0 0% 96%; --card: 0 0% 9.5%;
+    --muted: 0 0% 15%; --muted-foreground: 0 0% 61%; --border: 0 0% 18%;
+    --input: 0 0% 22%; --primary: 0 0% 96%; --primary-foreground: 0 0% 9%;
+    --secondary: 0 0% 16%; --secondary-foreground: 0 0% 96%; --accent: 0 0% 18%;
+    --ring: 0 0% 46%; --destructive: 0 62% 50%;
+    --success: 142 52% 55%; --success-bg: 143 42% 13%;
+    --warning: 38 90% 60%; --warning-bg: 38 55% 13%;
+    --info: 214 85% 66%; --info-bg: 214 52% 15%;
+    --canvas: 0 0% 3%;
+    --shadow: 0 1px 1px hsl(0 0% 0% / .5), 0 16px 40px -16px hsl(0 0% 0% / .7);
+    color-scheme: dark;
+  }
+
+  * { box-sizing: border-box; }
+  body {
+    margin: 0; background: hsl(var(--canvas)); color: hsl(var(--foreground));
+    font-family: "Geist", system-ui, -apple-system, sans-serif;
+    -webkit-font-smoothing: antialiased; line-height: 1.5;
+  }
+  .mono { font-family: "Geist Mono", ui-monospace, monospace; font-variant-numeric: tabular-nums; }
+
+  /* ── preview control bar ─────────────────────────────────────── */
+  .demobar { display: flex; align-items: center; gap: 14px; padding: 12px 20px; }
+  .demobar .who { font-size: 12px; color: hsl(var(--muted-foreground)); letter-spacing: .02em; }
+  .demobar .who b { color: hsl(var(--foreground)); font-weight: 600; }
+  .spacer { flex: 1; }
+  .seg { display: inline-flex; gap: 2px; padding: 3px; background: hsl(var(--muted)); border-radius: 5px; border: 1px solid hsl(var(--border)); }
+  .seg button { font: inherit; font-size: 12.5px; font-weight: 500; border: 0; background: transparent; color: hsl(var(--muted-foreground)); padding: 6px 13px; border-radius: 3px; cursor: pointer; }
+  .seg button[aria-selected="true"] { background: hsl(var(--card)); color: hsl(var(--foreground)); box-shadow: 0 1px 1px hsl(0 0% 0% / .12); }
+
+  /* ── browser window ──────────────────────────────────────────── */
+  .window { max-width: 1120px; margin: 0 auto 40px; background: hsl(var(--card)); border: 1px solid hsl(var(--border)); border-radius: 8px; box-shadow: var(--shadow); overflow: hidden; }
+  .chrome { display: flex; align-items: center; gap: 12px; padding: 10px 14px; background: hsl(var(--muted)); border-bottom: 1px solid hsl(var(--border)); }
+  .lights { display: flex; gap: 7px; }
+  .lights i { width: 11px; height: 11px; border-radius: 999px; background: hsl(var(--border)); display: block; }
+  .tab { font-size: 12px; padding: 6px 12px; background: hsl(var(--card)); border: 1px solid hsl(var(--border)); border-bottom: 0; border-radius: 5px 5px 0 0; color: hsl(var(--foreground)); display: flex; align-items: center; gap: 7px; margin-bottom: -11px; }
+  .urlbar { flex: 1; font-size: 12px; color: hsl(var(--muted-foreground)); background: hsl(var(--card)); border: 1px solid hsl(var(--border)); border-radius: 4px; padding: 6px 12px; }
+  .ext-icon { width: 26px; height: 26px; border-radius: 4px; display: grid; place-items: center; font-weight: 700; font-size: 13px; background: hsl(var(--primary)); color: hsl(var(--primary-foreground)); position: relative; }
+  .ext-icon::after { content: "1"; position: absolute; top: -5px; right: -5px; font-size: 9px; font-weight: 600; background: hsl(var(--info)); color: #fff; border-radius: 999px; min-width: 14px; height: 14px; display: grid; place-items: center; padding: 0 3px; }
+
+  .viewport { display: flex; height: 640px; }
+  .page { flex: 1; overflow-y: auto; background: hsl(var(--background)); position: relative; }
+  .sidepanel { width: 396px; flex: none; border-left: 1px solid hsl(var(--border)); background: hsl(var(--background)); display: flex; flex-direction: column; }
+
+  /* ── shopping page (left) ────────────────────────────────────── */
+  .shop { padding: 22px 26px; max-width: 620px; }
+  .crumb { font-size: 12px; color: hsl(var(--muted-foreground)); margin-bottom: 16px; }
+  .shop-grid { display: grid; grid-template-columns: 220px 1fr; gap: 22px; }
+  .thumb { aspect-ratio: 1; background: repeating-linear-gradient(45deg, hsl(var(--muted)), hsl(var(--muted)) 12px, hsl(var(--secondary)) 12px, hsl(var(--secondary)) 24px); border: 1px solid hsl(var(--border)); border-radius: 4px; display: grid; place-items: center; color: hsl(var(--muted-foreground)); font-size: 12px; }
+  .shop h2 { margin: 0 0 6px; font-size: 18px; letter-spacing: -.01em; }
+  .stars { color: hsl(var(--warning)); font-size: 12px; margin-bottom: 14px; }
+  .price-now { font-size: 26px; font-weight: 700; letter-spacing: -.02em; }
+  .price-old { color: hsl(var(--muted-foreground)); text-decoration: line-through; font-size: 13px; margin-left: 8px; }
+  .buy-row { display: flex; gap: 8px; margin-top: 16px; position: relative; }
+  .agent-tag { position: absolute; top: -34px; left: 0; font-size: 11px; font-weight: 500; background: hsl(var(--info-bg)); color: hsl(var(--info)); border: 1px solid hsl(var(--info) / .3); border-radius: 4px; padding: 4px 9px; display: flex; align-items: center; gap: 6px; white-space: nowrap; }
+  .agent-tag::after { content: ""; position: absolute; bottom: -5px; left: 24px; width: 9px; height: 9px; background: hsl(var(--info-bg)); border-right: 1px solid hsl(var(--info) / .3); border-bottom: 1px solid hsl(var(--info) / .3); transform: rotate(45deg); }
+  .ring { outline: 2px solid hsl(var(--info)); outline-offset: 2px; }
+
+  /* ── primitives ──────────────────────────────────────────────── */
+  .btn { font: inherit; font-size: 13px; font-weight: 500; border-radius: 4px; padding: 9px 15px; cursor: pointer; border: 1px solid transparent; }
+  .btn-primary { background: hsl(var(--primary)); color: hsl(var(--primary-foreground)); }
+  .btn-outline { background: hsl(var(--card)); color: hsl(var(--foreground)); border-color: hsl(var(--border)); }
+  .btn-outline:hover { background: hsl(var(--accent)); }
+  .btn-block { width: 100%; }
+  .btn-sm { padding: 7px 12px; font-size: 12.5px; }
+
+  .badge { display: inline-flex; align-items: center; gap: 5px; font-size: 11px; font-weight: 500; padding: 3px 8px; border-radius: 3px; border: 1px solid hsl(var(--border)); white-space: nowrap; }
+  .badge.solid { background: hsl(var(--secondary)); color: hsl(var(--secondary-foreground)); border-color: transparent; }
+  .badge.ok { background: hsl(var(--success-bg)); color: hsl(var(--success)); border-color: transparent; }
+  .badge.warn { background: hsl(var(--warning-bg)); color: hsl(var(--warning)); border-color: transparent; }
+  .badge.info { background: hsl(var(--info-bg)); color: hsl(var(--info)); border-color: transparent; }
+  .badge.danger { background: hsl(var(--destructive) / .12); color: hsl(var(--destructive)); border-color: transparent; }
+  .dot { width: 6px; height: 6px; border-radius: 999px; background: currentColor; }
+  .label { font-size: 10.5px; font-weight: 600; letter-spacing: .05em; text-transform: uppercase; color: hsl(var(--muted-foreground)); }
+  .muted { color: hsl(var(--muted-foreground)); }
+  .row { display: flex; align-items: center; gap: 10px; }
+  .between { justify-content: space-between; }
+
+  .icon-btn { width: 30px; height: 30px; flex: none; display: grid; place-items: center; border: 1px solid hsl(var(--border)); background: hsl(var(--card)); color: hsl(var(--foreground)); border-radius: 4px; cursor: pointer; }
+  .icon-btn:hover { background: hsl(var(--accent)); }
+  .icon-btn svg { width: 15px; height: 15px; }
+  .js-theme .moon { display: none; } .js-theme .sun { display: block; }
+  :root[data-theme="dark"] .js-theme .sun { display: none; }
+  :root[data-theme="dark"] .js-theme .moon { display: block; }
+  @media (prefers-color-scheme: dark) { :root:not([data-theme="light"]) .js-theme .sun { display: none; } :root:not([data-theme="light"]) .js-theme .moon { display: block; } }
+
+  .card { background: hsl(var(--card)); border: 1px solid hsl(var(--border)); border-radius: 4px; }
+  .switch { width: 38px; height: 22px; border-radius: 999px; background: hsl(var(--input)); position: relative; flex: none; cursor: pointer; border: 0; padding: 0; transition: background .15s; }
+  .switch::after { content: ""; position: absolute; top: 2.5px; left: 2.5px; width: 17px; height: 17px; border-radius: 999px; background: #fff; box-shadow: 0 1px 2px hsl(0 0% 0% / .3); transition: transform .15s; }
+  .switch[aria-checked="true"] { background: hsl(var(--primary)); }
+  .switch[aria-checked="true"]::after { transform: translateX(16px); }
+  .input { font: inherit; font-size: 13px; padding: 8px 11px; background: hsl(var(--background)); color: hsl(var(--foreground)); border: 1px solid hsl(var(--input)); border-radius: 4px; width: 100%; }
+  .affix { position: relative; } .affix .pre { position: absolute; left: 11px; top: 50%; transform: translateY(-50%); color: hsl(var(--muted-foreground)); font-size: 13px; } .affix .input { padding-left: 24px; }
+  .field { display: flex; flex-direction: column; gap: 5px; } .field > span { font-size: 12px; font-weight: 500; }
+  [hidden] { display: none !important; }
+
+  /* ── side panel internals ────────────────────────────────────── */
+  .sp-head { display: flex; align-items: center; gap: 9px; padding: 13px 15px; border-bottom: 1px solid hsl(var(--border)); }
+  .sp-logo { width: 25px; height: 25px; border-radius: 4px; background: hsl(var(--primary)); color: hsl(var(--primary-foreground)); display: grid; place-items: center; font-weight: 700; font-size: 13px; }
+  .sp-tabs { display: flex; padding: 8px 12px 0; gap: 4px; border-bottom: 1px solid hsl(var(--border)); }
+  .sp-tabs button { font: inherit; font-size: 12.5px; font-weight: 500; border: 0; background: transparent; color: hsl(var(--muted-foreground)); padding: 8px 10px; cursor: pointer; border-bottom: 2px solid transparent; margin-bottom: -1px; }
+  .sp-tabs button[aria-selected="true"] { color: hsl(var(--foreground)); border-bottom-color: hsl(var(--primary)); }
+  .sp-body { flex: 1; overflow-y: auto; padding: 14px; display: flex; flex-direction: column; gap: 12px; }
+
+  .status-line { display: flex; align-items: center; gap: 9px; font-size: 12.5px; padding: 10px 12px; background: hsl(var(--success-bg)); color: hsl(var(--success)); border-radius: 4px; font-weight: 500; }
+  .pulse { width: 7px; height: 7px; border-radius: 999px; background: currentColor; box-shadow: 0 0 0 0 currentColor; animation: pulse 1.8s infinite; }
+  @keyframes pulse { 0% { box-shadow: 0 0 0 0 hsl(var(--success)/.5);} 70%{ box-shadow:0 0 0 6px hsl(var(--success)/0);} 100%{box-shadow:0 0 0 0 hsl(var(--success)/0);} }
+
+  .amount { font-size: 30px; font-weight: 700; letter-spacing: -.02em; }
+  .check { display: flex; align-items: center; gap: 8px; font-size: 12.5px; padding: 2px 0; }
+  .check svg { width: 14px; height: 14px; color: hsl(var(--success)); flex: none; }
+  .actrow { display: flex; align-items: center; gap: 10px; padding: 10px 0; border-top: 1px solid hsl(var(--border)); font-size: 12.5px; }
+  .actrow:first-child { border-top: 0; }
+  .stack { display: flex; flex-direction: column; gap: 12px; }
+  .grid2 { display: grid; grid-template-columns: 1fr 1fr; gap: 10px; }
+  .listrow { display: flex; align-items: center; justify-content: space-between; gap: 10px; padding: 11px 0; border-top: 1px solid hsl(var(--border)); }
+  .listrow:first-child { border-top: 0; }
+  .note { font-size: 11.5px; color: hsl(var(--muted-foreground)); display: flex; gap: 6px; align-items: flex-start; }
+  .note svg { width: 13px; height: 13px; flex: none; margin-top: 2px; }
+
+  /* ── toast ───────────────────────────────────────────────────── */
+  .toast { position: absolute; right: 16px; bottom: 16px; width: 300px; background: hsl(var(--card)); border: 1px solid hsl(var(--border)); border-radius: 4px; box-shadow: var(--shadow); padding: 12px 14px; display: flex; gap: 10px; }
+  .toast .ic { width: 30px; height: 30px; border-radius: 4px; background: hsl(var(--success-bg)); color: hsl(var(--success)); display: grid; place-items: center; flex: none; } .toast .ic svg { width: 16px; height: 16px; }
+
+  /* ── options full tab ────────────────────────────────────────── */
+  .options { max-width: 720px; margin: 0 auto; padding: 30px 24px 60px; }
+  .options h1 { font-size: 20px; font-weight: 600; letter-spacing: -.02em; margin: 0 0 4px; }
+  .options .sub { color: hsl(var(--muted-foreground)); font-size: 13px; margin: 0 0 22px; }
+  .sect { margin-bottom: 14px; }
+  .sect-h { padding: 15px 16px; border-bottom: 1px solid hsl(var(--border)); }
+  .sect-h h3 { margin: 0; font-size: 13.5px; font-weight: 600; }
+  .sect-h p { margin: 3px 0 0; font-size: 12px; color: hsl(var(--muted-foreground)); }
+  .sect-b { padding: 16px; }
+  .chips { display: flex; flex-wrap: wrap; gap: 6px; }
+  .chip { display: inline-flex; align-items: center; gap: 6px; font-size: 12px; padding: 5px 9px; border-radius: 3px; background: hsl(var(--secondary)); }
+  .chip .x { color: hsl(var(--muted-foreground)); cursor: pointer; }
+  table { width: 100%; border-collapse: collapse; font-size: 12px; }
+  th { text-align: left; font-weight: 500; color: hsl(var(--muted-foreground)); padding: 8px 8px; border-bottom: 1px solid hsl(var(--border)); font-size: 10.5px; text-transform: uppercase; letter-spacing: .03em; }
+  td { padding: 10px 8px; border-bottom: 1px solid hsl(var(--border)); }
+  tr:last-child td { border-bottom: 0; }
+  @media (prefers-reduced-motion: reduce) { * { animation: none !important; transition: none !important; } }
+  @media (max-width: 900px) { .sidepanel { width: 340px; } }
+</style>
+
+<div class="demobar">
+  <div class="who">미리보기 · <b>AutoPay</b> Chrome 확장 실제 배치</div>
+  <div class="spacer"></div>
+  <div class="seg" role="tablist">
+    <button role="tab" aria-selected="true" data-view="browser">사이드패널 (실사용)</button>
+    <button role="tab" aria-selected="false" data-view="options">설정 (전체 탭)</button>
+  </div>
+</div>
+
+<!-- ══ 사이드패널 실사용 뷰 ═══════════════════════════════════════ -->
+<div class="window" id="view-browser">
+  <div class="chrome">
+    <div class="lights"><i></i><i></i><i></i></div>
+    <div class="tab">🛒 쿠팡 · USB-C 허브</div>
+    <div class="urlbar">🔒 coupang.com/products/usb-c-hub-7in1</div>
+    <div class="ext-icon js-theme" title="AutoPay">A</div>
+  </div>
+  <div class="viewport">
+    <!-- 왼쪽: 쇼핑몰 페이지 -->
+    <div class="page">
+      <div class="shop">
+        <div class="crumb">홈 › 노트북 액세서리 › USB 허브</div>
+        <div class="shop-grid">
+          <div class="thumb">상품 이미지</div>
+          <div>
+            <h2>USB-C 허브 7-in-1 (HDMI·PD100W)</h2>
+            <div class="stars">★★★★☆ <span class="muted">4.6 · 리뷰 2,310</span></div>
+            <div><span class="price-now mono">₩23,500</span><span class="price-old mono">₩31,000</span></div>
+            <div class="muted" style="font-size:12.5px; margin-top:8px;">무료배송 · 로켓배송 · 오늘 도착</div>
+            <div class="buy-row">
+              <span class="agent-tag"><span class="dot" style="background:hsl(var(--info));"></span> AutoPay가 지정가 조건 충족을 감지했습니다</span>
+              <button class="btn btn-outline">장바구니</button>
+              <button class="btn btn-primary ring">바로구매</button>
+            </div>
+          </div>
+        </div>
+      </div>
+    </div>
+
+    <!-- 오른쪽: 도킹된 사이드패널 -->
+    <div class="sidepanel">
+      <div class="sp-head">
+        <span class="sp-logo">A</span>
+        <div style="flex:1;"><div style="font-weight:600; font-size:13.5px; letter-spacing:-.01em;">AutoPay</div></div>
+        <span class="badge ok"><span class="pulse"></span>감시 중</span>
+        <button class="icon-btn js-theme" aria-label="테마 전환">
+          <svg class="sun" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"><circle cx="12" cy="12" r="4"/><path d="M12 2v2M12 20v2M4.9 4.9l1.4 1.4M17.7 17.7l1.4 1.4M2 12h2M20 12h2M4.9 19.1l1.4-1.4M17.7 6.3l1.4-1.4"/></svg>
+          <svg class="moon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M21 12.8A9 9 0 1 1 11.2 3a7 7 0 0 0 9.8 9.8z"/></svg>
+        </button>
+      </div>
+
+      <div class="sp-tabs" role="tablist">
+        <button role="tab" aria-selected="true" data-sp="activity">활동</button>
+        <button role="tab" aria-selected="false" data-sp="watch">감시 <span class="badge solid" style="padding:1px 6px; margin-left:4px;">2</span></button>
+      </div>
+
+      <!-- 활동 탭 -->
+      <div class="sp-body" id="sp-activity">
+        <div class="status-line"><span class="pulse"></span> 조건 충족 — 승인을 기다리는 중</div>
+
+        <div class="card" style="padding:15px;">
+          <div class="row between" style="margin-bottom:12px;">
+            <span class="label" style="margin:0;">결제 승인 요청</span>
+            <span class="badge warn"><span class="dot"></span>쿠페이 · 패턴 C</span>
+          </div>
+          <div style="font-weight:600; font-size:13.5px;">USB-C 허브 7-in-1</div>
+          <div class="muted" style="font-size:12px; margin-bottom:12px;">쿠팡 · 수량 1 · 무료배송</div>
+          <div class="amount mono">₩23,500</div>
+
+          <div style="background:hsl(var(--muted)); border-radius:4px; padding:11px 12px; margin:14px 0;">
+            <div class="label" style="margin-bottom:7px;">정책 검증</div>
+            <div class="check"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="3" stroke-linecap="round" stroke-linejoin="round"><path d="M20 6 9 17l-5-5"/></svg> 건당 한도 ₩50,000 이내</div>
+            <div class="check"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="3" stroke-linecap="round" stroke-linejoin="round"><path d="M20 6 9 17l-5-5"/></svg> 오늘 ₩21,100 / ₩100,000</div>
+            <div class="check"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="3" stroke-linecap="round" stroke-linejoin="round"><path d="M20 6 9 17l-5-5"/></svg> 지정가 ₩25,000 이하 충족</div>
+          </div>
+
+          <div class="row" style="gap:8px;">
+            <button class="btn btn-outline btn-block">거절</button>
+            <button class="btn btn-primary btn-block">승인하고 결제</button>
+          </div>
+          <div class="note" style="margin-top:11px;">
+            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"><circle cx="12" cy="12" r="10"/><path d="M12 16v-4M12 8h.01"/></svg>
+            쿠팡 원터치는 폰 승인이 없어, 이 확인이 유일한 게이트입니다.
+          </div>
+        </div>
+
+        <div class="card" style="padding:13px 15px;">
+          <div class="label" style="margin-bottom:4px;">최근 활동</div>
+          <div class="actrow"><span class="badge ok" style="padding:2px 7px;"><span class="dot"></span>완료</span><span style="flex:1;">키보드 · 쿠팡</span><span class="mono muted">₩28,900</span></div>
+          <div class="actrow"><span class="badge info" style="padding:2px 7px;"><span class="dot"></span>폰 승인</span><span style="flex:1;">도서 · 카카오페이</span><span class="mono muted">대기</span></div>
+          <div class="actrow"><span class="badge danger" style="padding:2px 7px;"><span class="dot"></span>거절</span><span style="flex:1;">일 한도 초과</span><span class="mono muted">₩61,000</span></div>
+        </div>
+      </div>
+
+      <!-- 감시 탭 -->
+      <div class="sp-body" id="sp-watch" hidden>
+        <div class="card" style="padding:14px;">
+          <div class="label" style="margin-bottom:10px;">새 감시</div>
+          <div class="stack">
+            <label class="field"><span>상품 URL 또는 이름</span><input class="input" value="LG 그램 노트북 스탠드"></label>
+            <div class="grid2">
+              <label class="field"><span>상한가</span><div class="affix"><span class="pre">₩</span><input class="input mono" value="30,000"></div></label>
+              <label class="field"><span>결제수단</span><select class="input"><option>쿠페이</option><option>카카오페이</option></select></label>
+            </div>
+            <div class="listrow"><span style="font-size:12.5px; font-weight:500;">무료배송일 때만</span><button class="switch" aria-checked="true"></button></div>
+            <button class="btn btn-primary btn-block btn-sm">감시 시작</button>
+          </div>
+        </div>
+
+        <div class="card" style="padding:13px 14px;">
+          <div style="font-weight:600; font-size:13px;">LG 그램 노트북 스탠드</div>
+          <div class="muted" style="font-size:11.5px; margin:2px 0 9px;">₩30,000 이하 · 무료배송 · 쿠페이</div>
+          <div class="row between"><span class="mono" style="font-size:12.5px;">현재가 <b>₩34,900</b></span><span class="badge warn"><span class="dot"></span>미충족</span></div>
+          <div style="height:5px; border-radius:2px; background:hsl(var(--muted)); margin-top:9px; overflow:hidden;"><div style="height:100%; width:70%; background:hsl(var(--warning));"></div></div>
+        </div>
+        <div class="card" style="padding:13px 14px;">
+          <div style="font-weight:600; font-size:13px;">USB-C 허브 7-in-1</div>
+          <div class="muted" style="font-size:11.5px; margin:2px 0 9px;">₩25,000 이하 · 쿠페이</div>
+          <div class="row between"><span class="mono" style="font-size:12.5px;">현재가 <b>₩23,500</b></span><span class="badge ok"><span class="dot"></span>충족 · 승인 대기</span></div>
+          <div style="height:5px; border-radius:2px; background:hsl(var(--muted)); margin-top:9px; overflow:hidden;"><div style="height:100%; width:100%; background:hsl(var(--success));"></div></div>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <div class="toast">
+    <div class="ic"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="3" stroke-linecap="round" stroke-linejoin="round"><path d="M20 6 9 17l-5-5"/></svg></div>
+    <div><div style="font-weight:600; font-size:12.5px;">결제 완료 · ₩28,900</div><div class="muted" style="font-size:11.5px;">쿠팡 · 주문 <span class="mono">#8842-1179</span></div></div>
+  </div>
+</div>
+
+<!-- ══ 설정 전체 탭 뷰 ════════════════════════════════════════════ -->
+<div class="window" id="view-options" hidden>
+  <div class="chrome">
+    <div class="lights"><i></i><i></i><i></i></div>
+    <div class="tab js-theme">⚙️ AutoPay 설정</div>
+    <div class="urlbar">chrome-extension://autopay/options.html</div>
+    <button class="icon-btn js-theme" aria-label="테마 전환" style="margin-left:auto;">
+      <svg class="sun" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"><circle cx="12" cy="12" r="4"/><path d="M12 2v2M12 20v2M4.9 4.9l1.4 1.4M17.7 17.7l1.4 1.4M2 12h2M20 12h2M4.9 19.1l1.4-1.4M17.7 6.3l1.4-1.4"/></svg>
+      <svg class="moon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M21 12.8A9 9 0 1 1 11.2 3a7 7 0 0 0 9.8 9.8z"/></svg>
+    </button>
+  </div>
+  <div style="background:hsl(var(--background)); height:640px; overflow-y:auto;">
+    <div class="options">
+      <h1>정책 · 설정</h1>
+      <p class="sub">에이전트가 지킬 규칙. 모든 결제는 이 정책을 통과해야만 실행됩니다. 기본값은 가장 제한적으로.</p>
+
+      <div class="card sect">
+        <div class="sect-h"><h3>결제 한도</h3><p>초과하면 자동 차단됩니다.</p></div>
+        <div class="sect-b grid2">
+          <label class="field"><span>건당 한도</span><div class="affix"><span class="pre">₩</span><input class="input mono" value="50,000"></div></label>
+          <label class="field"><span>일 누적 한도</span><div class="affix"><span class="pre">₩</span><input class="input mono" value="100,000"></div></label>
+          <label class="field"><span>월 누적 한도</span><div class="affix"><span class="pre">₩</span><input class="input mono" value="300,000"></div></label>
+          <label class="field"><span>일 결제 횟수</span><input class="input mono" value="3"></label>
+        </div>
+      </div>
+
+      <div class="card sect">
+        <div class="sect-h"><h3>결제 수단</h3><p>패턴은 승인 방식을 뜻합니다.</p></div>
+        <div class="sect-b">
+          <div class="listrow"><div class="row"><span style="font-weight:500; font-size:13px;">카카오페이</span><span class="badge">패턴 B · 폰 승인</span></div><button class="switch" aria-checked="true"></button></div>
+          <div class="listrow"><div class="row"><span style="font-weight:500; font-size:13px;">토스페이</span><span class="badge">패턴 B · 폰 승인</span></div><button class="switch" aria-checked="false"></button></div>
+          <div class="listrow"><div class="row"><span style="font-weight:500; font-size:13px;">쿠페이</span><span class="badge warn">패턴 C · 원터치</span></div><button class="switch" aria-checked="true"></button></div>
+        </div>
+      </div>
+
+      <div class="card sect">
+        <div class="sect-h"><h3>허용 범위</h3><p>지정한 쇼핑몰·카테고리에서만 구매합니다.</p></div>
+        <div class="sect-b stack">
+          <div class="field"><span>허용 쇼핑몰</span><div class="chips"><span class="chip">coupang.com <span class="x">✕</span></span><span class="chip">shop.example.com <span class="x">✕</span></span><span class="chip" style="background:transparent; border:1px dashed hsl(var(--border)); color:hsl(var(--muted-foreground));">+ 추가</span></div></div>
+          <div class="field"><span>허용 카테고리</span><div class="chips"><span class="chip">keyboard <span class="x">✕</span></span><span class="chip">mouse <span class="x">✕</span></span><span class="chip">books <span class="x">✕</span></span><span class="chip" style="background:transparent; border:1px dashed hsl(var(--border)); color:hsl(var(--muted-foreground));">+ 추가</span></div></div>
+        </div>
+      </div>
+
+      <div class="card sect">
+        <div class="sect-h"><h3>확인 규칙</h3><p>외부 게이트가 없는 결제(쿠팡 원터치)의 안전장치.</p></div>
+        <div class="sect-b stack">
+          <label class="field"><span>이 금액 초과 시 승인 요구</span><div class="affix"><span class="pre">₩</span><input class="input mono" value="30,000"></div></label>
+          <div class="listrow"><div><div style="font-weight:500; font-size:13px;">항상 확인</div><div class="muted" style="font-size:12px;">모든 결제에 승인을 요구합니다.</div></div><button class="switch" aria-checked="false"></button></div>
+        </div>
+      </div>
+
+      <div class="card sect">
+        <div class="sect-h"><h3>본인 식별 정보</h3><p>카카오·토스 결제창 자동 입력용. 암호화 저장, 로그에 남기지 않음.</p></div>
+        <div class="sect-b grid2">
+          <label class="field"><span>휴대폰 번호</span><input class="input mono" value="010-****-5678" readonly></label>
+          <label class="field"><span>생년월일</span><input class="input mono" value="19**-**-**" readonly></label>
+        </div>
+      </div>
+
+      <div class="card sect">
+        <div class="sect-h row between"><div><h3>최근 결제</h3><p>모든 시도가 감사 로그로 남습니다.</p></div><span class="badge solid">감사 로그</span></div>
+        <div style="padding:4px 8px 6px;">
+          <table>
+            <thead><tr><th>시각</th><th>가맹점</th><th>수단</th><th>금액</th><th>결과</th></tr></thead>
+            <tbody>
+              <tr><td class="mono muted">09-02 14:03</td><td>쿠팡</td><td>쿠페이</td><td class="mono">₩28,900</td><td><span class="badge ok"><span class="dot"></span>완료</span></td></tr>
+              <tr><td class="mono muted">09-01 20:11</td><td>shop.example</td><td>카카오</td><td class="mono">₩12,000</td><td><span class="badge ok"><span class="dot"></span>완료</span></td></tr>
+              <tr><td class="mono muted">09-01 09:47</td><td>쿠팡</td><td>쿠페이</td><td class="mono">₩61,000</td><td><span class="badge danger"><span class="dot"></span>거절</span></td></tr>
+            </tbody>
+          </table>
+        </div>
+      </div>
+    </div>
+  </div>
+</div>
+
+<script>
+  // 뷰 전환 (사이드패널 / 설정 탭)
+  const vtabs = document.querySelectorAll('.demobar .seg button');
+  vtabs.forEach(t => t.addEventListener('click', () => {
+    vtabs.forEach(x => x.setAttribute('aria-selected', String(x === t)));
+    const v = t.dataset.view;
+    document.getElementById('view-browser').hidden = (v !== 'browser');
+    document.getElementById('view-options').hidden = (v !== 'options');
+  }));
+
+  // 사이드패널 내부 탭
+  const sptabs = document.querySelectorAll('.sp-tabs button');
+  sptabs.forEach(t => t.addEventListener('click', () => {
+    sptabs.forEach(x => x.setAttribute('aria-selected', String(x === t)));
+    document.getElementById('sp-activity').hidden = (t.dataset.sp !== 'activity');
+    document.getElementById('sp-watch').hidden = (t.dataset.sp !== 'watch');
+  }));
+
+  // 스위치 데모
+  document.querySelectorAll('.switch').forEach(s => s.addEventListener('click', () =>
+    s.setAttribute('aria-checked', String(s.getAttribute('aria-checked') !== 'true'))));
+
+  // light/dark — system 기본, 선택 시 저장
+  const root = document.documentElement;
+  try { const v = localStorage.getItem('autopay-theme'); if (v) root.setAttribute('data-theme', v); } catch (e) {}
+  document.querySelectorAll('.js-theme').forEach(btn => btn.addEventListener('click', () => {
+    const dark = root.getAttribute('data-theme') === 'dark'
+      || (!root.getAttribute('data-theme') && matchMedia('(prefers-color-scheme: dark)').matches);
+    const next = dark ? 'light' : 'dark';
+    root.setAttribute('data-theme', next);
+    try { localStorage.setItem('autopay-theme', next); } catch (e) {}
+  }));
+</script>
