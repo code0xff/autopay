@@ -23,6 +23,7 @@
     "@types/react-dom": "19.2.5",
     "@vitejs/plugin-react": "4.3.4",
     "@vitest/coverage-v8": "2.1.9",
+    "linkedom": "0.18.13",
     "typescript": "5.9.3",
     "vitest": "2.1.9",
     "wxt": "0.19.29"

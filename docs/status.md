@@ -16,7 +16,12 @@
 | 브로커 익스텐션 (M1) | ✅ | WXT MV3, Side Panel+Options+background, `wxt build` 성공 |
 | Codex 리뷰 | ✅×3 | M0·M1코어·M1익스텐션, High/Medium 반영 |
 
-**테스트 총계**: 86 (shared 8 + broker-extension 78). typecheck·biome 클린.
+**테스트 총계**: 91 (shared 8 + broker-extension 83, 픽스처 E2E 4 포함). typecheck·biome 클린.
+
+**픽스처 E2E**: `src/executor/adapters.e2e.test.ts` — 모킹 결제창/완료 HTML(linkedom)에
+실제 어댑터를 돌려 verify→클릭/입력→완료 파싱까지 "실제 실행 직전"을 검증
+(쿠팡 정상·TOCTOU 취소·비번UI 실패·카카오 패턴 B). 라이브 셀렉터 확정 시 이
+픽스처만 실캡처로 교체.
 
 ## 남은 작업 (이 환경에서 런타임 검증 불가 — 라이브 연결 필요)
 
