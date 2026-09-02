@@ -23,6 +23,8 @@ export interface PendingConfirmation {
   requestId: string;
   merchant: string;
   amount: number;
+  method: PaymentMethod;
+  at: string; // ISO8601 — confirm 생성 시각(타임아웃 판정용)
 }
 
 export interface PolicySummary {
@@ -130,7 +132,7 @@ export class BrokerCore {
 
     if (decision.type === "confirm") {
       await this.saveState(requestId, state); // pending — 감사 미기록(비종단)
-      await this.addPending(requestId, verified.merchantName, verified.amount);
+      await this.addPending(requestId, verified.merchantName, verified.amount, req.method);
       await this.emit(policy, {
         kind: "confirm_required",
         merchant: verified.merchantName,
@@ -185,14 +187,33 @@ export class BrokerCore {
     return (await this.deps.kv.get<PendingConfirmation[]>("pending")) ?? [];
   }
 
-  private async addPending(requestId: string, merchant: string, amount: number): Promise<void> {
+  private async addPending(
+    requestId: string,
+    merchant: string,
+    amount: number,
+    method: PaymentMethod,
+  ): Promise<void> {
     const list = await this.listPending();
-    list.push({ requestId, merchant, amount });
+    list.push({ requestId, merchant, amount, method, at: this.now().toISOString() });
     await this.deps.kv.set("pending", list);
   }
   private async removePending(requestId: string): Promise<void> {
     const list = (await this.listPending()).filter((p) => p.requestId !== requestId);
     await this.deps.kv.set("pending", list);
+  }
+
+  /** confirm 타임아웃 스윕(spec/broker-api §2.2.1). ttl 초과 pending을
+   *  content 무관 취소(confirm_timeout)한다. 배경 알람에서 주기 호출. */
+  async expireStaleConfirmations(ttlMs: number): Promise<void> {
+    const nowMs = this.now().getTime();
+    for (const p of await this.listPending()) {
+      if (nowMs - new Date(p.at).getTime() < ttlMs) continue;
+      const state = await this.loadState(p.requestId);
+      await this.removePending(p.requestId);
+      if (!state || state.result.status !== "pending_user_confirmation") continue;
+      await this.audit(p.requestId, state, state.decision, "canceled");
+      await this.setResult(p.requestId, state, { status: "canceled", reason: "confirm_timeout" });
+    }
   }
 
   async getPolicySummary(): Promise<PolicySummary> {

@@ -13,7 +13,10 @@ const won = (n: number) => `₩${n.toLocaleString("ko-KR")}`;
 export function App() {
   const [state, setState] = useState<UiState | null>(null);
   const [tab, setTab] = useState<"activity" | "watch">("activity");
-  const refresh = () => getState().then(setState);
+  const refresh = () =>
+    getState()
+      .then(setState)
+      .catch(() => undefined);
   // biome-ignore lint/correctness/useExhaustiveDependencies: refresh는 안정적이며 마운트 시 1회 폴링 시작
   useEffect(() => {
     refresh();
@@ -79,11 +82,21 @@ function Activity({
       )}
       {state?.pending.map((p) => (
         <div className="card" key={p.requestId}>
-          <div className="label">결제 승인 요청</div>
-          <div className="row between" style={{ margin: "8px 0 12px" }}>
+          <div className="row between">
+            <span className="label">결제 승인 요청</span>
+            <span className={`badge ${p.method === "coupay" ? "warn" : "info"}`}>
+              {p.method === "coupay" ? "쿠페이 · 원터치" : p.method}
+            </span>
+          </div>
+          <div className="row between" style={{ margin: "8px 0 4px" }}>
             <span style={{ fontWeight: 600 }}>{p.merchant}</span>
             <span className="amount mono">{won(p.amount)}</span>
           </div>
+          {p.method === "coupay" && (
+            <div className="muted" style={{ fontSize: 11, marginBottom: 10 }}>
+              쿠팡 원터치는 폰 승인이 없어, 이 확인이 유일한 게이트입니다.
+            </div>
+          )}
           <div className="row" style={{ gap: 8 }}>
             <button
               type="button"
@@ -124,6 +137,7 @@ function Watch({ state, onChange }: { state: UiState | null; onChange: () => voi
   const [title, setTitle] = useState("");
   const [ref, setRef] = useState("");
   const [max, setMax] = useState("30000");
+  const [method, setMethod] = useState<"coupay" | "kakaopay" | "tosspay">("coupay");
 
   return (
     <div className="body">
@@ -148,6 +162,18 @@ function Watch({ state, onChange }: { state: UiState | null; onChange: () => voi
             inputMode="numeric"
           />
         </label>
+        <label className="field">
+          <span>결제수단</span>
+          <select
+            className="input"
+            value={method}
+            onChange={(e) => setMethod(e.target.value as "coupay" | "kakaopay" | "tosspay")}
+          >
+            <option value="coupay">쿠페이</option>
+            <option value="kakaopay">카카오페이</option>
+            <option value="tosspay">토스페이</option>
+          </select>
+        </label>
         <button
           type="button"
           className="btn btn-primary btn-block"
@@ -158,7 +184,7 @@ function Watch({ state, onChange }: { state: UiState | null; onChange: () => voi
               maxPrice: Number.parseInt(max.replace(/[^\d]/g, ""), 10) || 0,
               freeShippingOnly: true,
               buyOnRestock: false,
-              method: "coupay",
+              method,
             });
             setTitle("");
             setRef("");

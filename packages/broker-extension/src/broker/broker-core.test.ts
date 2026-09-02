@@ -241,6 +241,18 @@ describe("BrokerCore", () => {
     expect(await broker.listPending()).toHaveLength(0);
   });
 
+  it("14. confirm 타임아웃 → canceled(confirm_timeout), pending 제거", async () => {
+    const { broker } = setup({});
+    const { requestId } = await broker.requestPayment(validReq);
+    expect((await broker.getPaymentResult(requestId)).status).toBe("pending_user_confirmation");
+    await broker.expireStaleConfirmations(0); // ttl 0 → 즉시 만료
+    expect(await broker.getPaymentResult(requestId)).toEqual({
+      status: "canceled",
+      reason: "confirm_timeout",
+    });
+    expect(await broker.listPending()).toHaveLength(0);
+  });
+
   it("13. notifyOnRejection=false → 거절 알림 미발송", async () => {
     const { broker, chrome } = setup({
       policy: basePolicy({

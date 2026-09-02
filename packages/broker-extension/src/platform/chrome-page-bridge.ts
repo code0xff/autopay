@@ -58,10 +58,9 @@ export class ChromePageBridge implements PageBridge {
           if (c.passwordUiSel && document.querySelector(c.passwordUiSel))
             return { kind: "password" };
           const ok = document.querySelector(c.successSel);
-          if (ok) {
-            const orderId = document.querySelector(c.orderIdSel)?.textContent?.trim() ?? "";
-            return { kind: "success", orderId };
-          }
+          const orderId = document.querySelector(c.orderIdSel)?.textContent?.trim() ?? "";
+          // 완료 신호 + 주문번호가 모두 있어야 승인으로 인정(허위 완료 방지).
+          if (ok && orderId) return { kind: "success", orderId };
           return { kind: "pending" };
         },
       });

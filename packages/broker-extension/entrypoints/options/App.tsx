@@ -5,7 +5,10 @@ import { getState, setPolicy, setProfile, toggleTheme, unlock } from "../../src/
 
 export function App() {
   const [state, setState] = useState<UiState | null>(null);
-  const refresh = () => getState().then(setState);
+  const refresh = () =>
+    getState()
+      .then(setState)
+      .catch(() => undefined);
   // biome-ignore lint/correctness/useExhaustiveDependencies: refresh는 안정적이며 마운트 시 1회만 로드
   useEffect(() => {
     refresh();
@@ -182,6 +185,7 @@ function ProfileForm({
               <span>휴대폰</span>
               <input
                 className="input mono"
+                type="password"
                 value={phone}
                 onChange={(e) => setPhone(e.target.value)}
               />
@@ -190,6 +194,7 @@ function ProfileForm({
               <span>생년월일</span>
               <input
                 className="input mono"
+                type="password"
                 value={birth}
                 onChange={(e) => setBirth(e.target.value)}
               />

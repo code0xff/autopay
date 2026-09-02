@@ -26,6 +26,7 @@ const DEFAULT_POLICY: PaymentPolicy = {
 
 const POLICY_KEY = "policy";
 const SALT_KEY = "refstore:salt";
+const PROFILE_KEY = "refstore:profile"; // refstore 내부 키와 일치(패스프레이즈 검증용)
 
 export interface UiState {
   policy: PaymentPolicy;
@@ -86,7 +87,15 @@ export class Background {
   }
 
   /** UI RPC 처리. 반환값은 요청별 상이(직렬화 가능 객체). */
+  // RPC를 워커 내에서 직렬 처리(동시 read-modify-write 경쟁 완화).
+  private queue: Promise<unknown> = Promise.resolve();
   async handle(raw: unknown): Promise<unknown> {
+    const run = this.queue.then(() => this.dispatch(raw));
+    this.queue = run.catch(() => undefined);
+    return run;
+  }
+
+  private async dispatch(raw: unknown): Promise<unknown> {
     const parsed = RpcRequest.safeParse(raw);
     if (!parsed.success) return { ok: false, error: "invalid_request" };
     const req = parsed.data;
@@ -96,9 +105,21 @@ export class Background {
       case "setPolicy":
         await this.kv.set(POLICY_KEY, req.policy);
         return { ok: true };
-      case "unlock":
-        this.key = await deriveKey(req.passphrase, await this.salt());
+      case "unlock": {
+        const key = await deriveKey(req.passphrase, await this.salt());
+        // 기존 프로필이 있으면 복호화로 패스프레이즈를 검증(오입력 시 unlock 거부
+        // → 기존 PII 덮어쓰기 방지).
+        if ((await this.kv.get(PROFILE_KEY)) !== undefined) {
+          const probe = new WebCryptoRefStore(this.kv, async () => key);
+          try {
+            await probe.getIdentity();
+          } catch {
+            return { ok: false, error: "wrong_passphrase" };
+          }
+        }
+        this.key = key;
         return { ok: true };
+      }
       case "setProfile":
         await this.refstore.setProfile(req.identity);
         return { ok: true };

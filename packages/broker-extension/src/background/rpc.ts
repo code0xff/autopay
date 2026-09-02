@@ -20,17 +20,19 @@ export const WatchInput = z
   .strict();
 
 export const RpcRequest = z.discriminatedUnion("type", [
-  z.object({ type: z.literal("getState") }),
-  z.object({ type: z.literal("setPolicy"), policy: PaymentPolicy }),
-  z.object({ type: z.literal("unlock"), passphrase: z.string().min(1) }),
-  z.object({ type: z.literal("setProfile"), identity: IdentityInput }),
-  z.object({ type: z.literal("addWatch"), spec: WatchInput }),
-  z.object({ type: z.literal("removeWatch"), id: z.string() }),
-  z.object({ type: z.literal("pauseWatch"), id: z.string(), paused: z.boolean() }),
-  z.object({
-    type: z.literal("resolveConfirmation"),
-    requestId: z.string(),
-    approved: z.boolean(),
-  }),
+  z.object({ type: z.literal("getState") }).strict(),
+  z.object({ type: z.literal("setPolicy"), policy: PaymentPolicy }).strict(),
+  z.object({ type: z.literal("unlock"), passphrase: z.string().min(1) }).strict(),
+  z.object({ type: z.literal("setProfile"), identity: IdentityInput }).strict(),
+  z.object({ type: z.literal("addWatch"), spec: WatchInput }).strict(),
+  z.object({ type: z.literal("removeWatch"), id: z.string() }).strict(),
+  z.object({ type: z.literal("pauseWatch"), id: z.string(), paused: z.boolean() }).strict(),
+  z
+    .object({
+      type: z.literal("resolveConfirmation"),
+      requestId: z.string(),
+      approved: z.boolean(),
+    })
+    .strict(),
 ]);
 export type RpcRequest = z.infer<typeof RpcRequest>;

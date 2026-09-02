@@ -365,12 +365,18 @@ autopay/
   문서 품질 규칙·용어집 `docs/documentation-guide.md`. 모듈 착수 전 해당
   `docs/spec/<module>.md`를 먼저 작성한다(없으면 코드보다 스펙 우선).
 
-## 8. 마일스톤 (초안)
+## 8. 마일스톤
 
-1. **M0 — 스켈레톤**: 모노레포 셋업, shared 스키마, 정책 엔진 코어 + 테스트
-2. **M1 — 브로커 익스텐션**: Side Panel(활동·승인) + Options(정책 UI) +
-   chrome.notifications. shadcn neutral·각진 4px·Geist·light/dark (`docs/spec/ui.md`,
-   `docs/design/ui-mockup.html`). 원시 비밀 저장 없음(로그인/결제비밀 범위 밖)
+> 현재 상태: **M0·M1 완료(테스트·빌드 검증), Codex 리뷰 2회 반영.** M2(자율
+> 에이전트/MCP)·M3(실결제 어댑터 라이브 셀렉터)·M4(빌링키)는 브라우저·실결제
+> 사이트·LLM 런타임이 필요해 이 환경에서 런타임 검증 불가 — 코어·어댑터 로직은
+> 주입식으로 완성·테스트됨, 라이브 연결만 잔여. 상세는 `docs/status.md`.
+
+1. **M0 — 스켈레톤 ✅**: 모노레포 셋업, shared 스키마, 정책 엔진 코어 + 테스트
+2. **M1 — 브로커 익스텐션 ✅**: Side Panel(활동·승인·감시) + Options(정책·프로필·
+   감사) + chrome.notifications. WXT MV3, shadcn neutral·각진 4px·Geist·light/dark
+   (`docs/spec/ui.md`, `docs/design/ui-mockup.html`). chrome 어댑터·합성 루트·
+   감시 폴링 배선. `wxt build` 성공. 원시 비밀 저장 없음.
 3. **M2 — 에이전트 연동**: MVP는 **두뇌 내장(①)** + Broker API 도구
    인터페이스, 더미 결제 E2E(테스트 쇼핑몰). 격리 강화용 **MCP/스킬(③)** 은
    동일 인터페이스로 후속(목표), 브라우저-익스텐션 메시징도 후속
@@ -401,3 +407,9 @@ autopay/
 - [ ] 결제창 도메인 화이트리스트를 실결제 네트워크 캡처로 확정
       (docs/payment-flows.md의 미확정 도메인들)
 - [ ] Native Messaging Host 배포 방식 (설치 스크립트 vs 앱 번들)
+- [ ] 카테고리 스푸핑 — 정책 카테고리가 에이전트 제출 items에 의존. 실제
+      장바구니 상품/카테고리를 executor가 파싱해 대조하는 방안(사이트별) 필요
+- [ ] 교차 워커 원자성 — in-flight 가드는 단일 서비스워커 내에서만. MV3 워커
+      재기동/다중 컨텍스트에서 중복 결제·예산 경쟁 방지(스토리지 기반 락) 검토
+- [ ] MV3 서비스워커 수명 — in-memory 세션 키·in-flight가 워커 종료 시 소실.
+      재잠금 UX / 상태 복원 전략

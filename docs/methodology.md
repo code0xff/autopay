@@ -78,6 +78,7 @@
 |---|---|
 | `AGENTS.md` | 단일 진실(결정·원칙). 포지셔닝·신뢰모델·결제모델·정책스키마·마일스톤. `CLAUDE.md`는 이 파일의 심볼릭 링크 |
 | `docs/architecture.md` | 시스템 뷰 — 컴포넌트가 어떻게 맞물리나(런타임·데이터흐름·상태·배포) |
+| `docs/status.md` | 구현 상태 — 검증 완료 / 잔여 / 알려진 한계 |
 | `docs/payment-flows.md` | 국내 결제수단 조사 결과 + 패턴 B/C 실제 플로우(카카오/쿠팡/토스) |
 | `docs/stack.md` | 기술 스택 결정과 근거 |
 | `docs/methodology.md` | (이 문서) 개발 방법론·DoD·워크플로 |

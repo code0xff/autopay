@@ -3,7 +3,11 @@ import type { UiState } from "../background/compose.js";
 
 // UI → background RPC 헬퍼. background가 zod로 재검증한다(rpc.ts).
 async function rpc<T = { ok: boolean }>(msg: Record<string, unknown>): Promise<T> {
-  return (await chrome.runtime.sendMessage(msg)) as T;
+  const res = (await chrome.runtime.sendMessage(msg)) as T | { ok: false; error: string };
+  if (res && typeof res === "object" && "ok" in res && res.ok === false) {
+    throw new Error((res as { error?: string }).error ?? "rpc_error");
+  }
+  return res as T;
 }
 
 export const getState = () => rpc<UiState>({ type: "getState" });
