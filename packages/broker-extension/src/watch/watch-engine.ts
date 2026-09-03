@@ -70,6 +70,7 @@ export class WatchEngine {
 
   async pause(id: string, paused: boolean): Promise<void> {
     await this.update(id, (w) => {
+      if (w.status === "purchased") return; // 1회성 구매 완료는 되살리지 않음
       w.status = paused ? "paused" : "watching";
     });
   }
@@ -88,31 +89,38 @@ export class WatchEngine {
   }
 
   private async checkInner(id: string): Promise<void> {
-    const list = await this.all();
-    const watch = list.find((w) => w.id === id);
-    if (!watch || watch.status === "paused" || watch.status === "purchased") return;
+    const start = (await this.all()).find((w) => w.id === id);
+    if (!start || start.status === "paused" || start.status === "purchased") return;
 
-    const observed = await this.reader.read(watch.productRef);
-    watch.lastCheckedAt = this.now().toISOString();
-    watch.lastPrice = observed.price;
+    const observed = await this.reader.read(start.productRef);
+    const met = meetsCondition(start, observed);
+    const now = this.now().toISOString();
 
-    if (meetsCondition(watch, observed)) {
-      watch.status = "condition_met";
-      await this.save(list);
-      let purchased = false;
-      try {
-        purchased = await this.onConditionMet({ ...watch }, observed);
-      } catch {
-        purchased = false;
-      }
-      // 저장 상태 재로딩(트리거 중 다른 변경 가능성 최소화)
+    // 상태 쓰기는 항상 최신 목록에 대해 개별 항목만 갱신(실행 중 pause/remove가
+    // stale 목록에 덮어써지지 않게).
+    await this.update(id, (w) => {
+      w.lastCheckedAt = now;
+      w.lastPrice = observed.price;
+      if (met && w.status !== "purchased") w.status = "condition_met";
+    });
+    if (!met) {
       await this.update(id, (w) => {
-        w.status = purchased ? "purchased" : "watching";
+        if (w.status === "condition_met") w.status = "watching";
       });
-    } else {
-      watch.status = watch.status === "condition_met" ? "watching" : watch.status;
-      await this.save(list);
+      return;
     }
+
+    let purchased = false;
+    try {
+      purchased = await this.onConditionMet({ ...start }, observed);
+    } catch {
+      purchased = false;
+    }
+    await this.update(id, (w) => {
+      // 트리거 중 제거/일시정지됐다면 존중(재개하지 않음).
+      if (w.status === "paused" || w.status === "purchased") return;
+      w.status = purchased ? "purchased" : "watching";
+    });
   }
 
   private async update(id: string, mut: (w: WatchSpec) => void): Promise<void> {

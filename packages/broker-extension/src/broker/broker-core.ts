@@ -56,6 +56,7 @@ interface RequestState {
   merchantName: string;
   decision: Decision;
   result: PaymentResult;
+  executing?: boolean; // 영속 idempotency — 워커 재시작 후 중복 실행 방지
 }
 
 export class BrokerCore {
@@ -98,6 +99,12 @@ export class BrokerCore {
 
     // 3. 실제 금액·origin 독립 파싱 + 스냅샷
     const verified = await adapter.verify(req.checkoutTabId);
+
+    // 금액 파싱 실패(NaN/비유한) → 결제 시도 아님. audit에 NaN 유입 방지.
+    if (!Number.isFinite(verified.amount)) {
+      await this.store(requestId, null, { status: "failed", error: "amount_parse_failed" });
+      return { requestId };
+    }
 
     const state: RequestState = {
       req,
@@ -236,8 +243,31 @@ export class BrokerCore {
     try {
       const state = await this.loadState(requestId);
       if (!state || state.result.status !== "pending_user_confirmation") return;
+      // 영속 idempotency: 이미 실행 착수한 요청은 재실행하지 않음(워커 재시작 대비).
+      if (state.executing) return;
+      state.executing = true;
+      await this.saveState(requestId, state);
+
       const policy = await this.deps.getPolicy();
       const adapter = this.deps.adapterFor(state.req.method);
+
+      // confirm 대기 사이 정책·사용량이 변했을 수 있으므로 실행 직전 재평가.
+      const usage = await this.deps.audit.usageFor(this.now());
+      const recheck = evaluate(state.req, policy, usage, state.verifiedAmount);
+      if (recheck.type === "deny") {
+        await this.audit(requestId, state, recheck, "rejected");
+        await this.setResult(requestId, state, {
+          status: "rejected",
+          violation: recheck.violation,
+        });
+        await this.emit(policy, {
+          kind: "rejected",
+          merchant: state.merchantName,
+          amount: state.verifiedAmount,
+          violation: recheck.violation,
+        });
+        return;
+      }
 
       let identity: { phone: string; birth: string } | undefined;
       if (adapter.hasExternalApproval) {

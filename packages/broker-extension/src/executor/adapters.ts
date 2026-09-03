@@ -12,10 +12,17 @@ export interface PageBridge {
   origin(tabId: number): Promise<string>; // 결제 탭의 실제 origin(location.origin)
   fill(tabId: number, selector: string, value: string): Promise<void>;
   click(tabId: number, selector: string): Promise<void>;
-  /** 완료/취소/타임아웃/비번UI 등장을 관찰해 결과로 반환(대기는 브리지가 소유). */
+  /** 완료/취소/타임아웃/비번UI 등장을 관찰해 결과로 반환(대기는 브리지가 소유).
+   *  expectedOrigin과 완료 시점 탭 origin이 다르면 승인으로 인정하지 않는다. */
   waitForOutcome(
     tabId: number,
-    cfg: { successSel: string; orderIdSel: string; passwordUiSel?: string; timeoutMs: number },
+    cfg: {
+      successSel: string;
+      orderIdSel: string;
+      passwordUiSel?: string;
+      timeoutMs: number;
+      expectedOrigin: string;
+    },
   ): Promise<CompletionResult>;
 }
 
@@ -119,13 +126,18 @@ class DomCheckoutDriver implements CheckoutDriver {
     }
   }
 
-  async awaitCompletion(tabId: number, timeoutMs: number): Promise<CompletionResult> {
+  async awaitCompletion(
+    tabId: number,
+    timeoutMs: number,
+    expectedOrigin: string,
+  ): Promise<CompletionResult> {
     const s = this.cfg.selectors;
     return this.bridge.waitForOutcome(tabId, {
       successSel: s.success,
       orderIdSel: s.orderId,
       passwordUiSel: s.passwordUi,
       timeoutMs,
+      expectedOrigin,
     });
   }
 }

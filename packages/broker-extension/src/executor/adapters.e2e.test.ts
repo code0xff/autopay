@@ -45,8 +45,16 @@ class FixtureBridge implements PageBridge {
   }
   async waitForOutcome(
     _t: number,
-    cfg: { successSel: string; orderIdSel: string; passwordUiSel?: string; timeoutMs: number },
+    cfg: {
+      successSel: string;
+      orderIdSel: string;
+      passwordUiSel?: string;
+      timeoutMs: number;
+      expectedOrigin: string;
+    },
   ): Promise<CompletionResult> {
+    // 완료 판정은 승인 시점 origin과 일치할 때만(허위 완료 페이지 차단).
+    if (this.originStr !== cfg.expectedOrigin) return { status: "timeout" };
     if (cfg.passwordUiSel && this.doc.querySelector(cfg.passwordUiSel)) {
       return { status: "failed", error: "password_required" };
     }

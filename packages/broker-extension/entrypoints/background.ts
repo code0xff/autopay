@@ -13,7 +13,10 @@ export default defineBackground(() => {
     }
     bg.handle(msg)
       .then(sendResponse)
-      .catch((e) => sendResponse({ ok: false, error: String(e) }));
+      .catch((e) => {
+        console.warn("[autopay] rpc failed", e); // 원문은 콘솔에만
+        sendResponse({ ok: false, error: "internal_error" }); // 응답엔 일반 코드만
+      });
     return true; // 비동기 응답
   });
 
@@ -29,7 +32,13 @@ export default defineBackground(() => {
     } catch (e) {
       console.warn("[autopay] confirm sweep failed", e);
     }
-    for (const w of await bg.watchEngine.list()) {
+    let watches: { id: string }[] = [];
+    try {
+      watches = await bg.watchEngine.list();
+    } catch (e) {
+      console.warn("[autopay] watch list failed", e);
+    }
+    for (const w of watches) {
       try {
         await bg.watchEngine.check(w.id); // 한 감시 실패가 나머지를 막지 않게 격리
       } catch (e) {

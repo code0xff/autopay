@@ -44,8 +44,8 @@ export const OriginUrl = z
 
 export const LineItem = z
   .object({
-    title: z.string().min(1),
-    category: z.string().optional(), // 정책 카테고리 매칭용
+    title: z.string().min(1).max(200), // 길이 상한(로그·audit 유출 표면 축소)
+    category: z.string().max(80).optional(), // 정책 카테고리 매칭용
     quantity: z.number().int().positive(),
     unitPrice: Amount,
   })
@@ -56,7 +56,7 @@ export type LineItem = z.infer<typeof LineItem>;
 export const Merchant = z
   .object({
     origin: OriginUrl, // 쇼핑몰 origin (정책 머천트 매칭 키)
-    name: z.string().min(1),
+    name: z.string().min(1).max(80), // 길이 상한(유출 표면 축소)
   })
   .strict();
 export type Merchant = z.infer<typeof Merchant>;

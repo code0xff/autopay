@@ -51,6 +51,11 @@ export interface CheckoutDriver {
   readCheckout(tabId: number): Promise<CheckoutView>;
   /** 패턴 B: 식별정보 입력→폰 푸시 트리거 / 패턴 C: [결제하기] 클릭. */
   startPayment(tabId: number, ctx: { identity?: Identity }): Promise<void>;
-  /** 완료 신호 독립 파싱까지 대기. 비번 UI 등장(쿠팡)·취소·타임아웃 구분. */
-  awaitCompletion(tabId: number, timeoutMs: number): Promise<CompletionResult>;
+  /** 완료 신호 독립 파싱까지 대기. 완료 시점의 탭 origin이 expectedOrigin과
+   *  일치해야 승인으로 인정(다른 페이지의 허위 완료 신호 차단). */
+  awaitCompletion(
+    tabId: number,
+    timeoutMs: number,
+    expectedOrigin: string,
+  ): Promise<CompletionResult>;
 }

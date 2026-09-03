@@ -46,7 +46,13 @@ export class ChromePageBridge implements PageBridge {
 
   async waitForOutcome(
     tabId: number,
-    cfg: { successSel: string; orderIdSel: string; passwordUiSel?: string; timeoutMs: number },
+    cfg: {
+      successSel: string;
+      orderIdSel: string;
+      passwordUiSel?: string;
+      timeoutMs: number;
+      expectedOrigin: string;
+    },
   ): Promise<CompletionResult> {
     const deadline = Date.now() + cfg.timeoutMs;
     const poll = 500;
@@ -55,6 +61,8 @@ export class ChromePageBridge implements PageBridge {
         target: { tabId },
         args: [cfg],
         func: (c: typeof cfg) => {
+          // 완료 판정은 승인 시점과 동일 origin에서만(허위 완료 페이지 차단).
+          if (location.origin !== c.expectedOrigin) return { kind: "pending" };
           if (c.passwordUiSel && document.querySelector(c.passwordUiSel))
             return { kind: "password" };
           const ok = document.querySelector(c.successSel);
@@ -66,7 +74,9 @@ export class ChromePageBridge implements PageBridge {
       });
       const r = res?.result as { kind: string; orderId?: string } | undefined;
       if (r?.kind === "password") return { status: "failed", error: "password_required" };
-      if (r?.kind === "success") return { status: "approved", orderId: r.orderId ?? "" };
+      if (r?.kind === "success") {
+        return { status: "approved", orderId: (r.orderId ?? "").slice(0, 64) };
+      }
       await delay(poll);
     }
     return { status: "timeout" };
