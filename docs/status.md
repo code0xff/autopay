@@ -14,9 +14,18 @@
 | executor 코어(스냅샷·TOCTOU 재검증) + 어댑터(카카오/쿠팡/토스) | ✅ | fake driver/bridge 유닛 테스트 |
 | broker 오케스트레이션(정책·confirm·origin·동시성·예외수렴) | ✅ | 유닛 테스트 |
 | 브로커 익스텐션 (M1) | ✅ | WXT MV3, Side Panel+Options+background, `wxt build` 성공 |
-| Codex 리뷰 | ✅×3 | M0·M1코어·M1익스텐션, High/Medium 반영 |
+| Codex 리뷰 | ✅×4 | M0·M1코어·M1익스텐션·최종, High/Medium 반영 |
 
-**테스트 총계**: 91 (shared 8 + broker-extension 83, 픽스처 E2E 4 포함). typecheck·biome 클린.
+**테스트 총계**: 94 (shared 8 + broker-extension 86). typecheck·biome 클린.
+
+### Codex 최종 리뷰 High 3건 — 반영 + 회귀 테스트로 검증
+- confirm 후 실행 직전 정책·사용량 재평가(한도 소진 시 차단) — `broker-core.test.ts` #15
+- 워커 재시작 대비 영속 idempotency(중복 결제 방지) — `broker-core.test.ts` #16
+- 완료 판정 origin 일치 필수(허위 완료 차단) — `adapters.e2e.test.ts`
+
+> Codex 자동 "clean-pass 재확인"은 이 환경에서 Codex 런타임 OOM(exit 137)으로
+> 완주 실패. 대신 위 3건을 **직접 회귀 테스트**로 못박아 검증했다. 로컬에서
+> `/code-review high` 또는 codex CLI로 재확인 권장.
 
 **픽스처 E2E**: `src/executor/adapters.e2e.test.ts` — 모킹 결제창/완료 HTML(linkedom)에
 실제 어댑터를 돌려 verify→클릭/입력→완료 파싱까지 "실제 실행 직전"을 검증

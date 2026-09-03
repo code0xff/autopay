@@ -19,6 +19,7 @@ class FixtureBridge implements PageBridge {
     private readonly afterClickHtml: string,
     private readonly originStr: string,
     private readonly completeOn: string,
+    private readonly completeOrigin?: string, // 완료 시점 origin(미지정 시 originStr)
   ) {
     this.doc = parseHTML(checkoutHtml).document;
   }
@@ -54,7 +55,8 @@ class FixtureBridge implements PageBridge {
     },
   ): Promise<CompletionResult> {
     // 완료 판정은 승인 시점 origin과 일치할 때만(허위 완료 페이지 차단).
-    if (this.originStr !== cfg.expectedOrigin) return { status: "timeout" };
+    if ((this.completeOrigin ?? this.originStr) !== cfg.expectedOrigin)
+      return { status: "timeout" };
     if (cfg.passwordUiSel && this.doc.querySelector(cfg.passwordUiSel)) {
       return { status: "failed", error: "password_required" };
     }
@@ -138,6 +140,20 @@ describe("결제 흐름 E2E (픽스처)", () => {
     const v = await adapter.verify(0);
     const out = await adapter.pay({ tabId: 0, timeoutMs: 1000, approvedSnapshot: v.snapshot });
     expect(out).toEqual({ status: "failed", error: "password_required" });
+  });
+
+  it("쿠팡: 완료 페이지 origin이 승인 시점과 다르면(허위 완료) → 미승인(timeout)", async () => {
+    const bridge = new FixtureBridge(
+      COUPANG_CHECKOUT,
+      COUPANG_COMPLETE,
+      "https://coupang.com",
+      "#place-order",
+      "https://evil.example", // 완료 시점 다른 origin(탭 바꿔치기)
+    );
+    const adapter = createAdapter("coupay", bridge);
+    const v = await adapter.verify(0);
+    const out = await adapter.pay({ tabId: 0, timeoutMs: 50, approvedSnapshot: v.snapshot });
+    expect(out).toEqual({ status: "timeout" }); // 완료로 인정하지 않음
   });
 
   it("카카오(패턴 B): 휴대폰·생년월일 입력 → 다음 → 완료 파싱 → approved", async () => {

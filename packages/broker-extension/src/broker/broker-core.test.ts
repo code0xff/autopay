@@ -253,6 +253,89 @@ describe("BrokerCore", () => {
     expect(await broker.listPending()).toHaveLength(0);
   });
 
+  it("15. [High] confirm 후 한도 소진 → 실행 직전 재평가로 rejected(over_daily)", async () => {
+    const { broker, audit } = setup({
+      policy: basePolicy({
+        limits: {
+          perTransaction: 50_000,
+          daily: 30_000,
+          monthly: 3_000_000,
+          maxTransactionsPerDay: 10,
+        },
+        confirmation: { requireUserConfirmationAbove: 10_000, alwaysConfirm: false },
+      }),
+    });
+    const { requestId } = await broker.requestPayment(validReq); // 20,000 → confirm(pending)
+    expect((await broker.getPaymentResult(requestId)).status).toBe("pending_user_confirmation");
+    // confirm 대기 사이 다른 결제로 오늘 사용액이 20,000 소진됨
+    await audit.append({
+      id: "other",
+      at: NOW.toISOString(),
+      merchant: { origin: ORIGIN, name: "쿠팡" },
+      amount: 20_000,
+      method: "coupay",
+      decision: { type: "allow" },
+      outcome: "approved",
+    });
+    await broker.resolveConfirmation(requestId, true); // 20k+20k=40k > daily 30k
+    expect(await broker.getPaymentResult(requestId)).toEqual({
+      status: "rejected",
+      violation: "over_daily",
+    });
+  });
+
+  it("16. [High] 워커 재시작(다른 인스턴스, 저장소 공유) 중복 실행 방지", async () => {
+    const kv = new MemoryKv();
+    const audit = new KvAuditLog(new MemoryKv());
+    let release!: () => void;
+    const hang = new Promise<void>((r) => {
+      release = r;
+    });
+    const pay1 = vi.fn(async (): Promise<PayOutcome> => {
+      await hang; // 워커1의 결제가 진행 중(미완)인 상태를 흉내
+      return { status: "approved", orderId: "#1", amount: 20_000 };
+    });
+    const pay2 = vi.fn(
+      async (): Promise<PayOutcome> => ({ status: "approved", orderId: "#2", amount: 20_000 }),
+    );
+    const mk = (pay: typeof pay1) => {
+      const a: SimplePayAdapter = {
+        method: "coupay",
+        hasExternalApproval: false,
+        verify: vi.fn(async () => ({
+          amount: 20_000,
+          merchantName: "쿠팡",
+          origin: ORIGIN,
+          snapshot: "s",
+        })),
+        pay,
+      };
+      return new BrokerCore({
+        getPolicy: async () => basePolicy(),
+        adapterFor: () => a,
+        audit,
+        notify: new BrokerNotifier({ senders: {}, notifyOnRejection: true }),
+        refstore: fakeRefStore(null),
+        kv, // 저장소 공유 = 같은 요청 상태를 두 인스턴스가 봄
+        now: () => NOW,
+        idgen: () => "shared-1",
+        payTimeoutMs: 1000,
+      });
+    };
+    const worker1 = mk(pay1);
+    const worker2 = mk(pay2);
+
+    const { requestId } = await worker1.requestPayment(validReq); // coupay → confirm(pending)
+    const p1 = worker1.resolveConfirmation(requestId, true); // executing=true 저장 후 pay1(hang)
+    await new Promise((r) => setTimeout(r, 0)); // executing 저장 완료 대기
+    await worker2.resolveConfirmation(requestId, true); // 재시작된 워커가 재실행 시도
+
+    expect(pay2).not.toHaveBeenCalled(); // 두 번째 결제는 일어나지 않음
+    release();
+    await p1;
+    expect(pay1).toHaveBeenCalledTimes(1);
+  });
+
   it("13. notifyOnRejection=false → 거절 알림 미발송", async () => {
     const { broker, chrome } = setup({
       policy: basePolicy({
