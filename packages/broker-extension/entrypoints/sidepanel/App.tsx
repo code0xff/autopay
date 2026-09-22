@@ -57,7 +57,11 @@ export function App() {
           state={state}
           onRefresh={refresh}
           onResolve={async (id, ok) => {
-            await resolveConfirmation(id, ok);
+            try {
+              await resolveConfirmation(id, ok);
+            } catch {
+              // 결과는 폴링으로 갱신됨 — 콘솔 예외로 새지 않게 흡수
+            }
             refresh();
           }}
         />
@@ -174,6 +178,7 @@ function Watch({ state, onChange }: { state: UiState | null; onChange: () => voi
   const [ref, setRef] = useState("");
   const [max, setMax] = useState("30000");
   const [method, setMethod] = useState<"coupay" | "kakaopay" | "tosspay">("coupay");
+  const [msg, setMsg] = useState("");
 
   return (
     <div className="body">
@@ -214,21 +219,37 @@ function Watch({ state, onChange }: { state: UiState | null; onChange: () => voi
           type="button"
           className="btn btn-primary btn-block"
           onClick={async () => {
-            await addWatch({
-              productRef: ref,
-              title,
-              maxPrice: Number.parseInt(max.replace(/[^\d]/g, ""), 10) || 0,
-              freeShippingOnly: true,
-              buyOnRestock: false,
-              method,
-            });
-            setTitle("");
-            setRef("");
-            onChange();
+            setMsg("");
+            const price = Number.parseInt(max.replace(/[^\d]/g, ""), 10) || 0;
+            if (!title.trim() || !ref.trim() || price <= 0) {
+              setMsg("상품 이름·URL·상한가(1원 이상)를 모두 입력하세요");
+              return;
+            }
+            try {
+              await addWatch({
+                productRef: ref.trim(),
+                title: title.trim(),
+                maxPrice: price,
+                freeShippingOnly: true,
+                buyOnRestock: false,
+                method,
+              });
+              setTitle("");
+              setRef("");
+              setMsg("감시 등록됨");
+              onChange();
+            } catch (e) {
+              setMsg(`등록 실패: ${e instanceof Error ? e.message : "오류"}`);
+            }
           }}
         >
           감시 시작
         </button>
+        {msg && (
+          <div className="muted" style={{ fontSize: 12, marginTop: 8 }}>
+            {msg}
+          </div>
+        )}
       </div>
 
       {state?.watches.map((w) => (
@@ -246,7 +267,11 @@ function Watch({ state, onChange }: { state: UiState | null; onChange: () => voi
             type="button"
             className="btn btn-outline"
             onClick={async () => {
-              await removeWatch(w.id);
+              try {
+                await removeWatch(w.id);
+              } catch {
+                // 무시(폴링 갱신)
+              }
               onChange();
             }}
           >
