@@ -34,9 +34,10 @@
 
 ## 남은 작업 (이 환경에서 런타임 검증 불가 — 라이브 연결 필요)
 
-- **M2 — 자율 에이전트/MCP(③)**: 두뇌 LLM 루프(Claude API)와 MCP 서버·Native
-  Messaging Host. 코어는 `BrokerTools` 경계로 준비됨. LLM·네이티브 호스트
-  런타임이 필요해 여기서 미검증.
+- **M2 — 스킬→MCP→익스텐션(③, Claude Code)**: **설계 완료**
+  (`docs/spec/mcp-integration.md`) — 스킬이 MCP 도구로 검색·체크아웃·결제 요청.
+  구현 예정: `packages/mcp-server`(stdio MCP + 로컬 WS 허브), `packages/agent-skill`
+  (SKILL.md), 익스텐션 WS 수신 핸들러 + 토큰 게이트. LLM·WS 런타임은 로컬 검증.
 - **M3 — 실결제 어댑터 라이브 셀렉터**: 카카오/쿠팡/토스 어댑터의 DOM 셀렉터·
   완료신호는 placeholder. 실결제 네트워크 캡처로 확정 필요(payment-flows 검증
   항목). 로직(스냅샷·재검증·매핑)은 완성·테스트됨.

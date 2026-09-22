@@ -377,10 +377,11 @@ autopay/
    감사) + chrome.notifications. WXT MV3, shadcn neutral·각진 4px·Geist·light/dark
    (`docs/spec/ui.md`, `docs/design/ui-mockup.html`). chrome 어댑터·합성 루트·
    감시 폴링 배선. `wxt build` 성공. 원시 비밀 저장 없음.
-3. **M2 — 에이전트 연동**: MVP는 **두뇌 내장(①)** + Broker API 도구
-   인터페이스, 더미 결제 E2E(테스트 쇼핑몰). 격리 강화용 **MCP/스킬(③)** 은
-   동일 인터페이스로 후속(목표), 브라우저-익스텐션 메시징도 후속
-   (`docs/spec/agent-integration.md`).
+3. **M2 — 에이전트 연동**: **③ 스킬→MCP→브리지→익스텐션이 채택 방향**
+   (Claude Code 우선). 사용자가 "○○ 사줘"라고 하면 스킬이 MCP 도구로 검색·
+   체크아웃·결제 요청을 수행. 설계 완료(`docs/spec/mcp-integration.md`), 구현
+   예정: `packages/mcp-server`(stdio MCP + 로컬 WS 허브) + `packages/agent-skill`
+   + 익스텐션 WS 수신 핸들러. 두뇌 내장(①)은 대안.
 4. **M3 — Payment Executor (카카오 → 쿠팡 → 토스)**: `SimplePayAdapter` 정의
    후 **카카오(패턴 B) 최초 검증** → **쿠팡(패턴 C, 원터치)** → **토스(패턴 B)**.
    - 패턴 B: 결제창 인수(휴대폰/생년월일 입력) → 폰 푸시 → 폰 승인 대기.
