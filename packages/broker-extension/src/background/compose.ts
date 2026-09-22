@@ -16,11 +16,14 @@ import { WebCryptoRefStore, deriveKey } from "../refstore/refstore.js";
 import { RpcRequest } from "./rpc.js";
 
 // 합성 루트 — 코어 모듈을 chrome 어댑터로 조립하고 UI RPC를 처리한다.
-// 기본 정책은 가장 제한적(coding-guide: 기본값 deny 지향).
-
+// 기본 정책은 가장 제한적(coding-guide: 기본값 deny 지향) — 단, 머천트만은
+// 예외로 지금 실제로 지원되는 경로(쿠팡·coupay)를 미리 열어둔다. 완전히 빈
+// allowlist는 "설치만 하면 아무것도 안 되는" 마찰이 커서, "어느 쇼핑몰을
+// 쓸지"는 미리 정해주고 "얼마까지 쓸지"(한도, 여전히 0)만 사용자가 명시적으로
+// 정하게 한다 — 이게 이 제품의 핵심 결정이라 여기엔 deny-by-default를 유지.
 const DEFAULT_POLICY: PaymentPolicy = {
   limits: { perTransaction: 0, daily: 0, monthly: 0, maxTransactionsPerDay: 0 },
-  merchants: { mode: "allowlist", origins: [] },
+  merchants: { mode: "allowlist", origins: ["https://coupang.com", "https://www.coupang.com"] },
   categories: { mode: "allowlist", values: [] },
   methods: ["coupay"],
   confirmation: { requireUserConfirmationAbove: 0, alwaysConfirm: true },

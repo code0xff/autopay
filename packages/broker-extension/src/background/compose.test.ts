@@ -33,6 +33,18 @@ describe("Background RPC (compose)", () => {
     expect(state.policy.limits.perTransaction).toBe(0); // deny 지향 기본값
   });
 
+  it("기본 정책 — 머천트만 예외로 쿠팡을 미리 허용(그 외는 여전히 deny)", async () => {
+    const bg = new Background(new MemoryKv());
+    const state = (await bg.handle({ type: "getState" })) as UiState;
+    expect(state.policy.merchants).toEqual({
+      mode: "allowlist",
+      origins: ["https://coupang.com", "https://www.coupang.com"],
+    });
+    // 한도는 여전히 0(deny) — "얼마까지 쓸지"는 사용자가 직접 정해야 함.
+    expect(state.policy.limits.perTransaction).toBe(0);
+    expect(state.policy.categories).toEqual({ mode: "allowlist", values: [] });
+  });
+
   it("잘못된 정책(스키마 위반) → 저장 거부", async () => {
     const bg = new Background(new MemoryKv());
     const res = await bg.handle({ type: "setPolicy", policy: { limits: { perTransaction: -1 } } });
