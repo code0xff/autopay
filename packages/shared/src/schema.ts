@@ -182,3 +182,112 @@ export const AuditRecord = z
   })
   .strict();
 export type AuditRecord = z.infer<typeof AuditRecord>;
+
+// ── MCP 브리지 프로토콜 (docs/spec/mcp-integration.md §3·§4) ──
+// mcp-server(로컬 WS 허브) ↔ 익스텐션 background 간 프레임. 스킬은 이 표면
+// 밖으로 브로커·페이지에 접근하지 못한다(§10 불변식). 비밀·빌링키·세션 없음.
+
+// open()용: 임의 쇼핑몰 URL(검색 결과 페이지 등)이라 OriginUrl보다 완화되지만
+// 자격증명은 여전히 금지(https만, user:pass@ 없음).
+export const SafeHttpUrl = z
+  .string()
+  .url()
+  .refine(
+    (s) => {
+      let u: URL;
+      try {
+        u = new URL(s);
+      } catch {
+        return false;
+      }
+      return u.protocol === "https:" && u.username === "" && u.password === "";
+    },
+    { message: "must be an https url without credentials" },
+  );
+
+const Selector = z.string().min(1).max(300);
+
+// request_payment 인자 — checkoutTabId는 익스텐션이 자신이 추적 중인 브리지 탭으로
+// 채운다(에이전트에 탭 id를 노출하지 않음).
+export const BridgeRequestPaymentArgs = z
+  .object({
+    merchant: Merchant,
+    items: z.array(LineItem).min(1),
+    totalAmount: Amount,
+    currency: Currency,
+    method: PaymentMethod,
+  })
+  .strict();
+export type BridgeRequestPaymentArgs = z.infer<typeof BridgeRequestPaymentArgs>;
+
+export const BridgeToolCall = z.discriminatedUnion("tool", [
+  z
+    .object({
+      id: z.string().min(1),
+      tool: z.literal("open"),
+      args: z.object({ url: SafeHttpUrl }).strict(),
+    })
+    .strict(),
+  z
+    .object({
+      id: z.string().min(1),
+      tool: z.literal("read_page"),
+      args: z.object({}).strict(),
+    })
+    .strict(),
+  z
+    .object({
+      id: z.string().min(1),
+      tool: z.literal("click"),
+      args: z.object({ selector: Selector }).strict(),
+    })
+    .strict(),
+  z
+    .object({
+      id: z.string().min(1),
+      tool: z.literal("fill"),
+      args: z.object({ selector: Selector, value: z.string().max(500) }).strict(),
+    })
+    .strict(),
+  z
+    .object({
+      id: z.string().min(1),
+      tool: z.literal("request_payment"),
+      args: BridgeRequestPaymentArgs,
+    })
+    .strict(),
+  z
+    .object({
+      id: z.string().min(1),
+      tool: z.literal("get_payment_result"),
+      args: z.object({ requestId: z.string().min(1) }).strict(),
+    })
+    .strict(),
+  z
+    .object({
+      id: z.string().min(1),
+      tool: z.literal("get_policy_summary"),
+      args: z.object({}).strict(),
+    })
+    .strict(),
+]);
+export type BridgeToolCall = z.infer<typeof BridgeToolCall>;
+
+export const BridgeToolResult = z.discriminatedUnion("ok", [
+  z.object({ id: z.string().min(1), ok: z.literal(true), result: z.unknown() }).strict(),
+  z.object({ id: z.string().min(1), ok: z.literal(false), error: z.string() }).strict(),
+]);
+export type BridgeToolResult = z.infer<typeof BridgeToolResult>;
+
+// 인증(핸드셰이크): 익스텐션(WS 클라이언트)이 접속 직후 토큰을 보낸다.
+// 토큰 불일치·중복 접속은 허브가 거부(spec §5 단일 연결).
+export const BridgeAuth = z.object({ type: z.literal("auth"), token: z.string().min(16) }).strict();
+export type BridgeAuth = z.infer<typeof BridgeAuth>;
+
+export const BridgeFrame = z.discriminatedUnion("type", [
+  BridgeAuth,
+  z.object({ type: z.literal("auth_result"), ok: z.boolean() }).strict(),
+  z.object({ type: z.literal("call"), call: BridgeToolCall }).strict(),
+  z.object({ type: z.literal("result"), result: BridgeToolResult }).strict(),
+]);
+export type BridgeFrame = z.infer<typeof BridgeFrame>;

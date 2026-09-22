@@ -5,6 +5,9 @@ export default defineBackground(() => {
   const bg = new Background();
   const CONFIRM_TTL_MS = 5 * 60_000; // spec/broker-api §2.2.1 기본 5분
 
+  // 저장된 토큰이 있으면 mcp-server 브리지 허브에 접속(M2, spec/mcp-integration §7).
+  bg.connectBridge().catch((e) => console.warn("[autopay] bridge connect failed", e));
+
   chrome.runtime.onMessage.addListener((msg, sender, sendResponse) => {
     // 발신자 검증: 이 확장 자신의 페이지(Side Panel/Options)만 허용.
     if (sender.id !== chrome.runtime.id) {
@@ -31,6 +34,10 @@ export default defineBackground(() => {
       await bg.brokerCore.expireStaleConfirmations(CONFIRM_TTL_MS);
     } catch (e) {
       console.warn("[autopay] confirm sweep failed", e);
+    }
+    // MV3 SW 재기동/연결 끊김 대비 — 5분 틱마다 미접속이면 재접속 시도.
+    if (!bg.isBridgeConnected) {
+      bg.connectBridge().catch((e) => console.warn("[autopay] bridge reconnect failed", e));
     }
     let watches: { id: string }[] = [];
     try {

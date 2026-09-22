@@ -38,5 +38,10 @@ export const RpcRequest = z.discriminatedUnion("type", [
       approved: z.boolean(),
     })
     .strict(),
+  // MCP 브리지 토큰 등록(docs/spec/mcp-integration.md §5) — mcp-server가 발급한
+  // 토큰을 사용자가 옵션에서 1회 입력. 저장 즉시 재접속 시도.
+  z
+    .object({ type: z.literal("setBridgeToken"), token: z.string().min(16) })
+    .strict(),
 ]);
 export type RpcRequest = z.infer<typeof RpcRequest>;

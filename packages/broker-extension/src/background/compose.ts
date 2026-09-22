@@ -1,5 +1,9 @@
 import type { AuditRecord, PaymentMethod, PaymentPolicy } from "@autopay/shared";
 import { KvAuditLog } from "../audit/audit-log.js";
+import { BridgeTools } from "../bridge/bridge-tools.js";
+import { ChromeGenericPageBridge } from "../bridge/page-bridge.js";
+import { BridgeClient } from "../bridge/ws-client.js";
+import { defaultWsFactory } from "../bridge/ws-factory.js";
 import { BrokerCore, type PendingConfirmation, type PolicySummary } from "../broker/broker-core.js";
 import { createAdapter } from "../executor/adapters.js";
 import type { SimplePayAdapter } from "../executor/types.js";
@@ -27,6 +31,9 @@ const DEFAULT_POLICY: PaymentPolicy = {
 const POLICY_KEY = "policy";
 const SALT_KEY = "refstore:salt";
 const PROFILE_KEY = "refstore:profile"; // refstore 내부 키와 일치(패스프레이즈 검증용)
+const BRIDGE_TOKEN_KEY = "bridge:token"; // mcp-server 발급 토큰(스토리지 평문 — 비밀 아님, 로컬 전용 공유키)
+const BRIDGE_TAB_KEY = "bridge:tabId"; // 스킬이 open()으로 연 브리지 탭 추적(§3)
+const BRIDGE_URL = "ws://127.0.0.1:8765"; // mcp-server 로컬 WS 허브(docs/spec/mcp-integration.md §2)
 
 export interface UiState {
   policy: PaymentPolicy;
@@ -36,6 +43,8 @@ export interface UiState {
   pending: PendingConfirmation[];
   hasProfile: boolean;
   locked: boolean;
+  bridgeConnected: boolean;
+  hasBridgeToken: boolean;
 }
 
 export class Background {
@@ -46,6 +55,9 @@ export class Background {
   private readonly broker: BrokerCore;
   private readonly watches: WatchEngine;
   private readonly deps_adapter: (m: PaymentMethod) => SimplePayAdapter;
+  private readonly bridgeTools: BridgeTools;
+  private readonly bridgeClient: BridgeClient;
+  private bridgeConnected = false;
 
   constructor(kv: Kv = new ChromeKv()) {
     this.kv = kv;
@@ -74,10 +86,42 @@ export class Background {
       kv,
     });
     this.watches = new WatchEngine(kv, this.priceReader(), (w) => this.onConditionMet(w));
+
+    // MCP 브리지(M2, docs/spec/mcp-integration.md) — 스킬은 이 표면(§3) 밖으로
+    // 나가지 못한다. broker/pageBridge는 여기서만 노출된다.
+    this.bridgeTools = new BridgeTools({
+      pageBridge: new ChromeGenericPageBridge(),
+      broker: this.broker,
+      getBridgeTabId: async () => (await this.kv.get<number>(BRIDGE_TAB_KEY)) ?? null,
+      setBridgeTabId: async (tabId) => {
+        await this.kv.set(BRIDGE_TAB_KEY, tabId);
+      },
+    });
+    this.bridgeClient = new BridgeClient({
+      url: BRIDGE_URL,
+      token: "", // connectBridge()가 저장된 토큰으로 채운 뒤 connect()
+      onCall: (call) => this.bridgeTools.handle(call),
+      wsFactory: defaultWsFactory,
+      onStatusChange: (connected) => {
+        this.bridgeConnected = connected;
+      },
+    });
   }
 
   get brokerCore(): BrokerCore {
     return this.broker;
+  }
+
+  get isBridgeConnected(): boolean {
+    return this.bridgeConnected;
+  }
+
+  /** 저장된 브리지 토큰이 있으면 mcp-server 허브에 접속 시도(부팅 시 1회, 토큰 변경 시). */
+  async connectBridge(): Promise<void> {
+    const token = await this.kv.get<string>(BRIDGE_TOKEN_KEY);
+    if (!token) return;
+    this.bridgeClient.setToken(token);
+    this.bridgeClient.connect();
   }
   get watchEngine(): WatchEngine {
     return this.watches;
@@ -138,6 +182,10 @@ export class Background {
         return { ok: true };
       case "payActiveTab":
         return this.payActiveTab(req.method);
+      case "setBridgeToken":
+        await this.kv.set(BRIDGE_TOKEN_KEY, req.token);
+        await this.connectBridge();
+        return { ok: true };
     }
   }
 
@@ -175,6 +223,8 @@ export class Background {
       pending: await this.broker.listPending(),
       hasProfile: await this.safeHasProfile(),
       locked: this.key === null,
+      bridgeConnected: this.bridgeConnected,
+      hasBridgeToken: (await this.kv.get<string>(BRIDGE_TOKEN_KEY)) !== undefined,
     };
   }
 

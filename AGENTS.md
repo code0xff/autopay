@@ -367,21 +367,25 @@ autopay/
 
 ## 8. 마일스톤
 
-> 현재 상태: **M0·M1 완료(테스트·빌드 검증), Codex 리뷰 2회 반영.** M2(자율
-> 에이전트/MCP)·M3(실결제 어댑터 라이브 셀렉터)·M4(빌링키)는 브라우저·실결제
-> 사이트·LLM 런타임이 필요해 이 환경에서 런타임 검증 불가 — 코어·어댑터 로직은
-> 주입식으로 완성·테스트됨, 라이브 연결만 잔여. 상세는 `docs/status.md`.
+> 현재 상태: **M0·M1·M2(코어) 완료(테스트·빌드 검증), Codex 리뷰 2회 반영.**
+> M3(실결제 어댑터 라이브 셀렉터)·M4(빌링키)와 M2의 실제 Claude Code·Chrome
+> 라이브 연결은 브라우저·실결제 사이트·LLM 런타임이 필요해 이 환경에서 런타임
+> 검증 불가 — 코어·어댑터·브리지 로직은 주입식으로 완성·테스트됨, 라이브
+> 연결만 잔여. 상세는 `docs/status.md`.
 
 1. **M0 — 스켈레톤 ✅**: 모노레포 셋업, shared 스키마, 정책 엔진 코어 + 테스트
 2. **M1 — 브로커 익스텐션 ✅**: Side Panel(활동·승인·감시) + Options(정책·프로필·
    감사) + chrome.notifications. WXT MV3, shadcn neutral·각진 4px·Geist·light/dark
    (`docs/spec/ui.md`, `docs/design/ui-mockup.html`). chrome 어댑터·합성 루트·
    감시 폴링 배선. `wxt build` 성공. 원시 비밀 저장 없음.
-3. **M2 — 에이전트 연동**: **③ 스킬→MCP→브리지→익스텐션이 채택 방향**
+3. **M2 — 에이전트 연동 ✅(코어)**: **③ 스킬→MCP→브리지→익스텐션** 채택·구현
    (Claude Code 우선). 사용자가 "○○ 사줘"라고 하면 스킬이 MCP 도구로 검색·
-   체크아웃·결제 요청을 수행. 설계 완료(`docs/spec/mcp-integration.md`), 구현
-   예정: `packages/mcp-server`(stdio MCP + 로컬 WS 허브) + `packages/agent-skill`
-   + 익스텐션 WS 수신 핸들러. 두뇌 내장(①)은 대안.
+   체크아웃·결제 요청을 수행(`docs/spec/mcp-integration.md`). `packages/mcp-server`
+   (stdio MCP + 로컬 WS 허브, 토큰 게이트, 단일 연결) + `packages/agent-skill`
+   (`.claude/skills/autopay-shopping`) + 익스텐션 `src/bridge`(WS 클라이언트 +
+   도구→broker 매핑) 완성·유닛테스트(132 케이스 중 일부). 잔여: 실제 Claude
+   Code·Chrome 라이브 연결 검증(이 환경엔 브라우저·LLM 런타임 없음). 두뇌
+   내장(①)은 대안으로 미채택.
 4. **M3 — Payment Executor (카카오 → 쿠팡 → 토스)**: `SimplePayAdapter` 정의
    후 **카카오(패턴 B) 최초 검증** → **쿠팡(패턴 C, 원터치)** → **토스(패턴 B)**.
    - 패턴 B: 결제창 인수(휴대폰/생년월일 입력) → 폰 푸시 → 폰 승인 대기.

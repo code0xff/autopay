@@ -20,6 +20,7 @@ export const resolveConfirmation = (requestId: string, approved: boolean) =>
 export const removeWatch = (id: string) => rpc({ type: "removeWatch", id });
 export const payActiveTab = (method: "kakaopay" | "tosspay" | "coupay") =>
   rpc<{ ok: boolean; requestId?: string; error?: string }>({ type: "payActiveTab", method });
+export const setBridgeToken = (token: string) => rpc({ type: "setBridgeToken", token });
 export const addWatch = (spec: {
   productRef: string;
   title: string;

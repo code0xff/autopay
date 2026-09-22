@@ -19,14 +19,17 @@
 ## 구조
 
 ```
-packages/shared              공용 Zod 스키마·타입(경계의 단일 진실)
+packages/shared              공용 Zod 스키마·타입(경계의 단일 진실, 브리지 프로토콜 포함)
 packages/broker-extension    Chrome MV3 익스텐션(신뢰 영역)
   src/policy                 정책 엔진(순수 함수, 100% 커버리지)
   src/{audit,notify,refstore,watch,executor,broker}  신뢰 코어(주입식·유닛테스트)
-  src/platform               chrome 어댑터(kv/notify/page-bridge)
-  src/background             합성 루트 + UI RPC
-  entrypoints                background · sidepanel · options (WXT/React)
-docs/                        설계·스펙·규범 (spec/ 11종)
+  src/platform                chrome 어댑터(kv/notify/page-bridge)
+  src/bridge                  MCP 브리지 WS 클라이언트 + 도구 매핑(M2)
+  src/background              합성 루트 + UI RPC
+  entrypoints                 background · sidepanel · options (WXT/React)
+packages/mcp-server           로컬 stdio MCP 서버 + WS 허브(M2, Claude Code용)
+packages/agent-skill          Claude Code 쇼핑 스킬(SKILL.md)
+docs/                         설계·스펙·규범 (spec/ 12종)
 ```
 
 ## 개발
@@ -35,11 +38,12 @@ docs/                        설계·스펙·규범 (spec/ 11종)
 
 ```bash
 pnpm install            # 의존성 설치 (postinstall이 wxt prepare 실행)
-pnpm test               # 전체 유닛 테스트 (86)
+pnpm test               # 전체 유닛 테스트 (132)
 pnpm typecheck          # 타입 체크
 pnpm lint               # Biome
 pnpm --filter @autopay/broker-extension build   # 익스텐션 빌드(.output/chrome-mv3)
 pnpm --filter @autopay/broker-extension dev     # WXT 개발 모드
+pnpm --filter @autopay/mcp-server build         # MCP 서버 번들(dist/index.js)
 ```
 
 ### Chrome에 로드
@@ -49,6 +53,20 @@ pnpm --filter @autopay/broker-extension dev     # WXT 개발 모드
 3. `packages/broker-extension/.output/chrome-mv3` 선택
 4. 툴바 아이콘 클릭 → Side Panel(우측), 옵션에서 정책·프로필 설정
 
+### Claude Code에서 자율 쇼핑(M2, MCP 브리지)
+
+1. `pnpm --filter @autopay/mcp-server build`
+2. `.mcp.json`에 이미 `autopay` 서버가 등록돼 있음(`node
+   packages/mcp-server/dist/index.js`) — Claude Code 재시작 시 자동 연결.
+   최초 실행 시 stderr에 브리지 토큰이 출력되고 `~/.autopay/bridge-token`
+   (0600)에 저장된다.
+3. 익스텐션 옵션 → "MCP 브리지" 카드에 그 토큰을 붙여넣어 등록(1회).
+4. `packages/agent-skill/SKILL.md`(= `.claude/skills/autopay-shopping/`)가
+   자동 트리거된다 — "이 노트북 스탠드 3만원 밑으로 사줘"처럼 요청.
+5. 도구는 `open/read_page/click/fill/request_payment/get_payment_result/
+   get_policy_summary` 7개뿐이며, 결제는 항상 정책·확인·감사를 거친다
+   (`docs/spec/mcp-integration.md`).
+
 ## 워크플로
 
 기본 브랜치 `dev`. 기능 완결 단위 커밋 + Codex 리뷰(자세히는
@@ -56,5 +74,5 @@ pnpm --filter @autopay/broker-extension dev     # WXT 개발 모드
 
 ## 상태
 
-M0(스켈레톤)·M1(익스텐션) 완료·검증. M2(자율 에이전트/MCP)·M3(실결제 라이브
+M0(스켈레톤)·M1(익스텐션)·M2(MCP 브리지 코어) 완료·검증. M3(실결제 라이브
 셀렉터)·M4(빌링키)는 라이브 연결 잔여 — [docs/status.md](docs/status.md) 참조.

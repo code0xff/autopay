@@ -1,0 +1,29 @@
+{
+  "name": "@autopay/mcp-server",
+  "version": "0.0.0",
+  "private": true,
+  "type": "module",
+  "bin": {
+    "autopay-mcp": "./dist/index.js"
+  },
+  "scripts": {
+    "typecheck": "tsc --noEmit",
+    "build": "esbuild src/index.ts --bundle --platform=node --format=esm --outfile=dist/index.js --external:ws --external:@modelcontextprotocol/sdk --external:zod",
+    "test": "vitest run",
+    "test:coverage": "vitest run --coverage"
+  },
+  "dependencies": {
+    "@autopay/shared": "workspace:*",
+    "@modelcontextprotocol/sdk": "1.20.2",
+    "ws": "8.18.3",
+    "zod": "3.25.76"
+  },
+  "devDependencies": {
+    "@types/node": "22.13.5",
+    "@types/ws": "8.5.14",
+    "@vitest/coverage-v8": "2.1.9",
+    "esbuild": "0.28.2",
+    "typescript": "5.9.3",
+    "vitest": "2.1.9"
+  }
+}

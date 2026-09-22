@@ -1,0 +1,1 @@
+../../../packages/agent-skill/SKILL.md

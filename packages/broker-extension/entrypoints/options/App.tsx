@@ -1,7 +1,14 @@
 import type { PaymentPolicy } from "@autopay/shared";
 import { useEffect, useState } from "react";
 import type { UiState } from "../../src/background/compose.js";
-import { getState, setPolicy, setProfile, toggleTheme, unlock } from "../../src/ui/rpc-client.js";
+import {
+  getState,
+  setBridgeToken,
+  setPolicy,
+  setProfile,
+  toggleTheme,
+  unlock,
+} from "../../src/ui/rpc-client.js";
 
 export function App() {
   const [state, setState] = useState<UiState | null>(null);
@@ -27,6 +34,11 @@ export function App() {
       <Unlock locked={state.locked} onDone={refresh} />
       <PolicyForm policy={state.policy} onSaved={refresh} />
       <ProfileForm hasProfile={state.hasProfile} locked={state.locked} onSaved={refresh} />
+      <BridgeCard
+        connected={state.bridgeConnected}
+        hasToken={state.hasBridgeToken}
+        onSaved={refresh}
+      />
       <AuditTable state={state} />
     </div>
   );
@@ -241,6 +253,67 @@ function ProfileForm({
             저장
           </button>
         </>
+      )}
+    </div>
+  );
+}
+
+function BridgeCard({
+  connected,
+  hasToken,
+  onSaved,
+}: {
+  connected: boolean;
+  hasToken: boolean;
+  onSaved: () => void;
+}) {
+  const [token, setToken] = useState("");
+  const [msg, setMsg] = useState<{ kind: "ok" | "err"; text: string } | null>(null);
+  return (
+    <div className="card" style={{ marginBottom: 14 }}>
+      <div className="label" style={{ marginBottom: 4 }}>
+        MCP 브리지 (Claude Code 스킬 연동)
+      </div>
+      <div className="muted" style={{ fontSize: 12, marginBottom: 10 }}>
+        <code>~/.autopay/bridge-token</code>의 토큰을 붙여넣으세요. 결제는 여기서 항상
+        정책·확인·감사를 거칩니다(AGENTS §2.6).
+      </div>
+      <div className="row" style={{ gap: 8, marginBottom: 10 }}>
+        <span className={`badge ${connected ? "ok" : hasToken ? "warn" : "danger"}`}>
+          {connected ? "연결됨" : hasToken ? "토큰 등록됨 · 연결 대기" : "미등록"}
+        </span>
+      </div>
+      <label className="field">
+        <span>브리지 토큰</span>
+        <input
+          className="input mono"
+          type="password"
+          value={token}
+          onChange={(e) => setToken(e.target.value)}
+          placeholder={hasToken ? "다시 입력하면 교체됩니다" : ""}
+        />
+      </label>
+      <button
+        type="button"
+        className="btn btn-primary"
+        disabled={token.length < 16}
+        onClick={async () => {
+          try {
+            await setBridgeToken(token);
+            setToken("");
+            setMsg({ kind: "ok", text: "등록됨 — 접속을 시도합니다" });
+            onSaved();
+          } catch (e) {
+            setMsg({ kind: "err", text: `등록 실패: ${e instanceof Error ? e.message : "오류"}` });
+          }
+        }}
+      >
+        토큰 등록
+      </button>
+      {msg && (
+        <div className={`badge ${msg.kind === "ok" ? "ok" : "danger"}`} style={{ marginTop: 10 }}>
+          {msg.text}
+        </div>
       )}
     </div>
   );
