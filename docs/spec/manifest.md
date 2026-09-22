@@ -11,8 +11,8 @@ integration). 권한은 곧 공격 표면이므로 필요한 것만, 근거와 �
 |---|---|---|
 | `sidePanel` | 주 콘솔(우측 도킹) | ui.md |
 | `notifications` | 완료/거절 OS 알림 | notify.md |
-| `storage` | 정책·감사·감시·암호화 참조 저장 | audit/watch/refstore |
-| `alarms` | 감시 폴링 스케줄 | watch.md |
+| `storage` | 정책·감사·암호화 참조·브리지 토큰 저장 | audit/refstore/mcp-integration |
+| `alarms` | confirm 타임아웃 + 중단된 실행 스윕 + 브리지 재접속 스케줄 | broker-api/mcp-integration |
 | `scripting` | content script 주입("손") | agent-integration |
 | `tabs` | 체크아웃 탭 식별·이동 | executor/broker-api |
 

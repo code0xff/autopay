@@ -17,18 +17,9 @@ export const setProfile = (identity: { phone: string; birth: string }) =>
   rpc({ type: "setProfile", identity });
 export const resolveConfirmation = (requestId: string, approved: boolean) =>
   rpc({ type: "resolveConfirmation", requestId, approved });
-export const removeWatch = (id: string) => rpc({ type: "removeWatch", id });
 export const payActiveTab = (method: "kakaopay" | "tosspay" | "coupay") =>
   rpc<{ ok: boolean; requestId?: string; error?: string }>({ type: "payActiveTab", method });
 export const setBridgeToken = (token: string) => rpc({ type: "setBridgeToken", token });
-export const addWatch = (spec: {
-  productRef: string;
-  title: string;
-  maxPrice: number;
-  freeShippingOnly: boolean;
-  buyOnRestock: boolean;
-  method: "kakaopay" | "tosspay" | "coupay";
-}) => rpc({ type: "addWatch", spec });
 
 export function applyTheme(): void {
   try {

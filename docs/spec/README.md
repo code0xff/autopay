@@ -22,7 +22,7 @@
 | [audit.md](audit.md) | 감사 로그 | `broker-extension/audit` | ✅ |
 | [notify.md](notify.md) | 알림 | `broker-extension/notify` | ✅ |
 | [refstore.md](refstore.md) | PII·빌링키 참조 암호화 저장 | `broker-extension/refstore` | ✅ |
-| [watch.md](watch.md) | 감시 엔진(지정가 모니터링·트리거) | `broker-extension/watch` | ✅ |
+| [watch.md](watch.md) | ~~감시 엔진~~ — M2에서 제거됨(사유는 문서 참조) | — | 폐기 |
 | [agent-integration.md](agent-integration.md) | 제어 메커니즘(DOM) + 두뇌 부착 방식 + 도구 인터페이스 | `broker-extension` + 전송 | ✅ |
 | [mcp-integration.md](mcp-integration.md) | 스킬→MCP→브리지→익스텐션(③, Claude Code) 설계 | `mcp-server` + `agent-skill` + 익스텐션 | 설계 |
 | [ui.md](ui.md) | UI 표면(Side Panel/Options/알림)·디자인 토큰·화면별 상태 | `broker-extension/ui` | ✅ |
@@ -31,7 +31,7 @@
 ## 의존 순서 (구현 순서 권장)
 
 ```
-data-model → policy → broker-api → audit/notify/refstore → executor → watch
-(스키마)     (순수함수) (경계 검증)   (기록/통지/암호화저장)    (실결제)    (감시·트리거)
+data-model → policy → broker-api → audit/notify/refstore → executor
+(스키마)     (순수함수) (경계 검증)   (기록/통지/암호화저장)    (실결제)
 ```
 manifest·agent-integration·ui는 위와 병행(익스텐션 셋업·표면).

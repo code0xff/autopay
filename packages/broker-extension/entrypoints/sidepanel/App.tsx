@@ -1,19 +1,21 @@
 import { useEffect, useState } from "react";
 import type { UiState } from "../../src/background/compose.js";
 import {
-  addWatch,
   getState,
   payActiveTab,
-  removeWatch,
   resolveConfirmation,
   toggleTheme,
 } from "../../src/ui/rpc-client.js";
 
 const won = (n: number) => `₩${n.toLocaleString("ko-KR")}`;
 
+// 사이드패널 = 승인 콘솔. 구매는 Claude Code(MCP 브리지)가 하고, 여기는 그
+// 결제를 "승인"하거나(쿠페이 원터치는 폰 승인이 없어 이게 유일한 게이트),
+// 에이전트 없이 순수 수동으로 결제를 트리거하는 두 가지 일만 한다.
+// 감시(가격 폴링) 기능은 제거됨 — 실제로는 작동하지 않는 스텁이었고, 지금은
+// 에이전트가 open()/read_page()로 직접 가격을 확인하는 편이 더 유연하다.
 export function App() {
   const [state, setState] = useState<UiState | null>(null);
-  const [tab, setTab] = useState<"activity" | "watch">("activity");
   const refresh = () =>
     getState()
       .then(setState)
@@ -30,21 +32,11 @@ export function App() {
       <header className="head">
         <span className="logo">A</span>
         <span className="brand">AutoPay</span>
-        <span className="badge ok">감시 {state?.watches.length ?? 0}</span>
         <span className="spacer" />
         <button type="button" className="icon-btn" onClick={toggleTheme}>
           테마
         </button>
       </header>
-
-      <nav className="tabs" role="tablist">
-        <button type="button" aria-selected={tab === "activity"} onClick={() => setTab("activity")}>
-          활동
-        </button>
-        <button type="button" aria-selected={tab === "watch"} onClick={() => setTab("watch")}>
-          감시
-        </button>
-      </nav>
 
       {state?.locked && (
         <div className="body">
@@ -52,27 +44,23 @@ export function App() {
         </div>
       )}
 
-      {tab === "activity" ? (
-        <Activity
-          state={state}
-          onRefresh={refresh}
-          onResolve={async (id, ok) => {
-            try {
-              await resolveConfirmation(id, ok);
-            } catch {
-              // 결과는 폴링으로 갱신됨 — 콘솔 예외로 새지 않게 흡수
-            }
-            refresh();
-          }}
-        />
-      ) : (
-        <Watch state={state} onChange={refresh} />
-      )}
+      <Approval
+        state={state}
+        onRefresh={refresh}
+        onResolve={async (id, ok) => {
+          try {
+            await resolveConfirmation(id, ok);
+          } catch {
+            // 결과는 폴링으로 갱신됨 — 콘솔 예외로 새지 않게 흡수
+          }
+          refresh();
+        }}
+      />
     </div>
   );
 }
 
-function Activity({
+function Approval({
   state,
   onResolve,
   onRefresh,
@@ -90,7 +78,7 @@ function Activity({
         </div>
         <div className="muted" style={{ fontSize: 12, marginBottom: 10 }}>
           쿠팡 체크아웃 화면을 연 상태에서 누르면, 그 탭의 금액을 확인해 결제 요청을 만듭니다.
-          (원터치 결제 ON + 정책 허용 필요)
+          (원터치 결제 ON + 정책 허용 필요, 에이전트 없이도 사용 가능)
         </div>
         <button
           type="button"
@@ -155,136 +143,6 @@ function Activity({
           </div>
         </div>
       ))}
-
-      <div className="card">
-        <div className="label" style={{ marginBottom: 8 }}>
-          최근 활동
-        </div>
-        {(state?.recentAudit ?? []).length === 0 && <div className="muted">기록 없음</div>}
-        {state?.recentAudit.map((r) => (
-          <div className="listrow" key={r.id}>
-            <span className={`badge ${outcomeClass(r.outcome)}`}>{r.outcome}</span>
-            <span style={{ flex: 1 }}>{r.merchant.name}</span>
-            <span className="mono muted">{won(r.amount)}</span>
-          </div>
-        ))}
-      </div>
     </div>
   );
-}
-
-function Watch({ state, onChange }: { state: UiState | null; onChange: () => void }) {
-  const [title, setTitle] = useState("");
-  const [ref, setRef] = useState("");
-  const [max, setMax] = useState("30000");
-  const [method, setMethod] = useState<"coupay" | "kakaopay" | "tosspay">("coupay");
-  const [msg, setMsg] = useState("");
-
-  return (
-    <div className="body">
-      <div className="card">
-        <div className="label" style={{ marginBottom: 10 }}>
-          새 감시
-        </div>
-        <label className="field">
-          <span>상품 이름</span>
-          <input className="input" value={title} onChange={(e) => setTitle(e.target.value)} />
-        </label>
-        <label className="field">
-          <span>상품 URL</span>
-          <input className="input" value={ref} onChange={(e) => setRef(e.target.value)} />
-        </label>
-        <label className="field">
-          <span>상한가 (₩)</span>
-          <input
-            className="input mono"
-            value={max}
-            onChange={(e) => setMax(e.target.value)}
-            inputMode="numeric"
-          />
-        </label>
-        <label className="field">
-          <span>결제수단</span>
-          <select
-            className="input"
-            value={method}
-            onChange={(e) => setMethod(e.target.value as "coupay" | "kakaopay" | "tosspay")}
-          >
-            <option value="coupay">쿠페이</option>
-            <option value="kakaopay">카카오페이</option>
-            <option value="tosspay">토스페이</option>
-          </select>
-        </label>
-        <button
-          type="button"
-          className="btn btn-primary btn-block"
-          onClick={async () => {
-            setMsg("");
-            const price = Number.parseInt(max.replace(/[^\d]/g, ""), 10) || 0;
-            if (!title.trim() || !ref.trim() || price <= 0) {
-              setMsg("상품 이름·URL·상한가(1원 이상)를 모두 입력하세요");
-              return;
-            }
-            try {
-              await addWatch({
-                productRef: ref.trim(),
-                title: title.trim(),
-                maxPrice: price,
-                freeShippingOnly: true,
-                buyOnRestock: false,
-                method,
-              });
-              setTitle("");
-              setRef("");
-              setMsg("감시 등록됨");
-              onChange();
-            } catch (e) {
-              setMsg(`등록 실패: ${e instanceof Error ? e.message : "오류"}`);
-            }
-          }}
-        >
-          감시 시작
-        </button>
-        {msg && (
-          <div className="muted" style={{ fontSize: 12, marginTop: 8 }}>
-            {msg}
-          </div>
-        )}
-      </div>
-
-      {state?.watches.map((w) => (
-        <div className="card" key={w.id}>
-          <div className="row between">
-            <span style={{ fontWeight: 600, fontSize: 13 }}>{w.title}</span>
-            <span className={`badge ${w.status === "condition_met" ? "ok" : "warn"}`}>
-              {w.status}
-            </span>
-          </div>
-          <div className="muted" style={{ fontSize: 12, margin: "4px 0 8px" }}>
-            {won(w.maxPrice)} 이하 · {w.method}
-          </div>
-          <button
-            type="button"
-            className="btn btn-outline"
-            onClick={async () => {
-              try {
-                await removeWatch(w.id);
-              } catch {
-                // 무시(폴링 갱신)
-              }
-              onChange();
-            }}
-          >
-            삭제
-          </button>
-        </div>
-      ))}
-    </div>
-  );
-}
-
-function outcomeClass(outcome: string): string {
-  if (outcome === "approved") return "ok";
-  if (outcome === "rejected" || outcome === "failed") return "danger";
-  return "solid";
 }

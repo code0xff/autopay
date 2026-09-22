@@ -3,7 +3,9 @@
 ## 1. 목적
 
 사용자가 정책을 설정하고, 결제를 승인/거절하며, 결과를 인지하는 화면.
-승인된 목업: **`docs/design/ui-mockup.html`** (이 스펙의 시각 기준).
+`docs/design/ui-mockup.html`은 M1 초기(shadcn neutral) 목업이며 **2026-09-23
+Slate 재도색 이후로는 갱신되지 않았다** — 시각 기준은 실제 구현
+(`src/ui/theme.css`)과 §3의 토큰 표를 따른다.
 
 **비책임**: 판정(policy)·실행(executor). UI는 상태 표시와 사용자 입력만.
 
@@ -11,7 +13,7 @@
 
 | 표면 | Chrome API | 역할 | MVP |
 |---|---|---|---|
-| **Side Panel** | `chrome.sidePanel` | **주 콘솔** — 우측 도킹, 브라우징 중 상주. 활동·승인·감시 | ✅ |
+| **Side Panel** | `chrome.sidePanel` | **승인 콘솔** — 우측 도킹, 브라우징 중 상주. 수동 결제 트리거 + confirm 승인 | ✅ |
 | **Options page** | 전체 탭 | 정책·프로필·감사 로그 등 무거운 설정 | ✅ |
 | **Notifications** | `chrome.notifications` | 완료/거절 OS 알림(브라우저 밖에서도) | ✅ |
 | ~~Action popup~~ | — | **미사용** | ❌ |
@@ -22,35 +24,47 @@
 - 세 표면 모두 확장 자체 컨텍스트(신뢰 영역). 페이지 주입 오버레이는
   격리가 약해 쓰지 않는다(`spec/agent-integration.md`).
 
-## 3. 디자인 토큰 (구현 기준)
+## 3. 디자인 토큰 (구현 기준, 2026-09-23부터 Slate 적용)
 
-- **컴포넌트**: shadcn/ui, 기본 테마 **neutral**(모노톤).
-- **반경**: 카드·컨트롤 4px, 배지·칩 3px, 진행 바 2px. **스위치만 pill.**
-  (각지고 정밀한 엔터프라이즈 콘솔 느낌 — 둥근 느낌 지양.)
-- **서체**: Geist(UI), Geist Mono(금액·시각·주문번호 — `tabular-nums`).
-- **상태색(semantic, accent 아님)**: 완료=success(초록), 거절=destructive(빨강),
-  진행/폰승인=info(파랑), 주의/미충족/패턴C=warning(주황). 베이스는 neutral.
+> `~/workspace/design/slate/design.md`(개발자 콘솔용, 한국어 대응) 적용.
+> 이전 shadcn neutral·각진 4px·Geist 조합은 폐기됨.
+
+- **토큰**: `canvas`/`surface`/`subtle`/`line`/`ink`/`accent`/`ok`/`warn`/
+  `danger` (light+dark) — `src/ui/theme.css`가 단일 진실.
+- **형태**: 버튼·배지·아이콘버튼은 **완전히 둥근 pill**, 입력창은 `radius-xl`
+  (20px), 카드·패널은 `radius-lg`(16px) — 컨트롤은 완전히 둥글게, 패널/필드는
+  큰 반경의 "형태"로 구분한다는 Slate 규칙.
+- **서체**: 시스템 한글 폰트 스택(`-apple-system, ..., Apple SD Gothic Neo,
+  Noto Sans KR`) — 원격 웹폰트(Geist) 로드 제거, 오프라인 안전. 금액·시각·
+  주문번호는 `.mono`(`tabular-nums`).
+- **한글 라벨**: 트래킹 확대·대문자 변환 금지(Slate CJK 규칙 — 한글은 대소문자가
+  없어 트래킹을 넓히면 "흩어진 글자"로 읽힌다). `.label`은 11.5px, 트래킹 0.
+- **상태색(semantic, accent 아님)**: 완료=`ok`(초록), 거절/실패=`danger`(빨강),
+  진행/폰승인=`accent`가 아니라 기존처럼 info 배지(현재 `accent`로 매핑),
+  주의/미충족/패턴C=`warn`(주황).
+- **포커스**: 모든 인터랙티브 요소에 `accent` 포커스 링(`:focus-visible`).
 - **테마**: light/dark 토글을 Side Panel 헤더 + Options 헤더에 탑재. 기본은
-  system, 선택은 per-viewer로 저장(`chrome.storage` 또는 localStorage, try/catch).
-- **앱 아이콘**: "A" 워드마크. near-black 사각(반경 4px)에 흰 글자, dark에서
-  반전. action/스토어 아이콘 세트 16/32/48/128 제공.
+  system, 선택은 per-viewer로 저장(`localStorage`, try/catch).
+- **앱 아이콘**: "A" 워드마크. `primary` 토큰 배경(반경 `radius-sm`)에
+  `on-primary` 글자, dark에서 토큰이 자동 반전.
 
 ## 4. 화면별 요소·상태
 
-### 4.1 Side Panel — 탭 [활동] / [감시]
+### 4.1 Side Panel — 탭 없이 단일 승인 화면
 
-**헤더**: 로고("A") + "AutoPay" + 상태 배지("감시 중"/"대기") + 테마 토글.
+> 감시(Watch) 탭은 2026-09-23 제거됨(`docs/spec/watch.md`) — 지정가 모니터링은
+> 이제 MCP 에이전트(스킬)가 `open()`/`read_page()`로 직접 수행한다. 사이드
+> 패널의 책임은 "구매 승인"과 "에이전트 없는 수동 결제 트리거" 둘로 좁혀졌다.
 
-**활동(Activity)**
-- **라이브 상태 줄**: 현재 에이전트 상태("조건 충족 — 승인 대기", "가격 감시 중").
-- **승인 카드(confirm)**: 상품명·가맹점·수량, **금액(mono)**, 결제수단 배지
-  (패턴 표기), **정책 검증 체크리스트**(한도/사용량/조건), [거절] [승인하고 결제].
+**헤더**: 로고("A") + "AutoPay" + 테마 토글.
+
+- **수동 결제 카드**: "현재 탭에서 결제 요청(쿠팡)" 버튼 — Claude Code 없이
+  체크아웃 탭에서 바로 트리거하는 경로(원터치 ON + 정책 허용 전제).
+- **승인 카드(confirm)**: 가맹점, **금액(mono)**, 결제수단 배지(패턴 표기),
+  [거절] [승인하고 결제].
   - 패턴 C(쿠팡)일 때: "폰 승인이 없어 이 확인이 유일한 게이트" 안내.
-- **최근 활동 목록**: 완료/폰승인 대기/거절 항목(배지 + 가맹점 + 금액).
-
-**감시(Watch)** — 플래그십
-- **새 감시 등록**: 상품 URL/이름, 상한가(₩), 결제수단, 무료배송 스위치, [감시 시작].
-- **감시 목록**: 항목별 조건·현재가·진행 바·상태 배지(충족/미충족).
+- **최근 활동 목록은 사이드패널에 없다** — Options 페이지의 감사 로그
+  하나로 통합(중복 제거, 2026-09-23).
 
 **승인 카드 상태 (data-model `Decision`/`PaymentResult` 매핑)**
 
@@ -65,10 +79,13 @@
 
 ### 4.2 Options page (전체 탭)
 
-섹션(카드): **결제 한도**(건당/일/월/횟수) · **결제 수단**(카카오/토스=패턴 B,
-쿠페이=패턴 C 배지 + 스위치) · **허용 범위**(쇼핑몰·카테고리 칩) · **확인 규칙**
-(임계값 + 항상 확인 스위치) · **본인 식별 정보**(휴대폰·생년월일, **마스킹 표시**
-+ "암호화 저장, 로그 미기록" 문구) · **최근 결제**(감사 로그 테이블).
+섹션(카드): **사이트 접근 고지**(다른 브라우저 에이전트 익스텐션의 잔여
+리스크, AGENTS §2.6) · **잠금 해제**(패스프레이즈) · **결제 정책**(한도
+건당/일/월/횟수, 확인 임계값 + 항상 확인 스위치, **허용 머천트** 토글+오리진
+목록, **결제 수단** 체크박스, **카테고리** allowlist/denylist+값 목록 —
+2026-09-23 추가, 이전엔 이 필드들을 편집할 UI가 없었다) · **본인 식별 정보**
+(휴대폰·생년월일, **마스킹 표시** + "암호화 저장, 로그 미기록" 문구) ·
+**MCP 브리지**(토큰 등록, 연결 상태 배지) · **최근 결제**(감사 로그 테이블).
 
 ### 4.3 Notifications
 - 완료: "결제 완료 · ₩X · 가맹점 · 주문번호". 거절: 사유 요약.
@@ -106,9 +123,9 @@
 
 ## 7. 수용 기준
 
-- [ ] Side Panel(활동/감시) + Options(전체 탭) + notifications 구현
+- [ ] Side Panel(수동 결제+승인) + Options(전체 탭) + notifications 구현
 - [ ] Action popup 미사용(승인은 Side Panel에서)
-- [ ] shadcn neutral + 반경 4px + Geist + 상태색 규칙 적용
+- [ ] Slate 토큰(canvas/surface/ink/accent/ok/warn/danger) + pill 컨트롤 + 시스템 한글 폰트 적용
 - [ ] light/dark 토글(기본 system, 저장) 동작
 - [ ] 승인 카드가 confirm/폰대기/완료/거절/실패 5상태를 표시
 - [ ] PII·비밀 마스킹, 알림 본문에 원문 없음
@@ -116,11 +133,10 @@
 
 ## 8. 테스트 케이스
 
-1. Side Panel 활동 탭: confirm 상태 → [승인]/[거절] 노출
+1. Side Panel: confirm 상태 → [승인]/[거절] 노출
 2. [승인] → 폰 승인 대기(패턴 B) 또는 즉시 완료(패턴 C 원터치) 전환
-3. result=rejected → destructive 배지 + 위반 사유
-4. 감시 탭: 상한가 미충족/충족에 따른 상태 배지·진행 바
-5. Options 저장: 음수 한도 등 잘못된 값 → 인라인 오류, 미저장
-6. 테마 토글 → light/dark 전환 및 재로드 후 유지
-7. PII 필드는 마스킹 표시(`010-****-5678`)
-8. notifyOnRejection=false → 거절 알림 미발송
+3. result=rejected → danger 배지 + 위반 사유
+4. Options 저장: 음수 한도 등 잘못된 값 → 인라인 오류, 미저장
+5. 테마 토글 → light/dark 전환 및 재로드 후 유지
+6. PII 필드는 마스킹 표시(`010-****-5678`)
+7. notifyOnRejection=false → 거절 알림 미발송

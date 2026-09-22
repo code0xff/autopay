@@ -374,10 +374,12 @@ autopay/
 > 연결만 잔여. 상세는 `docs/status.md`.
 
 1. **M0 — 스켈레톤 ✅**: 모노레포 셋업, shared 스키마, 정책 엔진 코어 + 테스트
-2. **M1 — 브로커 익스텐션 ✅**: Side Panel(활동·승인·감시) + Options(정책·프로필·
-   감사) + chrome.notifications. WXT MV3, shadcn neutral·각진 4px·Geist·light/dark
-   (`docs/spec/ui.md`, `docs/design/ui-mockup.html`). chrome 어댑터·합성 루트·
-   감시 폴링 배선. `wxt build` 성공. 원시 비밀 저장 없음.
+2. **M1 — 브로커 익스텐션 ✅**: Side Panel(승인) + Options(정책·프로필·감사) +
+   chrome.notifications. WXT MV3, light/dark (`docs/spec/ui.md`, 2026-09-23부터
+   `~/workspace/design/slate` 디자인 시스템 적용). chrome 어댑터·합성 루트
+   배선. `wxt build` 성공. 원시 비밀 저장 없음. **감시(가격 폴링) 기능은
+   2026-09-23 제거됨**(`docs/spec/watch.md` — 실제로 작동하지 않는 스텁이었고,
+   M2의 MCP 에이전트가 같은 역할을 더 유연하게 대신함).
 3. **M2 — 에이전트 연동 ✅(코어)**: **③ 스킬→MCP→브리지→익스텐션** 채택·구현
    (Claude Code 우선). 사용자가 "○○ 사줘"라고 하면 스킬이 MCP 도구로 검색·
    체크아웃·결제 요청을 수행(`docs/spec/mcp-integration.md`). `packages/mcp-server`
@@ -385,7 +387,7 @@ autopay/
    (`.claude/skills/autopay-shopping`) + 익스텐션 `src/bridge`(WS 클라이언트 +
    도구→broker 매핑) 완성. 유닛테스트 + **실제 MCP SDK Client/Server·`ws`로
    프로토콜 전 구간을 왕복시키는 E2E**(`packages/mcp-server/src/e2e.test.ts`)
-   까지 검증(140 케이스 중 다수). 잔여: 실제 Claude Code 프로세스·Chrome
+   까지 검증(141 케이스 중 다수). 잔여: 실제 Claude Code 프로세스·Chrome
    익스텐션 라이브 연결(이 세션 자신이 Claude Code라 자기 재시작으론 검증
    불가 — 사용자 확인 필요). 두뇌 내장(①)은 대안으로 미채택.
 4. **M3 — Payment Executor (쿠팡 ✅ / 카카오·토스 잔여)**: `SimplePayAdapter`로

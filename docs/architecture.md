@@ -27,7 +27,7 @@ pnpm workspace
 └─ packages/broker-extension    # MV3 익스텐션
    ├─ background (service worker)   ← 두뇌 모듈 + 코어 오케스트레이션
    ├─ content scripts              ← "손"(DOM 조작): navigate/read/click/fill
-   ├─ side panel (React)           ← 주 콘솔: 활동·승인(confirm)·감시 (우측 도킹)
+   ├─ side panel (React)           ← 승인 콘솔: confirm 게이트 (우측 도킹)
    ├─ options page (React)         ← 정책·프로필·감사 로그 (전체 탭)
    └─ chrome.notifications         ← 완료/거절 OS 알림 (action popup 미사용)
 후속: packages/mcp-server (두뇌 외부화 ③), packages/agent-skill
@@ -43,12 +43,16 @@ background (service worker)
   ├─ BrokerAPI         결제 요청 라우팅·검증·오케스트레이션        │
   ├─ PolicyEngine      (request,policy,usage,verifiedAmount)→decision (순수)
   ├─ Executor          SimplePayAdapter: KakaoAdapter/CoupayAdapter/TossAdapter
-  ├─ WatchEngine       지정가 감시(alarms) → 조건 충족 시 requestPayment 트리거
   ├─ RefStore          PII·빌링키 참조 암호화 저장(executor 전용 복호화)
   ├─ AuditLog          추가 전용 기록 + usageFor 집계
   └─ Notifier          chrome.notifications (+선택 채널)
 content scripts        페이지 직렬화·DOM 실행 (Executor/AgentLoop의 손)
 ```
+
+> 지정가 모니터링(플래그십 §1.1)은 익스텐션 내장 폴러가 아니라 **에이전트(스킬)가
+> `open()`/`read_page()`를 반복 호출**해서 수행한다 — 예전 `WatchEngine`(alarms
+> 기반 폴링)은 실제로 작동하지 않는 스텁이라 2026-09-23 제거됐다
+> (`docs/spec/watch.md` 참조).
 
 | 컴포넌트 | 신뢰 | 스펙 |
 |---|---|---|
@@ -56,7 +60,6 @@ content scripts        페이지 직렬화·DOM 실행 (Executor/AgentLoop의 �
 | BrokerAPI | 경계 | `spec/broker-api.md` |
 | PolicyEngine | Trusted | `spec/policy.md` |
 | Executor | Trusted | `spec/executor.md` |
-| WatchEngine | Trusted | `spec/watch.md` |
 | RefStore | Trusted | `spec/refstore.md` |
 | AuditLog | Trusted | `spec/audit.md` |
 | Notifier | Trusted | `spec/notify.md` |
@@ -89,7 +92,6 @@ content scripts        페이지 직렬화·DOM 실행 (Executor/AgentLoop의 �
 |---|---|---|
 | 감사 로그 | `chrome.storage.local` | 추가 전용. usage 집계 근거 (`spec/audit.md`) |
 | 정책 | `chrome.storage.local` | 옵션 페이지에서 사용자 편집 |
-| 감시 항목(watch) | `chrome.storage.local` | 지정가 감시 스펙 (`spec/watch.md`) |
 | 사용자 프로필(PII: 휴대폰/생년월일) | `refstore`(암호화, WebCrypto) | 패턴 B 식별정보. 로그 금지 (`spec/refstore.md`) |
 | 빌링키 참조(패턴 A, 후순위) | `refstore`(암호화) | 원시 카드번호 저장 안 함 |
 | 결제 비밀·로그인 자격증명 | **저장 안 함** | 범위 밖 (`AGENTS.md §1.1 범위`) |

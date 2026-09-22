@@ -38,22 +38,4 @@ describe("Background RPC (compose)", () => {
     const res = await bg.handle({ type: "setPolicy", policy: { limits: { perTransaction: -1 } } });
     expect(res).toEqual({ ok: false, error: "invalid_request" });
   });
-
-  it("addWatch → 목록에 반영", async () => {
-    const bg = new Background(new MemoryKv());
-    await bg.handle({
-      type: "addWatch",
-      spec: {
-        productRef: "https://coupang.com/p/1",
-        title: "USB 허브",
-        maxPrice: 25_000,
-        freeShippingOnly: true,
-        buyOnRestock: false,
-        method: "coupay",
-      },
-    });
-    const state = (await bg.handle({ type: "getState" })) as UiState;
-    expect(state.watches).toHaveLength(1);
-    expect(state.watches[0]?.title).toBe("USB 허브");
-  });
 });

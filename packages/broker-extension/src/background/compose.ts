@@ -13,7 +13,6 @@ import { chromeNotificationSender } from "../platform/chrome-notify.js";
 import { ChromePageBridge } from "../platform/chrome-page-bridge.js";
 import type { Kv } from "../platform/kv.js";
 import { WebCryptoRefStore, deriveKey } from "../refstore/refstore.js";
-import { type Observed, WatchEngine, type WatchSpec } from "../watch/watch-engine.js";
 import { RpcRequest } from "./rpc.js";
 
 // 합성 루트 — 코어 모듈을 chrome 어댑터로 조립하고 UI RPC를 처리한다.
@@ -38,7 +37,6 @@ const BRIDGE_URL = "ws://127.0.0.1:8765"; // mcp-server 로컬 WS 허브(docs/sp
 export interface UiState {
   policy: PaymentPolicy;
   summary: PolicySummary;
-  watches: WatchSpec[];
   recentAudit: AuditRecord[];
   pending: PendingConfirmation[];
   hasProfile: boolean;
@@ -53,7 +51,6 @@ export class Background {
   private readonly audit: KvAuditLog;
   private readonly refstore: WebCryptoRefStore;
   private readonly broker: BrokerCore;
-  private readonly watches: WatchEngine;
   private readonly deps_adapter: (m: PaymentMethod) => SimplePayAdapter;
   private readonly bridgeTools: BridgeTools;
   private readonly bridgeClient: BridgeClient;
@@ -85,8 +82,6 @@ export class Background {
       refstore: this.refstore,
       kv,
     });
-    this.watches = new WatchEngine(kv, this.priceReader(), (w) => this.onConditionMet(w));
-
     // MCP 브리지(M2, docs/spec/mcp-integration.md) — 스킬은 이 표면(§3) 밖으로
     // 나가지 못한다. broker/pageBridge는 여기서만 노출된다.
     this.bridgeTools = new BridgeTools({
@@ -122,9 +117,6 @@ export class Background {
     if (!token) return;
     this.bridgeClient.setToken(token);
     this.bridgeClient.connect();
-  }
-  get watchEngine(): WatchEngine {
-    return this.watches;
   }
 
   async getPolicy(): Promise<PaymentPolicy> {
@@ -168,15 +160,6 @@ export class Background {
       case "setProfile":
         await this.refstore.setProfile(req.identity);
         return { ok: true };
-      case "addWatch":
-        await this.watches.add({ ...req.spec });
-        return { ok: true };
-      case "removeWatch":
-        await this.watches.remove(req.id);
-        return { ok: true };
-      case "pauseWatch":
-        await this.watches.pause(req.id, req.paused);
-        return { ok: true };
       case "resolveConfirmation":
         await this.broker.resolveConfirmation(req.requestId, req.approved);
         return { ok: true };
@@ -218,7 +201,6 @@ export class Background {
     return {
       policy: await this.getPolicy(),
       summary: await this.broker.getPolicySummary(),
-      watches: await this.watches.list(),
       recentAudit: await this.audit.list({ limit: 20 }),
       pending: await this.broker.listPending(),
       hasProfile: await this.safeHasProfile(),
@@ -247,36 +229,5 @@ export class Background {
     const salt = crypto.getRandomValues(new Uint8Array(16));
     await this.kv.set(SALT_KEY, [...salt]);
     return salt;
-  }
-
-  private priceReader() {
-    // "손"으로 상품 페이지의 가격/재고를 파싱. MVP는 미구현 셀렉터 → 보수적 미충족.
-    return {
-      read: async (_productRef: string): Promise<Observed> => ({
-        price: Number.POSITIVE_INFINITY,
-        inStock: false,
-        freeShipping: false,
-      }),
-    };
-  }
-
-  private async onConditionMet(watch: WatchSpec): Promise<boolean> {
-    // 조건 충족 → 상품 페이지를 열고 사용자에게 알림. 실제 구매는 에이전트가
-    // 체크아웃까지 진행 후 requestPayment로 이어감(M2). 여기서는 트리거만.
-    try {
-      await chrome.tabs.create({ url: watch.productRef, active: false });
-      await chromeNotificationSender(
-        { title: "지정가 조건 충족", body: `${watch.title} — 구매를 검토하세요` },
-        {
-          kind: "confirm_required",
-          merchant: watch.title,
-          amount: watch.maxPrice,
-          requestId: watch.id,
-        },
-      );
-    } catch {
-      // 무시
-    }
-    return false; // 구매 완료 아님 — watching 유지
   }
 }

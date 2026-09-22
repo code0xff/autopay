@@ -10,7 +10,7 @@
 | 모노레포·스택 (M0) | ✅ | pnpm workspace, TS strict, Vitest, Biome |
 | `shared` Zod 스키마 | ✅ | strict 거부·origin 제약 + 브리지 프로토콜 스키마, 유닛 테스트 |
 | 정책 엔진 | ✅ | 순수 함수, **100% 커버리지**, 26 케이스 |
-| audit / notify / refstore / watch | ✅ | 주입식 유닛 테스트 |
+| audit / notify / refstore | ✅ | 주입식 유닛 테스트 |
 | executor 코어(스냅샷·TOCTOU 재검증) + 어댑터(카카오/쿠팡/토스) | ✅ | fake driver/bridge 유닛 테스트 |
 | broker 오케스트레이션(정책·confirm·origin·동시성·예외수렴) | ✅ | 유닛 테스트 |
 | 브로커 익스텐션 (M1) | ✅ | WXT MV3, Side Panel+Options+background, `wxt build` 성공 |
@@ -18,7 +18,7 @@
 | **교차 워커 원자성 복구** | ✅ | `recoverStaleExecutions()` — 중단된 실행을 재시도 없이 안전 실패 처리, 유닛 테스트 2건 |
 | Codex 리뷰 | ✅×4 | M0·M1코어·M1익스텐션·최종, High/Medium 반영 |
 
-**테스트 총계**: 140 (shared 17 + broker-extension 105 + mcp-server 18). typecheck·biome 클린.
+**테스트 총계**: 141 (shared 17 + broker-extension 106 + mcp-server 18). typecheck·biome 클린.
 
 ### Codex 최종 리뷰 High 3건 — 반영 + 회귀 테스트로 검증
 - confirm 후 실행 직전 정책·사용량 재평가(한도 소진 시 차단) — `broker-core.test.ts` #15

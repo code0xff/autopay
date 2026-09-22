@@ -60,7 +60,7 @@
 | verifiedAmount | executor가 결제창에서 독립 파싱한 실제 금액(위조 방지 기준) |
 | BrokerTools | 두뇌가 코어에 접근하는 유일한 도구 인터페이스(경계) |
 | decision | 정책 판정 결과: allow / confirm / deny |
-| 감시(Watch) | 지정가 모니터링 → 조건 충족 시 결제 트리거(플래그십, `spec/watch.md`) |
+| 감시(Watch) | ~~지정가 모니터링 엔진~~ — 2026-09-23 제거됨(`spec/watch.md`). 지금은 MCP 에이전트가 대신 수행 |
 | confirm 해소 | UI [승인]/[거절] 또는 타임아웃으로 pending confirm을 재개/취소(`resolveConfirmation`) |
 
 ## 7. 문서 리뷰 체크리스트

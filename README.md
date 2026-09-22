@@ -14,7 +14,8 @@
 - **비밀 격리**: 브로커는 원시 결제 비밀을 보관·입력하지 않는다. 최종 승인은
   폰(패턴 B) 또는 사전 승인 원터치(패턴 C, 쿠팡). "훔칠 게 없는" 설계.
 - **감사·통지**: 모든 결제 시도를 감사 로그로, 완료/거절을 즉시 알림.
-- **지정가 감시**: 상품·상한가를 정하면 조건 충족 시 결제(정책 게이트 경유).
+- **지정가 자동 구매**: Claude Code(MCP 스킬)가 상품·상한가 조건을 직접
+  모니터링하다가 조건 충족 시 결제 요청(정책 게이트 경유).
 
 ## 구조
 
@@ -22,7 +23,7 @@
 packages/shared              공용 Zod 스키마·타입(경계의 단일 진실, 브리지 프로토콜 포함)
 packages/broker-extension    Chrome MV3 익스텐션(신뢰 영역)
   src/policy                 정책 엔진(순수 함수, 100% 커버리지)
-  src/{audit,notify,refstore,watch,executor,broker}  신뢰 코어(주입식·유닛테스트)
+  src/{audit,notify,refstore,executor,broker}  신뢰 코어(주입식·유닛테스트)
   src/platform                chrome 어댑터(kv/notify/page-bridge)
   src/bridge                  MCP 브리지 WS 클라이언트 + 도구 매핑(M2)
   src/background              합성 루트 + UI RPC
@@ -38,7 +39,7 @@ docs/                         설계·스펙·규범 (spec/ 12종)
 
 ```bash
 pnpm install            # 의존성 설치 (postinstall이 wxt prepare 실행)
-pnpm test               # 전체 유닛 테스트 (140)
+pnpm test               # 전체 유닛 테스트 (141)
 pnpm typecheck          # 타입 체크
 pnpm lint               # Biome
 pnpm --filter @autopay/broker-extension build   # 익스텐션 빌드(.output/chrome-mv3)
