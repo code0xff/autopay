@@ -1,14 +1,9 @@
 import type { PaymentPolicy } from "@autopay/shared";
 import { useEffect, useState } from "react";
 import type { UiState } from "../../src/background/compose.js";
+import { ThemeToggle } from "../../src/ui/ThemeToggle.js";
 import { Unlock } from "../../src/ui/Unlock.js";
-import {
-  getState,
-  setBridgeToken,
-  setPolicy,
-  setProfile,
-  toggleTheme,
-} from "../../src/ui/rpc-client.js";
+import { getState, setBridgeToken, setPolicy, setProfile } from "../../src/ui/rpc-client.js";
 
 export function App() {
   const [state, setState] = useState<UiState | null>(null);
@@ -26,9 +21,7 @@ export function App() {
     <div className="options">
       <header className="row between" style={{ marginBottom: 20 }}>
         <h1 style={{ fontSize: 20, margin: 0 }}>정책 · 설정</h1>
-        <button type="button" className="icon-btn" onClick={toggleTheme}>
-          테마
-        </button>
+        <ThemeToggle />
       </header>
 
       <SiteAccessNotice />

@@ -145,7 +145,8 @@ label[for] {
   font-weight: 600;
 }
 .brand {
-  font-weight: 500;
+  font-size: 16px;
+  font-weight: 600;
   letter-spacing: -0.01em;
 }
 .spacer {
@@ -331,6 +332,15 @@ label[for] {
 }
 .icon-btn:hover {
   background: var(--subtle);
+}
+/* 아이콘만 담는 정사각형 pill(테마 토글 등) — icon-btn의 텍스트 패딩과 구분. */
+.icon-btn-square {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 30px;
+  height: 30px;
+  padding: 0;
 }
 
 table {

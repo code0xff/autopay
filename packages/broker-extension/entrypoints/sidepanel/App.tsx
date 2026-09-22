@@ -1,12 +1,8 @@
 import { useEffect, useState } from "react";
 import type { UiState } from "../../src/background/compose.js";
+import { ThemeToggle } from "../../src/ui/ThemeToggle.js";
 import { Unlock } from "../../src/ui/Unlock.js";
-import {
-  getState,
-  payActiveTab,
-  resolveConfirmation,
-  toggleTheme,
-} from "../../src/ui/rpc-client.js";
+import { getState, payActiveTab, resolveConfirmation } from "../../src/ui/rpc-client.js";
 
 const won = (n: number) => `₩${n.toLocaleString("ko-KR")}`;
 
@@ -15,6 +11,9 @@ const won = (n: number) => `₩${n.toLocaleString("ko-KR")}`;
 // 에이전트 없이 순수 수동으로 결제를 트리거하는 두 가지 일만 한다.
 // 감시(가격 폴링) 기능은 제거됨 — 실제로는 작동하지 않는 스텁이었고, 지금은
 // 에이전트가 open()/read_page()로 직접 가격을 확인하는 편이 더 유연하다.
+// 잠겨있으면 잠금 해제 폼만 보이고, 해제 후에 결제 트리거·승인 화면이 뜬다
+// (쿠페이는 잠금 자체가 필요 없지만, "먼저 해제해야 뭔가 할 수 있다"는
+// 일관된 멘탈모델을 위해 전체를 잠금 뒤에 둔다).
 export function App() {
   const [state, setState] = useState<UiState | null>(null);
   const refresh = () =>
@@ -34,9 +33,7 @@ export function App() {
         <span className="logo">A</span>
         <span className="brand">AutoPay</span>
         <span className="spacer" />
-        <button type="button" className="icon-btn" onClick={toggleTheme}>
-          테마
-        </button>
+        <ThemeToggle />
       </header>
 
       {state?.locked && (
@@ -45,18 +42,20 @@ export function App() {
         </div>
       )}
 
-      <Approval
-        state={state}
-        onRefresh={refresh}
-        onResolve={async (id, ok) => {
-          try {
-            await resolveConfirmation(id, ok);
-          } catch {
-            // 결과는 폴링으로 갱신됨 — 콘솔 예외로 새지 않게 흡수
-          }
-          refresh();
-        }}
-      />
+      {state && !state.locked && (
+        <Approval
+          state={state}
+          onRefresh={refresh}
+          onResolve={async (id, ok) => {
+            try {
+              await resolveConfirmation(id, ok);
+            } catch {
+              // 결과는 폴링으로 갱신됨 — 콘솔 예외로 새지 않게 흡수
+            }
+            refresh();
+          }}
+        />
+      )}
     </div>
   );
 }

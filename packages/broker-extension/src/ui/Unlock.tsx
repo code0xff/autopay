@@ -26,22 +26,24 @@ export function Unlock({ locked, onDone }: { locked: boolean; onDone: () => void
           onChange={(e) => setPass(e.target.value)}
         />
       </label>
-      <button
-        type="button"
-        className="btn btn-primary"
-        onClick={async () => {
-          try {
-            await unlock(pass);
-            setPass("");
-            setErr("");
-            onDone();
-          } catch {
-            setErr("패스프레이즈가 올바르지 않습니다");
-          }
-        }}
-      >
-        잠금 해제
-      </button>
+      <div className="row" style={{ justifyContent: "flex-end" }}>
+        <button
+          type="button"
+          className="btn btn-primary"
+          onClick={async () => {
+            try {
+              await unlock(pass);
+              setPass("");
+              setErr("");
+              onDone();
+            } catch {
+              setErr("패스프레이즈가 올바르지 않습니다");
+            }
+          }}
+        >
+          잠금 해제
+        </button>
+      </div>
       {err && (
         <div className="badge danger" style={{ marginTop: 10 }}>
           {err}
