@@ -45,6 +45,7 @@ export class Background {
   private readonly refstore: WebCryptoRefStore;
   private readonly broker: BrokerCore;
   private readonly watches: WatchEngine;
+  private readonly deps_adapter: (m: PaymentMethod) => SimplePayAdapter;
 
   constructor(kv: Kv = new ChromeKv()) {
     this.kv = kv;
@@ -56,7 +57,7 @@ export class Background {
     });
     const bridge = new ChromePageBridge();
     const adapters = new Map<PaymentMethod, SimplePayAdapter>();
-    const adapterFor = (m: PaymentMethod): SimplePayAdapter => {
+    this.deps_adapter = (m: PaymentMethod): SimplePayAdapter => {
       let a = adapters.get(m);
       if (!a) {
         a = createAdapter(m, bridge);
@@ -66,7 +67,7 @@ export class Background {
     };
     this.broker = new BrokerCore({
       getPolicy: () => this.getPolicy(),
-      adapterFor,
+      adapterFor: this.deps_adapter,
       audit: this.audit,
       notify,
       refstore: this.refstore,
@@ -135,7 +136,34 @@ export class Background {
       case "resolveConfirmation":
         await this.broker.resolveConfirmation(req.requestId, req.approved);
         return { ok: true };
+      case "payActiveTab":
+        return this.payActiveTab(req.method);
     }
+  }
+
+  /** 현재 활성 탭(체크아웃 화면)에서 수동 결제 요청. 에이전트 없이 실사용 진입점.
+   *  탭에서 금액·origin을 파싱해 요청을 구성 → 정책 게이트 → (패턴 C) 확인 대기. */
+  private async payActiveTab(method: PaymentMethod): Promise<unknown> {
+    const [tab] = await chrome.tabs.query({ active: true, currentWindow: true });
+    if (!tab?.id || !tab.url) return { ok: false, error: "no_active_tab" };
+    let origin: string;
+    try {
+      origin = new URL(tab.url).origin;
+    } catch {
+      return { ok: false, error: "bad_tab_url" };
+    }
+    // 탭에서 실제 금액을 먼저 파싱(요청 totalAmount 구성용). 실패 시 중단.
+    const verified = await this.deps_adapter(method).verify(tab.id);
+    if (!Number.isFinite(verified.amount)) return { ok: false, error: "amount_parse_failed" };
+    const { requestId } = await this.broker.requestPayment({
+      merchant: { origin, name: verified.merchantName || origin },
+      items: [{ title: "수동 결제", quantity: 1, unitPrice: verified.amount }],
+      totalAmount: verified.amount,
+      currency: "KRW",
+      method,
+      checkoutTabId: tab.id,
+    });
+    return { ok: true, requestId };
   }
 
   private async state(): Promise<UiState> {

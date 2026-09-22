@@ -3,6 +3,7 @@ import type { UiState } from "../../src/background/compose.js";
 import {
   addWatch,
   getState,
+  payActiveTab,
   removeWatch,
   resolveConfirmation,
   toggleTheme,
@@ -54,6 +55,7 @@ export function App() {
       {tab === "activity" ? (
         <Activity
           state={state}
+          onRefresh={refresh}
           onResolve={async (id, ok) => {
             await resolveConfirmation(id, ok);
             refresh();
@@ -69,12 +71,46 @@ export function App() {
 function Activity({
   state,
   onResolve,
+  onRefresh,
 }: {
   state: UiState | null;
   onResolve: (requestId: string, approved: boolean) => void;
+  onRefresh: () => void;
 }) {
+  const [payMsg, setPayMsg] = useState("");
   return (
     <div className="body">
+      <div className="card">
+        <div className="label" style={{ marginBottom: 8 }}>
+          현재 탭에서 결제 (수동)
+        </div>
+        <div className="muted" style={{ fontSize: 12, marginBottom: 10 }}>
+          쿠팡 체크아웃 화면을 연 상태에서 누르면, 그 탭의 금액을 확인해 결제 요청을 만듭니다.
+          (원터치 결제 ON + 정책 허용 필요)
+        </div>
+        <button
+          type="button"
+          className="btn btn-primary btn-block"
+          onClick={async () => {
+            setPayMsg("");
+            try {
+              await payActiveTab("coupay");
+              setPayMsg("결제 요청 생성됨 — 아래에서 승인하세요");
+              onRefresh();
+            } catch (e) {
+              setPayMsg(`실패: ${e instanceof Error ? e.message : "오류"}`);
+            }
+          }}
+        >
+          현재 탭에서 결제 요청 (쿠팡)
+        </button>
+        {payMsg && (
+          <div className="muted" style={{ fontSize: 12, marginTop: 8 }}>
+            {payMsg}
+          </div>
+        )}
+      </div>
+
       {(state?.pending ?? []).length === 0 && (
         <div className="muted" style={{ fontSize: 13 }}>
           승인 대기 중인 결제가 없습니다.

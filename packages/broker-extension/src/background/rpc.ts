@@ -27,6 +27,10 @@ export const RpcRequest = z.discriminatedUnion("type", [
   z.object({ type: z.literal("addWatch"), spec: WatchInput }).strict(),
   z.object({ type: z.literal("removeWatch"), id: z.string() }).strict(),
   z.object({ type: z.literal("pauseWatch"), id: z.string(), paused: z.boolean() }).strict(),
+  // 현재 활성 탭(체크아웃 화면)에서 수동으로 결제 요청 — 에이전트 없이 실사용 진입점
+  z
+    .object({ type: z.literal("payActiveTab"), method: PaymentMethod })
+    .strict(),
   z
     .object({
       type: z.literal("resolveConfirmation"),
