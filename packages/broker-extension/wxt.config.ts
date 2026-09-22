@@ -14,6 +14,7 @@ export default defineConfig({
     host_permissions: [
       "https://www.coupang.com/*",
       "https://coupang.com/*",
+      "https://checkout.coupang.com/*", // 쿠팡 결제(패턴 C) 실제 체크아웃 도메인 — 2026-09-23 실사용 중 발견된 누락
       "https://online-payment.kakaopay.com/*",
       "https://pay.toss.im/*",
     ],
