@@ -208,6 +208,108 @@ function PolicyForm({ policy, onSaved }: { policy: PaymentPolicy; onSaved: () =>
           }
         />
       </label>
+
+      <div className="label" style={{ margin: "16px 0 10px" }}>
+        허용 머천트
+      </div>
+      <label className="listrow">
+        <span>모든 머천트 허용</span>
+        <input
+          type="checkbox"
+          checked={p.merchants.mode === "any"}
+          onChange={(e) =>
+            setP({
+              ...p,
+              merchants: { ...p.merchants, mode: e.target.checked ? "any" : "allowlist" },
+            })
+          }
+        />
+      </label>
+      {p.merchants.mode === "allowlist" && (
+        <label className="field">
+          <span>
+            허용 오리진 목록 (쉼표로 구분, 예: https://coupang.com, https://www.coupang.com)
+          </span>
+          <input
+            className="input mono"
+            value={p.merchants.origins.join(", ")}
+            onChange={(e) =>
+              setP({
+                ...p,
+                merchants: {
+                  ...p.merchants,
+                  origins: e.target.value
+                    .split(",")
+                    .map((s) => s.trim())
+                    .filter(Boolean),
+                },
+              })
+            }
+          />
+        </label>
+      )}
+
+      <div className="label" style={{ margin: "16px 0 10px" }}>
+        결제 수단
+      </div>
+      <div className="row" style={{ gap: 14, marginBottom: 10 }}>
+        {(["coupay", "kakaopay", "tosspay"] as const).map((m) => (
+          <label key={m} className="listrow" style={{ gap: 6 }}>
+            <input
+              type="checkbox"
+              checked={p.methods.includes(m)}
+              onChange={(e) =>
+                setP({
+                  ...p,
+                  methods: e.target.checked ? [...p.methods, m] : p.methods.filter((x) => x !== m),
+                })
+              }
+            />
+            <span>{m}</span>
+          </label>
+        ))}
+      </div>
+
+      <div className="label" style={{ margin: "16px 0 10px" }}>
+        카테고리
+      </div>
+      <label className="listrow">
+        <span>거부 목록 모드(체크 해제 시 허용 목록 모드)</span>
+        <input
+          type="checkbox"
+          checked={p.categories.mode === "denylist"}
+          onChange={(e) =>
+            setP({
+              ...p,
+              categories: { ...p.categories, mode: e.target.checked ? "denylist" : "allowlist" },
+            })
+          }
+        />
+      </label>
+      <label className="field">
+        <span>
+          {p.categories.mode === "denylist" ? "거부" : "허용"} 카테고리 목록 (쉼표로 구분, 비워두면{" "}
+          {p.categories.mode === "denylist" ? "아무 것도 거부하지 않음" : "아무 것도 허용하지 않음"}
+          )
+        </span>
+        <input
+          className="input mono"
+          value={p.categories.values.join(", ")}
+          onChange={(e) =>
+            setP({
+              ...p,
+              categories: {
+                ...p.categories,
+                values: e.target.value
+                  .split(",")
+                  .map((s) => s.trim())
+                  .filter(Boolean),
+              },
+            })
+          }
+        />
+      </label>
+
       <button
         type="button"
         className="btn btn-primary btn-block"
