@@ -46,7 +46,7 @@ importers:
         specifier: 2.1.9
         version: 2.1.9(vitest@2.1.9(@types/node@26.4.1))
       linkedom:
-        specifier: ^0.18.13
+        specifier: 0.18.13
         version: 0.18.13
       typescript:
         specifier: 5.9.3

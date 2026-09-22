@@ -34,6 +34,7 @@ export function App() {
 
 function Unlock({ locked, onDone }: { locked: boolean; onDone: () => void }) {
   const [pass, setPass] = useState("");
+  const [err, setErr] = useState("");
   if (!locked)
     return (
       <div className="card badge ok" style={{ marginBottom: 14 }}>
@@ -58,20 +59,37 @@ function Unlock({ locked, onDone }: { locked: boolean; onDone: () => void }) {
         type="button"
         className="btn btn-primary"
         onClick={async () => {
-          await unlock(pass);
-          setPass("");
-          onDone();
+          try {
+            await unlock(pass);
+            setPass("");
+            setErr("");
+            onDone();
+          } catch {
+            setErr("패스프레이즈가 올바르지 않습니다");
+          }
         }}
       >
         잠금 해제
       </button>
+      {err && (
+        <div className="badge danger" style={{ marginTop: 10 }}>
+          {err}
+        </div>
+      )}
     </div>
   );
 }
 
 function PolicyForm({ policy, onSaved }: { policy: PaymentPolicy; onSaved: () => void }) {
   const [p, setP] = useState<PaymentPolicy>(policy);
+  const [msg, setMsg] = useState<{ kind: "ok" | "err"; text: string } | null>(null);
   const num = (v: string) => Number.parseInt(v.replace(/[^\d]/g, ""), 10) || 0;
+
+  // 저장된 정책이 갱신되면 폼에 반영(저장 후·재로드 시 최신값 표시).
+  // biome-ignore lint/correctness/useExhaustiveDependencies: policy 스냅샷이 바뀔 때만 동기화
+  useEffect(() => {
+    setP(policy);
+  }, [JSON.stringify(policy)]);
 
   return (
     <div className="card" style={{ marginBottom: 14 }}>
@@ -147,12 +165,22 @@ function PolicyForm({ policy, onSaved }: { policy: PaymentPolicy; onSaved: () =>
         className="btn btn-primary btn-block"
         style={{ marginTop: 10 }}
         onClick={async () => {
-          await setPolicy(p);
-          onSaved();
+          try {
+            await setPolicy(p);
+            setMsg({ kind: "ok", text: "저장됨" });
+            onSaved();
+          } catch (e) {
+            setMsg({ kind: "err", text: `저장 실패: ${e instanceof Error ? e.message : "오류"}` });
+          }
         }}
       >
         정책 저장
       </button>
+      {msg && (
+        <div className={`badge ${msg.kind === "ok" ? "ok" : "danger"}`} style={{ marginTop: 10 }}>
+          {msg.text}
+        </div>
+      )}
     </div>
   );
 }
