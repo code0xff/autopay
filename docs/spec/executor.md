@@ -40,7 +40,9 @@ export type PayOutcome =
 
 export interface SimplePayAdapter {
   readonly method: "kakaopay" | "tosspay" | "coupay";
-  /** 외부 인간 게이트(폰 승인) 존재 여부. false면 브로커가 확인 게이트 강제 */
+  /** 외부 인간 게이트(폰 승인) 존재 여부. false(쿠팡)면 identity 없이
+   *  실행되고 결제는 정책(policy.confirmation)에 걸린다 — 브로커가 별도로
+   *  강제하지 않는다(2026-09-23 변경, AGENTS §2.5·§9 잔여 리스크). */
   readonly hasExternalApproval: boolean;   // 카카오/토스=true, 쿠팡=false
   /** 결제창/페이지에서 실제 결제 금액을 독립 파싱 + 스냅샷 산출 */
   verify(tabId: number): Promise<VerifiedCheckout>;

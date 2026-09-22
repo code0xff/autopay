@@ -131,14 +131,13 @@ export class BrokerCore {
     }
 
     // 4. 사용량 스냅샷 → 5. 정책 판정
+    // 2026-09-23: 패턴 C(쿠팡 원터치)에 대해 정책 판정과 무관하게 confirm을
+    // 강제하던 하드코딩을 제거했다(사용자 결정) — coupay도 이제 다른 결제수단과
+    // 똑같이 policy.confirmation(alwaysConfirm/requireUserConfirmationAbove)이
+    // 그대로 적용된다. 즉시 실행을 원하면 정책에서 alwaysConfirm을 끄고
+    // 임계값을 올리면 된다 — "언제 확인을 요구할지"는 이제 전부 정책의 몫이다.
     const usage = await this.deps.audit.usageFor(this.now());
-    let decision = evaluate(req, policy, usage, verified.amount);
-
-    // 패턴 C(외부 게이트 없음, 예: 쿠팡 원터치)는 allow라도 우리 확인을 강제한다
-    // (AGENTS §2.5). 정책 confirm/deny는 그대로 존중.
-    if (decision.type === "allow" && !adapter.hasExternalApproval) {
-      decision = { type: "confirm", reason: "always" };
-    }
+    const decision = evaluate(req, policy, usage, verified.amount);
     state.decision = decision;
 
     if (decision.type === "deny") {

@@ -131,8 +131,14 @@ describe("BrokerCore", () => {
     expect(chrome).toHaveBeenCalled();
   });
 
-  it("3. 패턴 C(쿠팡) allow → 우리 확인 게이트 강제(pending) → 승인 시 approved", async () => {
-    const { broker, audit } = setup({});
+  it("3. 패턴 C(쿠팡) + 정책이 확인을 요구 → pending → 승인 시 approved", async () => {
+    // coupay 전용 하드코딩이 아니라 다른 결제수단과 동일한 정책 규칙(alwaysConfirm)
+    // 으로 confirm이 걸림을 검증.
+    const { broker, audit } = setup({
+      policy: basePolicy({
+        confirmation: { requireUserConfirmationAbove: 1_000_000, alwaysConfirm: true },
+      }),
+    });
     const { requestId } = await broker.requestPayment(validReq);
     expect((await broker.getPaymentResult(requestId)).status).toBe("pending_user_confirmation");
     await broker.resolveConfirmation(requestId, true);
@@ -140,8 +146,25 @@ describe("BrokerCore", () => {
     expect((await audit.usageFor(NOW)).spentToday).toBe(20_000);
   });
 
+  it("3b. [2026-09-23] 패턴 C(쿠팡) + 정책이 확인 불필요 → 확인 없이 즉시 approved", async () => {
+    // coupay는 더 이상 무조건 confirm을 강제하지 않는다(사용자 결정) — 정책이
+    // 허용하면(alwaysConfirm:false + 임계값 이하) 클릭 하나 없이 바로 실행된다.
+    const { broker, audit } = setup({
+      policy: basePolicy({
+        confirmation: { requireUserConfirmationAbove: 1_000_000, alwaysConfirm: false },
+      }),
+    });
+    const { requestId } = await broker.requestPayment(validReq);
+    expect((await broker.getPaymentResult(requestId)).status).toBe("approved");
+    expect((await audit.usageFor(NOW)).spentToday).toBe(20_000);
+  });
+
   it("4. confirm 거절 → canceled(user_declined)", async () => {
-    const { broker } = setup({});
+    const { broker } = setup({
+      policy: basePolicy({
+        confirmation: { requireUserConfirmationAbove: 1_000_000, alwaysConfirm: true },
+      }),
+    });
     const { requestId } = await broker.requestPayment(validReq);
     await broker.resolveConfirmation(requestId, false);
     expect(await broker.getPaymentResult(requestId)).toEqual({
@@ -232,7 +255,11 @@ describe("BrokerCore", () => {
   });
 
   it("12. confirm → listPending 항목, 해소 후 비워짐", async () => {
-    const { broker } = setup({});
+    const { broker } = setup({
+      policy: basePolicy({
+        confirmation: { requireUserConfirmationAbove: 1_000_000, alwaysConfirm: true },
+      }),
+    });
     const { requestId } = await broker.requestPayment(validReq);
     const pending = await broker.listPending();
     expect(pending).toHaveLength(1);
@@ -242,7 +269,11 @@ describe("BrokerCore", () => {
   });
 
   it("14. confirm 타임아웃 → canceled(confirm_timeout), pending 제거", async () => {
-    const { broker } = setup({});
+    const { broker } = setup({
+      policy: basePolicy({
+        confirmation: { requireUserConfirmationAbove: 1_000_000, alwaysConfirm: true },
+      }),
+    });
     const { requestId } = await broker.requestPayment(validReq);
     expect((await broker.getPaymentResult(requestId)).status).toBe("pending_user_confirmation");
     await broker.expireStaleConfirmations(0); // ttl 0 → 즉시 만료
@@ -311,7 +342,10 @@ describe("BrokerCore", () => {
         pay,
       };
       return new BrokerCore({
-        getPolicy: async () => basePolicy(),
+        getPolicy: async () =>
+          basePolicy({
+            confirmation: { requireUserConfirmationAbove: 1_000_000, alwaysConfirm: true },
+          }),
         adapterFor: () => a,
         audit,
         notify: new BrokerNotifier({ senders: {}, notifyOnRejection: true }),
@@ -360,7 +394,10 @@ describe("BrokerCore", () => {
     };
     const mkAt = (now: Date) =>
       new BrokerCore({
-        getPolicy: async () => basePolicy(),
+        getPolicy: async () =>
+          basePolicy({
+            confirmation: { requireUserConfirmationAbove: 1_000_000, alwaysConfirm: true },
+          }),
         adapterFor: () => adapter,
         audit,
         notify: new BrokerNotifier({ senders: {}, notifyOnRejection: true }),
@@ -408,7 +445,10 @@ describe("BrokerCore", () => {
     };
     const mkAt = (now: Date) =>
       new BrokerCore({
-        getPolicy: async () => basePolicy(),
+        getPolicy: async () =>
+          basePolicy({
+            confirmation: { requireUserConfirmationAbove: 1_000_000, alwaysConfirm: true },
+          }),
         adapterFor: () => adapter,
         audit,
         notify: new BrokerNotifier({ senders: {}, notifyOnRejection: true }),

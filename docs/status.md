@@ -18,7 +18,7 @@
 | **교차 워커 원자성 복구** | ✅ | `recoverStaleExecutions()` — 중단된 실행을 재시도 없이 안전 실패 처리, 유닛 테스트 2건 |
 | Codex 리뷰 | ✅×4 | M0·M1코어·M1익스텐션·최종, High/Medium 반영 |
 
-**테스트 총계**: 142 (shared 17 + broker-extension 107 + mcp-server 18). typecheck·biome 클린.
+**테스트 총계**: 143 (shared 17 + broker-extension 108 + mcp-server 18). typecheck·biome 클린.
 
 ### Codex 최종 리뷰 High 3건 — 반영 + 회귀 테스트로 검증
 - confirm 후 실행 직전 정책·사용량 재평가(한도 소진 시 차단) — `broker-core.test.ts` #15
