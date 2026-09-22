@@ -383,9 +383,11 @@ autopay/
    체크아웃·결제 요청을 수행(`docs/spec/mcp-integration.md`). `packages/mcp-server`
    (stdio MCP + 로컬 WS 허브, 토큰 게이트, 단일 연결) + `packages/agent-skill`
    (`.claude/skills/autopay-shopping`) + 익스텐션 `src/bridge`(WS 클라이언트 +
-   도구→broker 매핑) 완성·유닛테스트(132 케이스 중 일부). 잔여: 실제 Claude
-   Code·Chrome 라이브 연결 검증(이 환경엔 브라우저·LLM 런타임 없음). 두뇌
-   내장(①)은 대안으로 미채택.
+   도구→broker 매핑) 완성. 유닛테스트 + **실제 MCP SDK Client/Server·`ws`로
+   프로토콜 전 구간을 왕복시키는 E2E**(`packages/mcp-server/src/e2e.test.ts`)
+   까지 검증(138 케이스 중 다수). 잔여: 실제 Claude Code 프로세스·Chrome
+   익스텐션 라이브 연결(이 세션 자신이 Claude Code라 자기 재시작으론 검증
+   불가 — 사용자 확인 필요). 두뇌 내장(①)은 대안으로 미채택.
 4. **M3 — Payment Executor (카카오 → 쿠팡 → 토스)**: `SimplePayAdapter` 정의
    후 **카카오(패턴 B) 최초 검증** → **쿠팡(패턴 C, 원터치)** → **토스(패턴 B)**.
    - 패턴 B: 결제창 인수(휴대폰/생년월일 입력) → 폰 푸시 → 폰 승인 대기.

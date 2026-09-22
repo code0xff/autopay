@@ -18,7 +18,7 @@
 | | | `src/bridge`(WS 클라이언트 + 도구→broker 매핑) + `packages/agent-skill` |
 | Codex 리뷰 | ✅×4 | M0·M1코어·M1익스텐션·최종, High/Medium 반영 |
 
-**테스트 총계**: 132 (shared 17 + broker-extension 103 + mcp-server 12). typecheck·biome 클린.
+**테스트 총계**: 138 (shared 17 + broker-extension 103 + mcp-server 18). typecheck·biome 클린.
 
 ### Codex 최종 리뷰 High 3건 — 반영 + 회귀 테스트로 검증
 - confirm 후 실행 직전 정책·사용량 재평가(한도 소진 시 차단) — `broker-core.test.ts` #15
@@ -59,14 +59,27 @@
 - `hub.test.ts`는 **실제 `ws` 서버·클라이언트**로 인증/단일연결/타임아웃/연결끊김을
   검증(모킹 아님). `ws-client.ts`/`bridge-tools.ts`는 기존 코드베이스 관례대로
   주입식 유닛 테스트.
+- **`e2e.test.ts` — 프로토콜 전 구간 실물 왕복 검증**: 실제 `@modelcontextprotocol/sdk`
+  `Client`(InMemoryTransport) → 실제 `McpServer`(`registerTools`) → 실제 `Hub`
+  (127.0.0.1 WS) → 실제 `ws` 클라이언트(익스텐션 흉내, 응답 로직만 페이크)까지
+  전부 실물로 왕복시켜 6케이스 검증: tools/list가 스펙 §3의 7개와 정확히 일치,
+  `get_policy_summary`/`request_payment` 왕복(후자는 `checkoutTabId` 없이
+  그대로 허브까지 전달됨을 확인), 익스텐션 미접속 시 `bridge_not_connected`가
+  isError로 노출, `open`에 자격증명 URL을 주면 **MCP 입력 스키마 단계에서
+  허브까지 가지도 않고** 거절, 표면 밖 도구(`get_secret`)는 MCP 표준 오류로
+  거절. 이 환경에서 가능한 한 가장 "라이브"에 가까운 검증이다 — 유일하게 실물이
+  아닌 것은 익스텐션 background의 `BridgeTools` 응답(그건 `bridge-tools.test.ts`가
+  이미 주입식으로 검증).
 
-## 남은 작업 (이 환경에서 런타임 검증 불가 — 라이브 연결 필요)
+## 남은 작업 (이 환경에서 런타임 검증 불가 — 사용자의 실제 브라우저·계정 필요)
 
-- **M2 잔여 — 실제 Claude Code 연결**: `.mcp.json` 등록 + 옵션 토큰 입력까지의
-  배선은 코드·유닛테스트로 완성됐으나, 실제 Claude Code 프로세스가 stdio로
-  붙어 도구를 호출하고 실제 Chrome 확장이 WS로 응답하는 end-to-end는 이
-  환경(브라우저·LLM 런타임 없음)에서 미검증. `read_page`의 셀렉터 생성이
-  실제 쇼핑몰 DOM에서 충분히 안정적인지도 라이브 검증 필요.
+- **M2 잔여 — 실제 Claude Code·Chrome 라이브 연결**: 프로토콜 왕복은 위
+  `e2e.test.ts`로 검증됐지만, ①실제 Claude Code CLI 프로세스가 `.mcp.json`으로
+  이 서버를 stdio로 띄우는 것과 ②실제 Chrome에 익스텐션을 로드해 WS로 붙는
+  것은 이 세션 자체가 Claude Code 프로세스이자 이 대화의 실행 주체라 자기
+  자신을 재시작해 검증할 수 없다 — 사용자가 직접(또는 다음 세션에서) 확인해야
+  한다. `read_page`의 셀렉터 생성이 실제 쇼핑몰 DOM에서 충분히 안정적인지도
+  라이브 검증 필요.
 - **M3 — 실결제 어댑터 라이브 셀렉터**: 카카오/쿠팡/토스 어댑터의 DOM 셀렉터·
   완료신호는 placeholder. 실결제 네트워크 캡처로 확정 필요(payment-flows 검증
   항목). 로직(스냅샷·재검증·매핑)은 완성·테스트됨.
