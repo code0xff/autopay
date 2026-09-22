@@ -30,9 +30,12 @@ description: 사용자가 "○○ 사줘 / 구매해줘 / 최저가로 주문해
 
 ## 절차
 
-1. `get_policy_summary()` — 잔여 예산·잔여 횟수·허용 카테고리/머천트/결제수단을
-   먼저 확인한다. 사용자 요청이 이미 정책을 벗어난다면(예: 허용 머천트가 아님)
-   시도 전에 사용자에게 알린다.
+1. `get_policy_summary()` — 잔여 예산(일/월)·건당 한도·잔여 횟수·허용 카테고리/
+   머천트/결제수단·확인(confirm) 필요 여부(`confirmation.alwaysConfirm`,
+   `requireUserConfirmationAbove`)를 먼저 확인한다. 사용자 요청이 이미 정책을
+   벗어난다면(예: 허용 머천트가 아님, 한도 초과) 시도 전에 사용자에게 알린다.
+   금액이 `requireUserConfirmationAbove`를 넘거나 `alwaysConfirm`이 true면
+   결제 후 사이드패널 승인이 필요함을 미리 안내한다.
 2. `open(검색 URL)` — 허용된 쇼핑몰의 검색 결과 페이지를 연다.
 3. `read_page()` — 후보 상품을 파악한다(가격·배송비·재고). 이 스킬(두뇌)이
    비교·선택한다. 필요하면 `click`/`fill`로 정렬·필터를 조작하고 다시

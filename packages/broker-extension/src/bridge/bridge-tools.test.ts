@@ -26,10 +26,14 @@ function makeDeps(overrides: { tabId?: number | null } = {}) {
     ),
     getPolicySummary: vi.fn(async () => ({
       remainingDailyBudget: 1000,
+      remainingMonthlyBudget: 1000,
       remainingCountToday: 1,
+      perTransactionLimit: 1000,
       allowedCategories: [],
+      categoriesMode: "denylist" as const,
       allowedMerchants: "any" as const,
       allowedMethods: ["coupay" as const],
+      confirmation: { alwaysConfirm: false, requireUserConfirmationAbove: 1000 },
     })),
   };
   return {

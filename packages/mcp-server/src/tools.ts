@@ -97,7 +97,7 @@ export function registerTools(server: McpServerLike, hub: Hub): void {
 
   server.tool(
     "get_policy_summary",
-    "결제를 시도하기 전에 먼저 호출: 잔여 예산·잔여 횟수·허용 카테고리/머천트/결제수단을 조회한다.",
+    "결제를 시도하기 전에 먼저 호출: 잔여 예산(일/월)·건당 한도·잔여 횟수·허용 카테고리/머천트/결제수단·확인(confirm) 필요 여부와 임계값을 조회한다.",
     {},
     async () => callHub(hub, { id: nextId(), tool: "get_policy_summary", args: {} }),
   );

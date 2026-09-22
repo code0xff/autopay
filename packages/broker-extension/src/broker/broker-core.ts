@@ -29,10 +29,15 @@ export interface PendingConfirmation {
 
 export interface PolicySummary {
   remainingDailyBudget: number;
+  remainingMonthlyBudget: number;
   remainingCountToday: number;
+  perTransactionLimit: number;
   allowedCategories: string[];
+  categoriesMode: "allowlist" | "denylist"; // allowedCategories만으론 "전부 거부"와
+  // "전부 허용"을 구분 못 함(둘 다 []로 보일 수 있음) — 모드를 같이 노출.
   allowedMerchants: string[] | "any";
   allowedMethods: PaymentMethod[];
+  confirmation: { alwaysConfirm: boolean; requireUserConfirmationAbove: number };
 }
 
 export interface BrokerDeps {
@@ -235,10 +240,17 @@ export class BrokerCore {
     const usage = await this.deps.audit.usageFor(this.now());
     return {
       remainingDailyBudget: Math.max(0, policy.limits.daily - usage.spentToday),
+      remainingMonthlyBudget: Math.max(0, policy.limits.monthly - usage.spentThisMonth),
       remainingCountToday: Math.max(0, policy.limits.maxTransactionsPerDay - usage.countToday),
+      perTransactionLimit: policy.limits.perTransaction,
       allowedCategories: policy.categories.mode === "allowlist" ? policy.categories.values : [],
+      categoriesMode: policy.categories.mode,
       allowedMerchants: policy.merchants.mode === "allowlist" ? policy.merchants.origins : "any",
       allowedMethods: policy.methods,
+      confirmation: {
+        alwaysConfirm: policy.confirmation.alwaysConfirm,
+        requireUserConfirmationAbove: policy.confirmation.requireUserConfirmationAbove,
+      },
     };
   }
 
