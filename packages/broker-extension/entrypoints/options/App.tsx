@@ -328,7 +328,7 @@ function ProfileForm({
           </div>
           <button
             type="button"
-            className="btn btn-primary"
+            className="btn btn-primary btn-block"
             onClick={async () => {
               await setProfile({ phone, birth });
               setPhone("");
@@ -381,7 +381,7 @@ function BridgeCard({
       </label>
       <button
         type="button"
-        className="btn btn-primary"
+        className="btn btn-primary btn-block"
         disabled={token.length < 16}
         onClick={async () => {
           try {
