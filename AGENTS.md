@@ -385,7 +385,7 @@ autopay/
    (`.claude/skills/autopay-shopping`) + 익스텐션 `src/bridge`(WS 클라이언트 +
    도구→broker 매핑) 완성. 유닛테스트 + **실제 MCP SDK Client/Server·`ws`로
    프로토콜 전 구간을 왕복시키는 E2E**(`packages/mcp-server/src/e2e.test.ts`)
-   까지 검증(138 케이스 중 다수). 잔여: 실제 Claude Code 프로세스·Chrome
+   까지 검증(140 케이스 중 다수). 잔여: 실제 Claude Code 프로세스·Chrome
    익스텐션 라이브 연결(이 세션 자신이 Claude Code라 자기 재시작으론 검증
    불가 — 사용자 확인 필요). 두뇌 내장(①)은 대안으로 미채택.
 4. **M3 — Payment Executor (카카오 → 쿠팡 → 토스)**: `SimplePayAdapter` 정의
@@ -398,9 +398,13 @@ autopay/
 
 ## 9. 미결정 사항 (Open Questions)
 
-- [ ] (별도 익스텐션 에이전트 사용 시) 에이전트의 사이트 접근 설정을
-      브로커가 검증·안내할 수 있는 범위 (chrome.management 등) — 강제는
-      불가하므로 사용자 셋업 가이드 + 검증 경고 수준
+- [x] (별도 익스텐션 에이전트 사용 시) 에이전트의 사이트 접근 설정을
+      브로커가 검증·안내할 수 있는 범위 — **강제는 불가함이 확정**(§2.6)이라
+      안내 수준으로 해소. 옵션 페이지에 상시 고지 카드 추가(`SiteAccessNotice`,
+      `entrypoints/options/App.tsx`) — 세션 쿠키 탈취 잔여 리스크와 브라우저
+      프로필 분리 권고를 노출. `chrome.management` 기반 실제 권한 조회·경고는
+      별도 익스텐션 에이전트 연동(§3.2의 Chrome Extension Messaging 경로)
+      착수 시점에 재검토(현재는 MCP 경로만 구현됨).
 - [ ] 패턴 B 핸드오프 UX (1차 목표의 핵심) — 에이전트가 체크아웃 진입 후
       사용자 폰 승인까지 대기하는 흐름의 추적/타임아웃/취소 UX 상세.
       (승인 대기 중 대상 바꿔치기 방어는 해결됨 — 스냅샷 재검증,
@@ -417,10 +421,23 @@ autopay/
       등록·실계약 여부의 사업 결정**(구독 시나리오 도입 시점에 재검토).
 - [ ] 결제창 도메인 화이트리스트를 실결제 네트워크 캡처로 확정
       (docs/payment-flows.md의 미확정 도메인들)
-- [ ] Native Messaging Host 배포 방식 (설치 스크립트 vs 앱 번들)
+- [x] Native Messaging Host 배포 방식 — **M2에서 로컬 WS 브리지를 채택**하면서
+      실질적으로 불필요해짐(`docs/spec/mcp-integration.md §2` "MVP는 WS
+      브리지를 우선"). Native Messaging Host는 등록이 더 번거로워 채택하지
+      않은 대안으로 남겨둔다 — WS 브리지로 못 푸는 문제(예: 브라우저 자체를
+      못 띄우는 headless 환경)가 실제로 생기면 그때 재검토.
 - [ ] 카테고리 스푸핑 — 정책 카테고리가 에이전트 제출 items에 의존. 실제
       장바구니 상품/카테고리를 executor가 파싱해 대조하는 방안(사이트별) 필요
-- [ ] 교차 워커 원자성 — in-flight 가드는 단일 서비스워커 내에서만. MV3 워커
-      재기동/다중 컨텍스트에서 중복 결제·예산 경쟁 방지(스토리지 기반 락) 검토
-- [ ] MV3 서비스워커 수명 — in-memory 세션 키·in-flight가 워커 종료 시 소실.
-      재잠금 UX / 상태 복원 전략
+- [x] 교차 워커 원자성 — **`BrokerCore.recoverStaleExecutions()`로 해소**
+      (`src/broker/broker-core.ts`). 실행 착수(executing) 시각(`lockAt`)을
+      영속 색인에 남기고, 5분 알람 틱마다 `payTimeoutMs + 60s`를 넘겨도 여전히
+      `pending_user_confirmation`인 요청을 안전하게 `failed(interrupted)`로
+      수렴시킨다. **`adapter.pay()`를 맹목적으로 재시도하지 않는다** —
+      재시도는 폰 재푸시·원터치 재클릭 등 중복 결제 위험이 있으므로, 사용자가
+      실패 사유를 보고 새 요청(독립 재검증됨)으로 다시 시도하게 한다. 회귀
+      테스트: `broker-core.test.ts` #17(중단된 실행 회수, 재시도 없음 확인)·
+      #18(아직 stale이 아니면 손대지 않음).
+- [x] MV3 서비스워커 수명 — 세션 키(refstore) 소실은 기존 `locked` 상태 +
+      Options `Unlock` 컴포넌트가 이미 반응형으로 처리(재기동 후 다시 열면
+      잠금 해제 요구가 자연히 뜬다), 실행 중 소실은 위 교차 워커 원자성 항목이
+      처리 — 별도 신규 UX 불필요로 판단.

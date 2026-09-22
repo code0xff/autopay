@@ -57,7 +57,10 @@ interface RequestState {
   decision: Decision;
   result: PaymentResult;
   executing?: boolean; // 영속 idempotency — 워커 재시작 후 중복 실행 방지
+  lockAt?: string; // ISO8601 — executing=true를 세운 시각(만료 판정용, 교차 워커 원자성)
 }
+
+const EXECUTING_INDEX_KEY = "executing"; // 실행 착수한 requestId 색인(재기동 후 스윕용)
 
 export class BrokerCore {
   private readonly now: () => Date;
@@ -69,6 +72,11 @@ export class BrokerCore {
     this.now = deps.now ?? (() => new Date());
     this.idgen = deps.idgen ?? (() => crypto.randomUUID());
     this.payTimeoutMs = deps.payTimeoutMs ?? 180_000;
+  }
+
+  /** recoverStaleExecutions의 staleAfterMs 산정 기준(호출부에서 여유를 더함). */
+  get payTimeoutMsValue(): number {
+    return this.payTimeoutMs;
   }
 
   async requestPayment(input: unknown): Promise<{ requestId: string }> {
@@ -237,16 +245,22 @@ export class BrokerCore {
 
   // ── 내부 ──────────────────────────────────
   private async execute(requestId: string): Promise<void> {
-    // 동시/중복 실행 방지: in-flight 가드 + 종단 상태 가드(멱등).
+    // 동시/중복 실행 방지: in-flight 가드(단일 워커 내) + 종단 상태 가드(멱등,
+    // 워커 재시작에도 영속). acquiredLock=true 이후에만 색인을 세우고, finally가
+    // 그때만 색인을 지운다 — 조기 return 경로는 애초에 아무것도 세우지 않는다.
     if (this.inFlight.has(requestId)) return;
     this.inFlight.add(requestId);
+    let acquiredLock = false;
     try {
       const state = await this.loadState(requestId);
       if (!state || state.result.status !== "pending_user_confirmation") return;
       // 영속 idempotency: 이미 실행 착수한 요청은 재실행하지 않음(워커 재시작 대비).
       if (state.executing) return;
       state.executing = true;
+      state.lockAt = this.now().toISOString();
       await this.saveState(requestId, state);
+      await this.addExecutingIndex(requestId);
+      acquiredLock = true;
 
       const policy = await this.deps.getPolicy();
       const adapter = this.deps.adapterFor(state.req.method);
@@ -352,7 +366,58 @@ export class BrokerCore {
       }
     } finally {
       this.inFlight.delete(requestId);
+      if (acquiredLock) {
+        await this.removeExecutingIndex(requestId).catch(() => {}); // 색인 정리 실패는 무시(스윕이 나중에 정리)
+      }
     }
+  }
+
+  /** MV3 워커가 실행 도중(폰 승인 대기 등) 종료·재시작되면 in-memory 가드는
+   *  사라지지만 영속 executing 플래그는 남는다 — 방치하면 결제가 영원히
+   *  pending_user_confirmation에 갇힌다(§9 "MV3 서비스워커 수명"). 착수
+   *  시각(lockAt)이 staleAfterMs보다 오래됐는데 아직 대기 중이면 안전하게
+   *  failed(interrupted)로 수렴시킨다 — adapter.pay()를 맹목적으로 재시도하면
+   *  중복 결제(폰 재푸시·원터치 재클릭) 위험이 있으므로 재시도하지 않는다.
+   *  사용자는 실패 사유를 보고 새 요청으로 다시 시도할 수 있다(독립 재검증됨).
+   *  배경 알람에서 주기 호출. */
+  async recoverStaleExecutions(staleAfterMs: number): Promise<void> {
+    const nowMs = this.now().getTime();
+    for (const requestId of await this.listExecutingIndex()) {
+      const state = await this.loadState(requestId);
+      if (!state || state.result.status !== "pending_user_confirmation") {
+        // 이미 종단 상태(원래 실행이 실은 끝났음) — 색인만 정리.
+        await this.removeExecutingIndex(requestId);
+        continue;
+      }
+      const lockAtMs = state.lockAt ? new Date(state.lockAt).getTime() : 0;
+      if (nowMs - lockAtMs < staleAfterMs) continue; // 아직 진행 중일 수 있음 — 손대지 않음
+      await this.removeExecutingIndex(requestId);
+      await this.audit(requestId, state, state.decision, "failed");
+      await this.setResult(requestId, state, { status: "failed", error: "interrupted" });
+      const policy = await this.deps.getPolicy();
+      await this.emit(policy, {
+        kind: "failed",
+        merchant: state.merchantName,
+        amount: state.verifiedAmount,
+        error: "interrupted",
+      });
+    }
+  }
+
+  private async listExecutingIndex(): Promise<string[]> {
+    return (await this.deps.kv.get<string[]>(EXECUTING_INDEX_KEY)) ?? [];
+  }
+  private async addExecutingIndex(requestId: string): Promise<void> {
+    const list = await this.listExecutingIndex();
+    if (!list.includes(requestId)) {
+      list.push(requestId);
+      await this.deps.kv.set(EXECUTING_INDEX_KEY, list);
+    }
+  }
+  private async removeExecutingIndex(requestId: string): Promise<void> {
+    const list = await this.listExecutingIndex();
+    const next = list.filter((id) => id !== requestId);
+    if (next.length !== list.length) await this.deps.kv.set(EXECUTING_INDEX_KEY, next);
   }
 
   private async fail(

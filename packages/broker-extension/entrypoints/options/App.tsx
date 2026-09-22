@@ -31,6 +31,7 @@ export function App() {
         </button>
       </header>
 
+      <SiteAccessNotice />
       <Unlock locked={state.locked} onDone={refresh} />
       <PolicyForm policy={state.policy} onSaved={refresh} />
       <ProfileForm hasProfile={state.hasProfile} locked={state.locked} onSaved={refresh} />
@@ -40,6 +41,41 @@ export function App() {
         onSaved={refresh}
       />
       <AuditTable state={state} />
+    </div>
+  );
+}
+
+// AGENTS.md §2.6·§9 — 다른 브라우저 에이전트 익스텐션(Claude for Chrome 등)의
+// 사이트 접근은 브로커가 강제할 수 없다(익스텐션 간 권한 격리 밖). 검증·차단이
+// 아니라 안내 수준으로만 고지한다 — 이게 정직하게 할 수 있는 전부다.
+function SiteAccessNotice() {
+  const [dismissed, setDismissed] = useState(() => {
+    try {
+      return localStorage.getItem("autopay-site-access-notice-dismissed") === "1";
+    } catch {
+      return false;
+    }
+  });
+  if (dismissed) return null;
+  return (
+    <div className="card badge warn" style={{ marginBottom: 14, display: "block" }}>
+      <div style={{ marginBottom: 6 }}>
+        다른 브라우저 에이전트 익스텐션(예: Claude for Chrome)을 함께 쓴다면, 그 익스텐션의 사이트
+        접근 권한(특히 쿠키·결제창 도메인)을 AutoPay가 강제로 제한할 수 없습니다. 민감한 세션과
+        자동쇼핑 세션은 별도 브라우저 프로필로 분리하는 걸 권장합니다.
+      </div>
+      <button
+        type="button"
+        className="icon-btn"
+        onClick={() => {
+          setDismissed(true);
+          try {
+            localStorage.setItem("autopay-site-access-notice-dismissed", "1");
+          } catch {}
+        }}
+      >
+        확인함
+      </button>
     </div>
   );
 }

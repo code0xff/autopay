@@ -4,6 +4,10 @@ import { Background } from "../src/background/compose.js";
 export default defineBackground(() => {
   const bg = new Background();
   const CONFIRM_TTL_MS = 5 * 60_000; // spec/broker-api §2.2.1 기본 5분
+  // 실행 착수(executing) 후 이 시간을 넘겨도 여전히 대기 중이면 워커가 죽은 것으로
+  // 간주 — payTimeoutMs(어댑터 pay() 자체 타임아웃)보다 여유를 둬 정상 진행 중인
+  // 건을 오판하지 않는다(§9 "MV3 서비스워커 수명·교차 워커 원자성").
+  const EXECUTION_STALE_BUFFER_MS = 60_000;
 
   // 저장된 토큰이 있으면 mcp-server 브리지 허브에 접속(M2, spec/mcp-integration §7).
   bg.connectBridge().catch((e) => console.warn("[autopay] bridge connect failed", e));
@@ -34,6 +38,13 @@ export default defineBackground(() => {
       await bg.brokerCore.expireStaleConfirmations(CONFIRM_TTL_MS);
     } catch (e) {
       console.warn("[autopay] confirm sweep failed", e);
+    }
+    try {
+      await bg.brokerCore.recoverStaleExecutions(
+        bg.brokerCore.payTimeoutMsValue + EXECUTION_STALE_BUFFER_MS,
+      );
+    } catch (e) {
+      console.warn("[autopay] stale execution sweep failed", e);
     }
     // MV3 SW 재기동/연결 끊김 대비 — 5분 틱마다 미접속이면 재접속 시도.
     if (!bg.isBridgeConnected) {

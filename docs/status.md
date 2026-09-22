@@ -14,11 +14,11 @@
 | executor 코어(스냅샷·TOCTOU 재검증) + 어댑터(카카오/쿠팡/토스) | ✅ | fake driver/bridge 유닛 테스트 |
 | broker 오케스트레이션(정책·confirm·origin·동시성·예외수렴) | ✅ | 유닛 테스트 |
 | 브로커 익스텐션 (M1) | ✅ | WXT MV3, Side Panel+Options+background, `wxt build` 성공 |
-| **MCP 브리지 (M2 코어)** | ✅ | `packages/mcp-server`(stdio MCP + WS 허브, 토큰 게이트) + 익스텐션
-| | | `src/bridge`(WS 클라이언트 + 도구→broker 매핑) + `packages/agent-skill` |
+| **MCP 브리지 (M2 코어)** | ✅ | `packages/mcp-server`(stdio+WS 허브) + `src/bridge` + `packages/agent-skill`, 실물 프로토콜 E2E |
+| **교차 워커 원자성 복구** | ✅ | `recoverStaleExecutions()` — 중단된 실행을 재시도 없이 안전 실패 처리, 유닛 테스트 2건 |
 | Codex 리뷰 | ✅×4 | M0·M1코어·M1익스텐션·최종, High/Medium 반영 |
 
-**테스트 총계**: 138 (shared 17 + broker-extension 103 + mcp-server 18). typecheck·biome 클린.
+**테스트 총계**: 140 (shared 17 + broker-extension 105 + mcp-server 18). typecheck·biome 클린.
 
 ### Codex 최종 리뷰 High 3건 — 반영 + 회귀 테스트로 검증
 - confirm 후 실행 직전 정책·사용량 재평가(한도 소진 시 차단) — `broker-core.test.ts` #15
@@ -96,9 +96,11 @@
 - **카테고리 스푸핑**: 정책 카테고리는 에이전트 제출 items에 의존. 실제 장바구니
   상품 대조는 사이트별 파싱이 필요해 미구현(AGENTS §1.1 범위). TOCTOU 재검증은
   승인 후 변경을 막지만, 최초 카테고리 위장은 실장바구니 파싱 전까지 잔여.
-- **교차 워커 원자성**: in-flight 가드는 단일 서비스워커 내 중복만 방지. MV3
-  워커 재기동 시 in-memory 가드·세션 키가 소실됨(재잠금 필요). MCP 브리지 WS
-  연결도 같은 제약 — 재기동 시 5분 알람 틱까지는 재접속 지연 가능.
+- **교차 워커 원자성**: **해소됨** — `BrokerCore.recoverStaleExecutions()`가
+  5분 알람 틱마다 `payTimeoutMs+60s`를 넘긴 중단된 실행을 `failed(interrupted)`
+  로 안전 수렴시키고(재시도 없음, 중복 결제 방지), 세션 키 소실은 기존
+  `Unlock` UI가 반응형으로 처리(AGENTS §9). MCP 브리지 WS 연결 재기동 지연
+  (최대 5분)은 남은 제약 — 사용자가 재시도하면 되는 수준.
 - **세션 쿠키 탈취**(별도 익스텐션 에이전트): 브로커 통제 밖(AGENTS §2.6).
   MCP 브리지 경로(③)는 이 리스크가 구조적으로 없음 — 스킬은 페이지에 직접
   접근하지 않는다(§2.6 표 참조).

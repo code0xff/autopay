@@ -336,6 +336,101 @@ describe("BrokerCore", () => {
     expect(pay1).toHaveBeenCalledTimes(1);
   });
 
+  it("17. [High] recoverStaleExecutions — 실행 도중 워커가 죽은 요청을 failed(interrupted)로 안전 수렴, 재시도(중복결제)하지 않음", async () => {
+    const kv = new MemoryKv();
+    const audit = new KvAuditLog(new MemoryKv());
+    let hangRelease!: () => void;
+    const hang = new Promise<void>((r) => {
+      hangRelease = r;
+    });
+    const pay = vi.fn(async (): Promise<PayOutcome> => {
+      await hang; // 워커1이 실행 도중 죽은 상태를 흉내(영원히 미완)
+      return { status: "approved", orderId: "#1", amount: 20_000 };
+    });
+    const adapter: SimplePayAdapter = {
+      method: "coupay",
+      hasExternalApproval: false,
+      verify: vi.fn(async () => ({
+        amount: 20_000,
+        merchantName: "쿠팡",
+        origin: ORIGIN,
+        snapshot: "s",
+      })),
+      pay,
+    };
+    const mkAt = (now: Date) =>
+      new BrokerCore({
+        getPolicy: async () => basePolicy(),
+        adapterFor: () => adapter,
+        audit,
+        notify: new BrokerNotifier({ senders: {}, notifyOnRejection: true }),
+        refstore: fakeRefStore(null),
+        kv,
+        now: () => now,
+        idgen: () => "shared-1",
+        payTimeoutMs: 1000,
+      });
+    const worker1 = mkAt(NOW);
+    const { requestId } = await worker1.requestPayment(validReq); // confirm(pending)
+    void worker1.resolveConfirmation(requestId, true); // executing=true 저장 후 pay(hang) — 워커1 "사망"
+    await new Promise((r) => setTimeout(r, 0)); // executing 저장 완료 대기
+
+    // 재시작된 워커가 한참 뒤(staleAfterMs 이상 경과) 스윕 실행.
+    const worker2 = mkAt(new Date(NOW.getTime() + 5000));
+    await worker2.recoverStaleExecutions(1000); // 1초 이상 지났으면 stale로 간주
+
+    expect(await worker2.getPaymentResult(requestId)).toEqual({
+      status: "failed",
+      error: "interrupted",
+    });
+    // 재시도(pay 재호출)는 절대 하지 않는다 — 중복 결제 방지가 목적이므로.
+    expect(pay).toHaveBeenCalledTimes(1); // 워커1이 최초에 호출한 것 뿐, 재호출 없음
+    hangRelease();
+  });
+
+  it("18. recoverStaleExecutions — staleAfterMs 미경과면 건드리지 않는다(정상 진행 중 오판 방지)", async () => {
+    const kv = new MemoryKv();
+    const audit = new KvAuditLog(new MemoryKv());
+    const hang = new Promise<void>(() => {}); // 영원히 대기 — 아직 "진행 중"
+    const adapter: SimplePayAdapter = {
+      method: "coupay",
+      hasExternalApproval: false,
+      verify: vi.fn(async () => ({
+        amount: 20_000,
+        merchantName: "쿠팡",
+        origin: ORIGIN,
+        snapshot: "s",
+      })),
+      pay: vi.fn(async (): Promise<PayOutcome> => {
+        await hang;
+        return { status: "approved", orderId: "#1", amount: 20_000 };
+      }),
+    };
+    const mkAt = (now: Date) =>
+      new BrokerCore({
+        getPolicy: async () => basePolicy(),
+        adapterFor: () => adapter,
+        audit,
+        notify: new BrokerNotifier({ senders: {}, notifyOnRejection: true }),
+        refstore: fakeRefStore(null),
+        kv,
+        now: () => now,
+        idgen: () => "shared-2",
+        payTimeoutMs: 1000,
+      });
+    const worker1 = mkAt(NOW);
+    const { requestId } = await worker1.requestPayment(validReq);
+    void worker1.resolveConfirmation(requestId, true);
+    await new Promise((r) => setTimeout(r, 0));
+
+    const worker2 = mkAt(new Date(NOW.getTime() + 500)); // 500ms만 경과
+    await worker2.recoverStaleExecutions(1000); // staleAfterMs=1000 > 경과 500ms
+
+    expect(await worker2.getPaymentResult(requestId)).toEqual({
+      status: "pending_user_confirmation",
+    }); // 아직 손대지 않음
+  });
+
   it("13. notifyOnRejection=false → 거절 알림 미발송", async () => {
     const { broker, chrome } = setup({
       policy: basePolicy({
