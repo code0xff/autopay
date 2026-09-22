@@ -1,13 +1,13 @@
 import type { PaymentPolicy } from "@autopay/shared";
 import { useEffect, useState } from "react";
 import type { UiState } from "../../src/background/compose.js";
+import { Unlock } from "../../src/ui/Unlock.js";
 import {
   getState,
   setBridgeToken,
   setPolicy,
   setProfile,
   toggleTheme,
-  unlock,
 } from "../../src/ui/rpc-client.js";
 
 export function App() {
@@ -79,54 +79,6 @@ function SiteAccessNotice() {
       >
         확인함
       </button>
-    </div>
-  );
-}
-
-function Unlock({ locked, onDone }: { locked: boolean; onDone: () => void }) {
-  const [pass, setPass] = useState("");
-  const [err, setErr] = useState("");
-  if (!locked)
-    return (
-      <div className="card badge ok" style={{ marginBottom: 14 }}>
-        잠금 해제됨
-      </div>
-    );
-  return (
-    <div className="card" style={{ marginBottom: 14 }}>
-      <div className="label" style={{ marginBottom: 8 }}>
-        잠금 해제 (PII 암호화 키)
-      </div>
-      <label className="field">
-        <span>패스프레이즈</span>
-        <input
-          className="input"
-          type="password"
-          value={pass}
-          onChange={(e) => setPass(e.target.value)}
-        />
-      </label>
-      <button
-        type="button"
-        className="btn btn-primary"
-        onClick={async () => {
-          try {
-            await unlock(pass);
-            setPass("");
-            setErr("");
-            onDone();
-          } catch {
-            setErr("패스프레이즈가 올바르지 않습니다");
-          }
-        }}
-      >
-        잠금 해제
-      </button>
-      {err && (
-        <div className="badge danger" style={{ marginTop: 10 }}>
-          {err}
-        </div>
-      )}
     </div>
   );
 }

@@ -1,5 +1,6 @@
 import { useEffect, useState } from "react";
 import type { UiState } from "../../src/background/compose.js";
+import { Unlock } from "../../src/ui/Unlock.js";
 import {
   getState,
   payActiveTab,
@@ -40,7 +41,7 @@ export function App() {
 
       {state?.locked && (
         <div className="body">
-          <div className="card badge warn">잠김 — 옵션에서 패스프레이즈로 잠금 해제하세요</div>
+          <Unlock locked={state.locked} onDone={refresh} />
         </div>
       )}
 
