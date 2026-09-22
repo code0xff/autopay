@@ -58,7 +58,10 @@ function SiteAccessNotice() {
   });
   if (dismissed) return null;
   return (
-    <div className="card badge warn" style={{ marginBottom: 14, display: "block" }}>
+    <div
+      className="card badge warn"
+      style={{ marginBottom: 14, display: "block", padding: 16, borderRadius: "var(--radius-lg)" }}
+    >
       <div style={{ marginBottom: 6 }}>
         다른 브라우저 에이전트 익스텐션(예: Claude for Chrome)을 함께 쓴다면, 그 익스텐션의 사이트
         접근 권한(특히 쿠키·결제창 도메인)을 AutoPay가 강제로 제한할 수 없습니다. 민감한 세션과

@@ -1,71 +1,91 @@
-/* AutoPay UI — shadcn/ui neutral, 각진 4px, Geist (docs/spec/ui.md, docs/design/ui-mockup.html) */
+/* AutoPay UI — Slate 디자인 시스템 적용 (~/workspace/design/slate/design.md 참고).
+   Slate는 개발자 콘솔용 시스템: 무채색이 위계를 지고, 색은 의미가 있을 때만
+   쓰인다(상태=녹/호박/적, accent 하나=포커스·강조). 완전히 둥근 컨트롤(버튼·
+   배지·아이콘버튼), 패널/필드는 더 큰 반경의 "형태"로 구분한다.
+   원격 웹폰트(Google Fonts)는 제거 — 결제 브로커 익스텐션이 열릴 때마다
+   외부 CDN에 요청을 보내지 않도록 시스템 한글 폰트 스택을 그대로 쓴다
+   (오프라인 안전 + AGENTS §4 "API 표면 최소화"와 같은 정신: 불필요한 외부
+   호출을 만들지 않는다). */
 :root {
-  --background: 0 0% 100%;
-  --foreground: 0 0% 3.9%;
-  --card: 0 0% 100%;
-  --muted: 0 0% 96.1%;
-  --muted-foreground: 0 0% 44%;
-  --border: 0 0% 88%;
-  --input: 0 0% 86%;
-  --primary: 0 0% 9%;
-  --primary-foreground: 0 0% 98%;
-  --secondary: 0 0% 95%;
-  --accent: 0 0% 94%;
-  --ring: 0 0% 55%;
-  --destructive: 0 72% 48%;
-  --success: 142 66% 34%;
-  --success-bg: 143 55% 94%;
-  --warning: 33 92% 40%;
-  --warning-bg: 40 90% 93%;
-  --info: 214 82% 45%;
-  --info-bg: 214 90% 95%;
-  --radius: 4px;
+  --canvas: #faf9fb;
+  --surface: #ffffff;
+  --subtle: #f5f3f7;
+  --raised: #ffffff;
+  --line: #e8e5ee;
+  --line-strong: #d5d1dd;
+  --ink: #12101a;
+  --ink-soft: #565064;
+  --ink-faint: #6f687f;
+  --primary: #12101a;
+  --on-primary: #faf9fb;
+  --accent: #6d5bd0;
+  --accent-soft: #f1eefc;
+  --on-accent: #ffffff;
+  --ok: #1a7a43;
+  --ok-soft: #e9f7ef;
+  --warn: #8a5e00;
+  --warn-soft: #fdf3dc;
+  --danger: #c2403f;
+  --danger-soft: #fdeeee;
+  --on-danger: #ffffff;
+  --shadow-pop: 0 1px 2px rgb(18 16 26 / 0.05), 0 18px 44px rgb(18 16 26 / 0.09);
+  --radius-sm: 8px;
+  --radius-md: 10px;
+  --radius-lg: 16px;
+  --radius-xl: 20px;
+  --ease-soft: cubic-bezier(0.22, 0.61, 0.36, 1);
   color-scheme: light;
 }
 @media (prefers-color-scheme: dark) {
   :root:not([data-theme="light"]) {
-    --background: 0 0% 7%;
-    --foreground: 0 0% 96%;
-    --card: 0 0% 9.5%;
-    --muted: 0 0% 15%;
-    --muted-foreground: 0 0% 61%;
-    --border: 0 0% 18%;
-    --input: 0 0% 22%;
-    --primary: 0 0% 96%;
-    --primary-foreground: 0 0% 9%;
-    --secondary: 0 0% 16%;
-    --accent: 0 0% 18%;
-    --ring: 0 0% 46%;
-    --destructive: 0 62% 50%;
-    --success: 142 52% 55%;
-    --success-bg: 143 42% 13%;
-    --warning: 38 90% 60%;
-    --warning-bg: 38 55% 13%;
-    --info: 214 85% 66%;
-    --info-bg: 214 52% 15%;
+    --canvas: #0b0a0f;
+    --surface: #131219;
+    --subtle: #1b1a23;
+    --raised: #191822;
+    --line: #26242f;
+    --line-strong: #383544;
+    --ink: #eeecf2;
+    --ink-soft: #a8a2b8;
+    --ink-faint: #8983a0;
+    --primary: #eeecf2;
+    --on-primary: #0b0a0f;
+    --accent: #a898f5;
+    --accent-soft: rgb(168 152 245 / 0.13);
+    --on-accent: #0d0a1a;
+    --ok: #5fd08a;
+    --ok-soft: rgb(95 208 138 / 0.12);
+    --warn: #e3b25a;
+    --warn-soft: rgb(227 178 90 / 0.12);
+    --danger: #f07a7a;
+    --danger-soft: rgb(240 122 122 / 0.12);
+    --on-danger: #1a0f11;
+    --shadow-pop: 0 0 0 1px rgb(0 0 0 / 0.35), 0 20px 56px rgb(0 0 0 / 0.5);
     color-scheme: dark;
   }
 }
 :root[data-theme="dark"] {
-  --background: 0 0% 7%;
-  --foreground: 0 0% 96%;
-  --card: 0 0% 9.5%;
-  --muted: 0 0% 15%;
-  --muted-foreground: 0 0% 61%;
-  --border: 0 0% 18%;
-  --input: 0 0% 22%;
-  --primary: 0 0% 96%;
-  --primary-foreground: 0 0% 9%;
-  --secondary: 0 0% 16%;
-  --accent: 0 0% 18%;
-  --ring: 0 0% 46%;
-  --destructive: 0 62% 50%;
-  --success: 142 52% 55%;
-  --success-bg: 143 42% 13%;
-  --warning: 38 90% 60%;
-  --warning-bg: 38 55% 13%;
-  --info: 214 85% 66%;
-  --info-bg: 214 52% 15%;
+  --canvas: #0b0a0f;
+  --surface: #131219;
+  --subtle: #1b1a23;
+  --raised: #191822;
+  --line: #26242f;
+  --line-strong: #383544;
+  --ink: #eeecf2;
+  --ink-soft: #a8a2b8;
+  --ink-faint: #8983a0;
+  --primary: #eeecf2;
+  --on-primary: #0b0a0f;
+  --accent: #a898f5;
+  --accent-soft: rgb(168 152 245 / 0.13);
+  --on-accent: #0d0a1a;
+  --ok: #5fd08a;
+  --ok-soft: rgb(95 208 138 / 0.12);
+  --warn: #e3b25a;
+  --warn-soft: rgb(227 178 90 / 0.12);
+  --danger: #f07a7a;
+  --danger-soft: rgb(240 122 122 / 0.12);
+  --on-danger: #1a0f11;
+  --shadow-pop: 0 0 0 1px rgb(0 0 0 / 0.35), 0 20px 56px rgb(0 0 0 / 0.5);
   color-scheme: dark;
 }
 
@@ -74,36 +94,59 @@
 }
 body {
   margin: 0;
-  background: hsl(var(--background));
-  color: hsl(var(--foreground));
-  font-family: "Geist", system-ui, -apple-system, sans-serif;
-  line-height: 1.5;
+  background: var(--canvas);
+  color: var(--ink);
+  font-family: -apple-system, BlinkMacSystemFont, system-ui, "Apple SD Gothic Neo", "Malgun Gothic",
+    "Noto Sans KR", sans-serif;
+  line-height: 1.55;
   -webkit-font-smoothing: antialiased;
 }
 .mono {
-  font-family: "Geist Mono", ui-monospace, monospace;
+  font-family: ui-monospace, SFMono-Regular, "SF Mono", Menlo, Consolas, monospace;
   font-variant-numeric: tabular-nums;
 }
+
+/* 클릭 가능한 요소는 항상 포인터, 비활성은 not-allowed(브라우저 기본 프리플라이트가
+   없는 항목 보정) + 포커스 링(accent) — 이전엔 포커스 상태가 아예 없었다. */
+button,
+a,
+select,
+[role="button"],
+label[for] {
+  cursor: pointer;
+}
+:disabled {
+  cursor: not-allowed;
+}
+:focus-visible {
+  outline: 2px solid var(--accent);
+  outline-offset: 2px;
+}
+::selection {
+  background: var(--accent-soft);
+  color: var(--ink);
+}
+
 .head {
   display: flex;
   align-items: center;
   gap: 9px;
   padding: 12px 14px;
-  border-bottom: 1px solid hsl(var(--border));
+  border-bottom: 1px solid var(--line);
 }
 .logo {
   width: 25px;
   height: 25px;
-  border-radius: 4px;
-  background: hsl(var(--primary));
-  color: hsl(var(--primary-foreground));
+  border-radius: var(--radius-sm);
+  background: var(--primary);
+  color: var(--on-primary);
   display: grid;
   place-items: center;
-  font-weight: 700;
+  font-weight: 600;
 }
 .brand {
-  font-weight: 600;
-  letter-spacing: -.01em;
+  font-weight: 500;
+  letter-spacing: -0.01em;
 }
 .spacer {
   flex: 1;
@@ -112,7 +155,7 @@ body {
   display: flex;
   gap: 4px;
   padding: 8px 12px 0;
-  border-bottom: 1px solid hsl(var(--border));
+  border-bottom: 1px solid var(--line);
 }
 .tabs button {
   font: inherit;
@@ -120,27 +163,27 @@ body {
   font-weight: 500;
   border: 0;
   background: transparent;
-  color: hsl(var(--muted-foreground));
+  color: var(--ink-soft);
   padding: 8px 10px;
-  cursor: pointer;
   border-bottom: 2px solid transparent;
   margin-bottom: -1px;
+  transition: color 180ms var(--ease-soft), border-color 180ms var(--ease-soft);
 }
 .tabs button[aria-selected="true"] {
-  color: hsl(var(--foreground));
-  border-bottom-color: hsl(var(--primary));
+  color: var(--ink);
+  border-bottom-color: var(--accent);
 }
 .body {
-  padding: 14px;
+  padding: 16px;
   display: flex;
   flex-direction: column;
   gap: 12px;
 }
 .card {
-  background: hsl(var(--card));
-  border: 1px solid hsl(var(--border));
-  border-radius: 4px;
-  padding: 14px;
+  background: var(--surface);
+  border: 1px solid var(--line);
+  border-radius: var(--radius-lg);
+  padding: 16px;
 }
 .row {
   display: flex;
@@ -151,88 +194,110 @@ body {
   justify-content: space-between;
 }
 .muted {
-  color: hsl(var(--muted-foreground));
+  color: var(--ink-soft);
 }
+/* Slate §Typography — 트래킹 늘린 대문자 이름표는 한글에선 "흩어진 글자"로
+   읽힌다(한글은 대소문자가 없다). 이 앱은 전부 한국어(lang=ko)라 CJK 규칙을
+   기본값으로 바로 적용 — 트래킹 최소화, 대문자 변환 없음. */
 .label {
-  font-size: 10.5px;
-  font-weight: 600;
-  letter-spacing: .05em;
-  text-transform: uppercase;
-  color: hsl(var(--muted-foreground));
+  font-size: 11.5px;
+  font-weight: 500;
+  letter-spacing: 0;
+  color: var(--ink-faint);
 }
 .amount {
   font-size: 26px;
-  font-weight: 700;
-  letter-spacing: -.02em;
+  font-weight: 650;
+  letter-spacing: -0.02em;
+  font-variant-numeric: tabular-nums;
 }
+
+/* 버튼 — pill 형태(완전히 둥근 컨트롤), primary는 반전(잉크 바탕/캔버스 글자). */
 .btn {
   font: inherit;
   font-size: 13px;
   font-weight: 500;
-  border-radius: 4px;
-  padding: 9px 14px;
-  cursor: pointer;
+  border-radius: 999px;
+  padding: 9px 16px;
   border: 1px solid transparent;
+  transition: background-color 180ms var(--ease-soft), border-color 180ms var(--ease-soft), opacity
+    180ms var(--ease-soft);
 }
 .btn-primary {
-  background: hsl(var(--primary));
-  color: hsl(var(--primary-foreground));
+  background: var(--primary);
+  color: var(--on-primary);
+}
+.btn-primary:hover {
+  opacity: 0.9;
 }
 .btn-outline {
-  background: hsl(var(--card));
-  color: hsl(var(--foreground));
-  border-color: hsl(var(--border));
+  background: var(--surface);
+  color: var(--ink);
+  border-color: var(--line-strong);
+}
+.btn-outline:hover {
+  background: var(--subtle);
 }
 .btn-block {
   width: 100%;
 }
+
+/* 배지 — pill 형태. 색은 상태 의미만(ok/warn/danger), solid는 중립 강조. */
 .badge {
   display: inline-flex;
   align-items: center;
   gap: 5px;
   font-size: 11px;
   font-weight: 500;
-  padding: 3px 8px;
-  border-radius: 3px;
+  padding: 3px 10px;
+  border-radius: 999px;
 }
 .badge.ok {
-  background: hsl(var(--success-bg));
-  color: hsl(var(--success));
+  background: var(--ok-soft);
+  color: var(--ok);
 }
 .badge.warn {
-  background: hsl(var(--warning-bg));
-  color: hsl(var(--warning));
+  background: var(--warn-soft);
+  color: var(--warn);
 }
 .badge.info {
-  background: hsl(var(--info-bg));
-  color: hsl(var(--info));
+  background: var(--accent-soft);
+  color: var(--accent);
 }
 .badge.danger {
-  background: hsl(var(--destructive) / 0.12);
-  color: hsl(var(--destructive));
+  background: var(--danger-soft);
+  color: var(--danger);
 }
 .badge.solid {
-  background: hsl(var(--secondary));
+  background: var(--subtle);
+  color: var(--ink-soft);
 }
+
 .field {
   display: flex;
   flex-direction: column;
-  gap: 5px;
+  gap: 6px;
   margin-bottom: 10px;
 }
 .field > span {
   font-size: 12px;
   font-weight: 500;
+  color: var(--ink-soft);
 }
 .input {
   font: inherit;
   font-size: 13px;
-  padding: 8px 11px;
-  background: hsl(var(--background));
-  color: hsl(var(--foreground));
-  border: 1px solid hsl(var(--input));
-  border-radius: 4px;
+  padding: 9px 13px;
+  background: var(--canvas);
+  color: var(--ink);
+  border: 1px solid var(--line-strong);
+  border-radius: var(--radius-xl);
   width: 100%;
+  transition: border-color 180ms var(--ease-soft);
+}
+.input:focus-visible {
+  border-color: var(--accent);
+  outline-offset: 0;
 }
 .grid2 {
   display: grid;
@@ -245,7 +310,7 @@ body {
   justify-content: space-between;
   gap: 10px;
   padding: 10px 0;
-  border-top: 1px solid hsl(var(--border));
+  border-top: 1px solid var(--line);
 }
 .listrow:first-child {
   border-top: 0;
@@ -256,28 +321,38 @@ body {
   padding: 24px 20px 60px;
 }
 .icon-btn {
-  border: 1px solid hsl(var(--border));
-  background: hsl(var(--card));
-  color: hsl(var(--foreground));
-  border-radius: 4px;
-  padding: 6px 9px;
-  cursor: pointer;
+  border: 1px solid var(--line-strong);
+  background: var(--surface);
+  color: var(--ink);
+  border-radius: 999px;
+  padding: 6px 12px;
   font-size: 12px;
+  transition: background-color 180ms var(--ease-soft);
 }
+.icon-btn:hover {
+  background: var(--subtle);
+}
+
 table {
   width: 100%;
   border-collapse: collapse;
-  font-size: 12px;
+  font-size: 13px;
 }
 th,
 td {
   text-align: left;
   padding: 7px 6px;
-  border-bottom: 1px solid hsl(var(--border));
+  border-bottom: 1px solid var(--line);
+  color: var(--ink-soft);
 }
 th {
-  color: hsl(var(--muted-foreground));
+  color: var(--ink-faint);
   font-weight: 500;
-  font-size: 10.5px;
-  text-transform: uppercase;
+  font-size: 11px;
+}
+tbody tr {
+  transition: background-color 120ms var(--ease-soft);
+}
+tbody tr:hover {
+  background: var(--subtle);
 }
