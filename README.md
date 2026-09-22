@@ -39,7 +39,7 @@ docs/                         설계·스펙·규범 (spec/ 12종)
 
 ```bash
 pnpm install            # 의존성 설치 (postinstall이 wxt prepare 실행)
-pnpm test               # 전체 유닛 테스트 (143)
+pnpm test               # 전체 유닛 테스트 (146)
 pnpm typecheck          # 타입 체크
 pnpm lint               # Biome
 pnpm --filter @autopay/broker-extension build   # 익스텐션 빌드(.output/chrome-mv3)

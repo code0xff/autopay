@@ -396,7 +396,7 @@ autopay/
    (`.claude/skills/autopay-shopping`) + 익스텐션 `src/bridge`(WS 클라이언트 +
    도구→broker 매핑) 완성. 유닛테스트 + **실제 MCP SDK Client/Server·`ws`로
    프로토콜 전 구간을 왕복시키는 E2E**(`packages/mcp-server/src/e2e.test.ts`)
-   까지 검증(143 케이스 중 다수). 잔여: 실제 Claude Code 프로세스·Chrome
+   까지 검증(146 케이스 중 다수). 잔여: 실제 Claude Code 프로세스·Chrome
    익스텐션 라이브 연결(이 세션 자신이 Claude Code라 자기 재시작으론 검증
    불가 — 사용자 확인 필요). 두뇌 내장(①)은 대안으로 미채택.
 4. **M3 — Payment Executor (쿠팡 ✅ / 카카오·토스 잔여)**: `SimplePayAdapter`로

@@ -18,7 +18,7 @@
 | **교차 워커 원자성 복구** | ✅ | `recoverStaleExecutions()` — 중단된 실행을 재시도 없이 안전 실패 처리, 유닛 테스트 2건 |
 | Codex 리뷰 | ✅×4 | M0·M1코어·M1익스텐션·최종, High/Medium 반영 |
 
-**테스트 총계**: 143 (shared 17 + broker-extension 108 + mcp-server 18). typecheck·biome 클린.
+**테스트 총계**: 146 (shared 17 + broker-extension 111 + mcp-server 18). typecheck·biome 클린.
 
 ### Codex 최종 리뷰 High 3건 — 반영 + 회귀 테스트로 검증
 - confirm 후 실행 직전 정책·사용량 재평가(한도 소진 시 차단) — `broker-core.test.ts` #15
@@ -93,6 +93,17 @@
   - **잔여**: `success`/`orderId`는 **결제 완료 후 페이지**에만 존재해 미검증
     (실주문을 하지 않았다). 첫 실주문 때 확정 필요.
   - 카카오/토스(패턴 B)는 여전히 placeholder — 실결제 캡처 필요.
+  - **2026-09-23 실사용 중 발견**: 실제 [결제하기] 클릭 시 **원터치가 켜져
+    있음에도 6자리 비번 화면이 떴다** — 쿠팡 FDS가 리스크 기준으로 원터치를
+    건너뛸 수 있음(`payment-flows.md`가 이미 이 가능성을 언급해뒀었음). 이건
+    쿠팡의 의도된 보안 동작이라 우회 대상이 아니다(AGENTS §2.5 "FDS/안티봇
+    회피" 채택 안 함). 문제는 우리 쪽 감지 실패였다 — `passwordUi` 셀렉터가
+    `css:[class*=keypad],[class*=password]`(검증 안 된 추측, Tailwind
+    클래스엔 애초에 나올 수 없는 문자열)라 비번 모달을 못 잡고 3분 타임아웃까지
+    그냥 대기했다. `contains:` 셀렉터 스킴을 새로 추가(부분 텍스트 포함 매칭)
+    해서 `passwordUi: "contains:비밀번호"`로 교체 — 정확한 문구를 몰라도 즉시
+    감지해 `failed(password_required)`로 빠르게 수렴한다. 실제 비번 모달
+    DOM은 여전히 못 봤으니(다음에 마주치면) 재검증 필요.
 - **M4 — 빌링키(패턴 A)**: refstore에 빌링키 저장 계약만 존재. PG 가맹점 계약
   전제. **2026-09-22 문서 조사 완료**(`docs/payment-flows.md` "빌링키 가맹점
   요건 조사") — 토스·카카오 모두 PG 계약 필수, 사업자 등록 사실상 전제,

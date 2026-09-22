@@ -5,12 +5,18 @@ import type { CompletionResult } from "../executor/types.js";
 // chrome.debugger 미사용 — 합성 이벤트(isTrusted:false). 셀렉터는 어댑터 config가 제공.
 //
 // 셀렉터는 단순 CSS가 아니라 스킴을 가진다(executor/selector.ts 참조):
-//   css:<sel> | <sel> / text:<텍스트> / label:<라벨> / location:items|href
+//   css:<sel> | <sel> / text:<텍스트> / contains:<부분 문자열> / label:<라벨> /
+//   after:<라벨> / location:items|href
 // 쿠팡 결제창이 Tailwind 자동생성 클래스뿐이라 CSS로 고정할 수 없기 때문이다.
 //
 // ⚠️ chrome.scripting.executeScript는 func를 소스로 직렬화해 주입하므로 모듈
 //    스코프 참조가 불가하다. 그래서 아래 pageOp는 리졸버를 **인라인 복제**한다.
-//    로직 동기화는 selector.test.ts의 동등성 테스트가 지킨다.
+//    ⚠️⚠️ 2026-09-23: 이 복제 때문에 `contains:` 스킴을 selector.ts에만 추가하고
+//    여기 반영을 깜빡해 실사용에서 비번 감지가 조용히 실패한 적이 있다(추가한
+//    스킴이 실제 브라우저 경로에서 그냥 무시되고 fail-closed 없이 null만 반환).
+//    **selector.ts에 스킴을 추가하면 반드시 여기도 같이 고칠 것.** 자동
+//    동등성 테스트는 아직 없다(pageOp가 브라우저 전역 document/location에
+//    직접 의존해 node 테스트 환경에서 그대로 못 돌림 — TODO).
 
 /** 페이지 컨텍스트에서 실행되는 자족 함수 — 요소 해석 + 읽기/클릭/입력. */
 export function pageOp(
@@ -49,6 +55,12 @@ export function pageOp(
       xp(`//a[normalize-space(.)=${lit}]`) ??
       xp(`//*[@role="button"][normalize-space(.)=${lit}]`) ??
       xp(`//*[normalize-space(text())=${lit}]`);
+  } else if (sel.startsWith("contains:")) {
+    const lit = xpLiteral(sel.slice(9));
+    // 가장 안쪽(자식 중엔 같은 문자열을 포함하는 게 없는) 일치 요소.
+    el = xp(
+      `//*[contains(normalize-space(.),${lit})][not(.//*[contains(normalize-space(.),${lit})])]`,
+    );
   } else if (sel.startsWith("label:") || sel.startsWith("after:")) {
     const amountOnly = sel.startsWith("label:");
     const lit = xpLiteral(sel.slice(6));

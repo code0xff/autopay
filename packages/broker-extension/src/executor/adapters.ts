@@ -87,8 +87,16 @@ export const COUPAY: AdapterConfig = {
     //    않아 라이브 캡처하지 못했다 — 첫 실주문 시 반드시 확정할 것(M3 잔여).
     success: "text:주문이 완료되었습니다",
     orderId: "after:주문번호",
-    // 등장 = 원터치 아님 → failed(password_required). 라이브에선 부재 확인됨.
-    passwordUi: "css:[class*=keypad],[class*=password]",
+    // 등장 = 원터치 아님(또는 쿠팡 FDS의 리스크 기반 비번 재요구, AGENTS §2.5) →
+    // failed(password_required). ⚠️ 2026-09-23 실사용 중 발견: 이전 CSS
+    // 클래스 추측(`[class*=password]`)은 실제 화면에서 매치되지 않아 비번
+    // 모달이 감지되지 않고 3분 타임아웃까지 그냥 대기하는 버그가 있었다
+    // (쿠팡은 Tailwind 자동생성 클래스뿐이라 "password"라는 문자열이 클래스에
+    // 나올 수가 없음 — 애초에 검증 안 된 추측이었다). 텍스트 포함 매칭으로
+    // 교체 — 문구가 정확히 뭔지 몰라도 "비밀번호"만 포함하면 잡는다. 그래도
+    // 실제 비번 모달 DOM은 아직 못 봤으니(원터치가 아닐 때만 뜸) 다음에 이
+    // 화면을 마주치면 재검증할 것.
+    passwordUi: "contains:비밀번호",
   },
 };
 

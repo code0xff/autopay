@@ -45,6 +45,27 @@ describe("resolveIn — text 스킴", () => {
   });
 });
 
+describe("resolveIn — contains 스킴(부분 포함, 존재 여부 판정용)", () => {
+  // 2026-09-23: 쿠팡 비번 모달 감지가 정확한 문구를 몰라 실패하던 버그의
+  // 재발 방지 회귀 — 문구가 뭐든 "비밀번호"만 포함하면 잡아야 한다.
+  it("문구를 몰라도 부분 문자열만 있으면 잡는다(비번 모달 감지)", () => {
+    const el = resolveIn(doc("<div>결제 비밀번호 6자리를 입력해주세요</div>"), "contains:비밀번호");
+    expect(el?.textContent).toContain("비밀번호");
+  });
+
+  it("문구가 전혀 다르면(원터치 정상 화면) null", () => {
+    expect(resolveIn(doc(CHECKOUT), "contains:비밀번호")).toBeNull();
+  });
+
+  it("중첩 컨테이너보다 가장 안쪽 일치 요소를 반환한다", () => {
+    const el = resolveIn(
+      doc(`<div class="modal"><p>비밀번호 6자리</p></div>`),
+      "contains:비밀번호",
+    );
+    expect(el?.tagName.toLowerCase()).toBe("p");
+  });
+});
+
 describe("resolveIn — label 스킴(금액)", () => {
   it("라벨 뒤 첫 금액을 찾는다", () => {
     expect(resolveIn(doc(CHECKOUT), "label:최종 결제 금액")?.textContent).toBe("3,650원");

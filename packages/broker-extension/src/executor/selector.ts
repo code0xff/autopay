@@ -10,6 +10,8 @@
 //   css:<sel> | <sel>    → querySelector (기본)
 //   text:<정확한 텍스트>  → 그 텍스트의 요소. 클릭요소(button/a/[role=button]) 우선,
 //                          없으면 아무 요소나(완료 문구 같은 div 판정용)
+//   contains:<부분 문자열> → 그 문자열을 포함하는 아무 요소나(정확한 문구를 모를 때 —
+//                           예: 비밀번호 모달은 문구가 매번 다를 수 있어 "비밀번호"만 확인)
 //   label:<라벨>          → 라벨 요소 뒤, 문서순 첫 "…원" 금액 요소
 //   after:<라벨>          → 라벨 요소 뒤, 문서순 첫 비어있지 않은 리프(주문번호 등)
 //
@@ -21,6 +23,7 @@ const AMOUNT_RE = /[\d,]{2,}\s*원/;
 /** 문서에서 스킴을 해석해 요소 하나를 찾는다. 못 찾으면 null. */
 export function resolveIn(doc: Document, sel: string): Element | null {
   if (sel.startsWith("text:")) return findByText(doc, sel.slice(5));
+  if (sel.startsWith("contains:")) return findByContains(doc, sel.slice(9));
   if (sel.startsWith("label:")) return findAfterLabel(doc, sel.slice(6), true);
   if (sel.startsWith("after:")) return findAfterLabel(doc, sel.slice(6), false);
   const css = sel.startsWith("css:") ? sel.slice(4) : sel;
@@ -49,6 +52,27 @@ function findByText(doc: Document, text: string): Element | null {
     Array.from(doc.querySelectorAll("*")).find(
       (el) => el.children.length === 0 && (el.textContent ?? "").trim() === text,
     ) ?? null
+  );
+}
+
+/** 문자열을 포함하는 아무 요소나(존재 여부 판정용 — 정확한 문구를 모를 때).
+ *  가장 안쪽(자식 없는) 일치 요소를 우선해 컨테이너가 아니라 실제 텍스트
+ *  노드에 가까운 걸 반환한다. (예: contains:비밀번호) */
+function findByContains(doc: Document, needle: string): Element | null {
+  const lit = xpLiteral(needle);
+  const xp = tryXPath(
+    doc,
+    `//*[contains(normalize-space(.),${lit})][not(.//*[contains(normalize-space(.),${lit})])]`,
+  );
+  if (xp) return xp;
+  // 폴백(XPath 미지원): 전체 순회에서 텍스트가 가장 짧게 일치하는(=가장 안쪽) 요소.
+  const matches = Array.from(doc.querySelectorAll("*")).filter((el) =>
+    (el.textContent ?? "").includes(needle),
+  );
+  if (matches.length === 0) return null;
+  // 길이가 같으면(조상-자손이 같은 텍스트만 감쌀 때) 문서순 뒤쪽 = 더 안쪽을 우선.
+  return matches.reduce((a, b) =>
+    (b.textContent ?? "").length <= (a.textContent ?? "").length ? b : a,
   );
 }
 
