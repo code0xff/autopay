@@ -7,9 +7,12 @@ function fakeBridge(over: Partial<PageBridge> = {}): PageBridge {
     readText:
       over.readText ??
       vi.fn(async (_t, sel) => {
-        if (sel.includes("price") || sel.includes("amount")) return "₩23,500";
-        if (sel.includes("merchant")) return "쿠팡";
-        if (sel.includes("items")) return "usb-hub x1";
+        // 쿠팡은 "label:최종 결제 금액", 카카오는 "[data-amount]" 형태.
+        if (sel.startsWith("label:") || sel.includes("price") || sel.includes("amount"))
+          return "₩23,500";
+        if (sel === "location:items" || sel.includes("items")) return "86091485721:1";
+        // 쿠팡 결제창엔 가맹점명 노드가 없다 → null → merchantName 폴백 경로를 탄다.
+        if (sel.includes("merchant")) return null;
         return null;
       }),
     origin: over.origin ?? vi.fn(async () => "https://coupang.com"),
@@ -49,7 +52,7 @@ describe("createAdapter (coupay, 패턴 C)", () => {
     const { snapshot } = await adapter.verify(1);
     const out = await adapter.pay({ tabId: 1, timeoutMs: 1000, approvedSnapshot: snapshot });
     expect(out).toEqual({ status: "approved", orderId: "#8842", amount: 23_500 });
-    expect(click).toHaveBeenCalledWith(1, "#place-order"); // 원터치 결제 버튼
+    expect(click).toHaveBeenCalledWith(1, "text:결제하기"); // 원터치 결제 버튼(라이브 확정)
   });
 
   it("pay: 비번 UI 등장 → failed(비번 미입력)", async () => {

@@ -1,12 +1,16 @@
 import { parseHTML } from "linkedom";
 import { describe, expect, it } from "vitest";
 import { type PageBridge, createAdapter } from "./adapters.js";
+import { resolveIn } from "./selector.js";
 import type { CompletionResult } from "./types.js";
 
 // 픽스처 E2E: 모킹 결제창/완료 HTML에 실제 어댑터(createAdapter)를 돌려
 // verify→(재검증)→클릭/입력→완료 파싱까지 "실제 실행 직전"까지 검증한다.
-// 실결제·실계정·브라우저 없이 어댑터 config 셀렉터 + 코어 로직을 확인.
-// (라이브 셀렉터 확정 시 이 픽스처만 실제 캡처로 교체하면 된다 — payment-flows.md)
+// 실결제·실계정 없이 어댑터 config 셀렉터 + 코어 로직을 확인.
+//
+// 쿠팡 픽스처는 **라이브 캡처(2026-09-22 checkout.coupang.com)** 구조를 그대로
+// 옮긴 것이다 — Tailwind 클래스뿐이라 id/의미 클래스가 없고, 금액은 "최종 결제
+// 금액" 라벨 뒤에, 결제는 텍스트 "결제하기" 버튼으로 존재한다.
 
 /** linkedom 기반 PageBridge. completeOn 셀렉터 클릭 시 afterClick 페이지로 전이. */
 class FixtureBridge implements PageBridge {
@@ -20,6 +24,7 @@ class FixtureBridge implements PageBridge {
     private readonly originStr: string,
     private readonly completeOn: string,
     private readonly completeOrigin?: string, // 완료 시점 origin(미지정 시 originStr)
+    private itemsParam = "86091485721:1", // location:items (상품id:수량)
   ) {
     this.doc = parseHTML(checkoutHtml).document;
   }
@@ -28,15 +33,23 @@ class FixtureBridge implements PageBridge {
   mutate(fn: (doc: FixtureBridge["doc"]) => void): void {
     fn(this.doc);
   }
+  setItems(v: string): void {
+    this.itemsParam = v;
+  }
+  /** 어댑터와 동일한 스킴 해석으로 요소를 찾는다. */
+  find(sel: string): Element | null {
+    return resolveIn(this.doc as unknown as Document, sel);
+  }
 
   async readText(_t: number, sel: string): Promise<string | null> {
-    return this.doc.querySelector(sel)?.textContent ?? null;
+    if (sel === "location:items") return this.itemsParam;
+    return this.find(sel)?.textContent ?? null;
   }
   async origin(): Promise<string> {
     return this.originStr;
   }
   async fill(_t: number, sel: string, value: string): Promise<void> {
-    const el = this.doc.querySelector(sel) as { value?: string } | null;
+    const el = this.find(sel) as { value?: string } | null;
     if (el) el.value = value;
     this.filled[sel] = value;
   }
@@ -57,26 +70,28 @@ class FixtureBridge implements PageBridge {
     // 완료 판정은 승인 시점 origin과 일치할 때만(허위 완료 페이지 차단).
     if ((this.completeOrigin ?? this.originStr) !== cfg.expectedOrigin)
       return { status: "timeout" };
-    if (cfg.passwordUiSel && this.doc.querySelector(cfg.passwordUiSel)) {
+    if (cfg.passwordUiSel && this.find(cfg.passwordUiSel)) {
       return { status: "failed", error: "password_required" };
     }
-    const ok = this.doc.querySelector(cfg.successSel);
-    const orderId = this.doc.querySelector(cfg.orderIdSel)?.textContent?.trim() ?? "";
+    const ok = this.find(cfg.successSel);
+    const orderId = this.find(cfg.orderIdSel)?.textContent?.trim() ?? "";
     if (ok && orderId) return { status: "approved", orderId };
     return { status: "timeout" };
   }
 }
 
-// ── 픽스처 HTML (placeholder 셀렉터 = adapters.ts config와 일치) ──
+// ── 픽스처 HTML (라이브 캡처 구조 반영) ──
 const COUPANG_CHECKOUT = `
-  <div class="total-price">₩23,500</div>
-  <div class="merchant-name">쿠팡</div>
-  <div class="order-items">USB-C 허브 7in1 · 수량 1</div>
-  <button id="place-order">결제하기</button>`;
+  <div><span>결제수단</span><span>쿠페이 머니</span></div>
+  <div><span>최종 결제 금액</span><span>3,650원</span></div>
+  <div><span>배송비</span><span>0원</span></div>
+  <div><span>총 결제 금액</span><span>3,650원</span></div>
+  <button>결제하기</button>`;
 const COUPANG_COMPLETE = `
-  <div class="order-complete">주문이 완료되었습니다</div>
-  <div class="order-number">8842-1179</div>`;
+  <div>주문이 완료되었습니다</div>
+  <div><span>주문번호</span><span>8842-1179</span></div>`;
 const COUPANG_PASSWORD = `<div class="payment-password-keypad">비밀번호 6자리</div>`;
+const COUPAY_PAY_SEL = "text:결제하기";
 
 const KAKAO_CHECKOUT = `
   <div data-amount>28,900원</div>
@@ -91,50 +106,65 @@ const KAKAO_COMPLETE = `
   <div data-order-id>KKO-2211</div>`;
 
 describe("결제 흐름 E2E (픽스처)", () => {
-  it("쿠팡(패턴 C): verify 파싱 → [결제하기] → 완료 파싱 → approved", async () => {
+  it("쿠팡(패턴 C): 라이브 구조 파싱 → [결제하기] → 완료 파싱 → approved", async () => {
     const bridge = new FixtureBridge(
       COUPANG_CHECKOUT,
       COUPANG_COMPLETE,
-      "https://coupang.com",
-      "#place-order",
+      "https://checkout.coupang.com",
+      COUPAY_PAY_SEL,
     );
     const adapter = createAdapter("coupay", bridge);
 
     const v = await adapter.verify(0);
-    expect(v.amount).toBe(23_500);
-    expect(v.merchantName).toBe("쿠팡");
-    expect(v.origin).toBe("https://coupang.com");
+    expect(v.amount).toBe(3_650); // "최종 결제 금액" 라벨 뒤 금액
+    expect(v.merchantName).toBe("쿠팡"); // 가맹점 노드 없음 → 폴백
+    expect(v.origin).toBe("https://checkout.coupang.com");
     expect(v.snapshot).toMatch(/^[0-9a-f]{64}$/);
 
     const out = await adapter.pay({ tabId: 0, timeoutMs: 1000, approvedSnapshot: v.snapshot });
-    expect(out).toEqual({ status: "approved", orderId: "8842-1179", amount: 23_500 });
-    expect(bridge.clicked).toContain("#place-order");
+    expect(out).toEqual({ status: "approved", orderId: "8842-1179", amount: 3_650 });
+    expect(bridge.clicked).toContain(COUPAY_PAY_SEL);
   });
 
   it("쿠팡: 승인 후 금액 바꿔치기(TOCTOU) → 재검증 불일치 → canceled, 클릭 안 함", async () => {
     const bridge = new FixtureBridge(
       COUPANG_CHECKOUT,
       COUPANG_COMPLETE,
-      "https://coupang.com",
-      "#place-order",
+      "https://checkout.coupang.com",
+      COUPAY_PAY_SEL,
     );
     const adapter = createAdapter("coupay", bridge);
     const v = await adapter.verify(0);
-    bridge.mutate((doc) => {
-      const el = doc.querySelector(".total-price");
-      if (el) el.textContent = "₩250,000"; // 결제 직전 대상 변경
+    bridge.mutate(() => {
+      const el = bridge.find("label:최종 결제 금액");
+      if (el) el.textContent = "250,000원"; // 결제 직전 대상 변경
     });
     const out = await adapter.pay({ tabId: 0, timeoutMs: 1000, approvedSnapshot: v.snapshot });
     expect(out).toEqual({ status: "canceled", reason: "content_changed" });
-    expect(bridge.clicked).not.toContain("#place-order"); // 결제 시작 자체를 안 함
+    expect(bridge.clicked).not.toContain(COUPAY_PAY_SEL); // 결제 시작 자체를 안 함
+  });
+
+  it("쿠팡: 금액 그대로여도 주문 상품(item[])이 바뀌면 → canceled", async () => {
+    const bridge = new FixtureBridge(
+      COUPANG_CHECKOUT,
+      COUPANG_COMPLETE,
+      "https://checkout.coupang.com",
+      COUPAY_PAY_SEL,
+    );
+    const adapter = createAdapter("coupay", bridge);
+    const v = await adapter.verify(0);
+    bridge.setItems("99999999999:1"); // 같은 금액, 다른 상품으로 바꿔치기
+    const out = await adapter.pay({ tabId: 0, timeoutMs: 1000, approvedSnapshot: v.snapshot });
+    expect(out).toEqual({ status: "canceled", reason: "content_changed" });
+    expect(bridge.clicked).not.toContain(COUPAY_PAY_SEL);
   });
 
   it("쿠팡: 비밀번호 UI 등장(원터치 아님) → failed(password_required)", async () => {
     const bridge = new FixtureBridge(
       COUPANG_CHECKOUT,
       COUPANG_PASSWORD,
-      "https://coupang.com",
-      "#place-order",
+      "https://checkout.coupang.com",
+      COUPAY_PAY_SEL,
     );
     const adapter = createAdapter("coupay", bridge);
     const v = await adapter.verify(0);
@@ -146,8 +176,8 @@ describe("결제 흐름 E2E (픽스처)", () => {
     const bridge = new FixtureBridge(
       COUPANG_CHECKOUT,
       COUPANG_COMPLETE,
-      "https://coupang.com",
-      "#place-order",
+      "https://checkout.coupang.com",
+      COUPAY_PAY_SEL,
       "https://evil.example", // 완료 시점 다른 origin(탭 바꿔치기)
     );
     const adapter = createAdapter("coupay", bridge);

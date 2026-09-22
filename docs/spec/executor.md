@@ -90,6 +90,32 @@ pay(input):
 ```
 
 - 셀렉터·완료신호 파싱 지점은 실결제 캡처로 확정(payment-flows.md 검증 항목).
+
+### 2.2 셀렉터 스킴 (`src/executor/selector.ts`)
+
+라이브 캡처(2026-09-22 `checkout.coupang.com`) 결과 **쿠팡 결제창에는 안정적인
+CSS 셀렉터가 존재하지 않는다** — 클래스가 전부 Tailwind 자동생성
+(`twc-mr-0.5 twc-whitespace-nowrap`)이고 의미 있는 `id`가 없다. 대신 화면
+텍스트(라벨·버튼명)는 안정적이므로 어댑터 셀렉터는 스킴을 가진다.
+
+| 스킴 | 의미 | 예 |
+|---|---|---|
+| `css:<sel>` / `<sel>` | `querySelector` (기본) | `css:[data-amount]` |
+| `text:<텍스트>` | 정확 텍스트 요소. 클릭요소(button/a/[role=button]) 우선, 없으면 임의 요소 | `text:결제하기` |
+| `label:<라벨>` | 라벨 뒤 문서순 첫 **금액**(`…원`) 요소 | `label:최종 결제 금액` |
+| `after:<라벨>` | 라벨 뒤 문서순 첫 비어있지 않은 리프 | `after:주문번호` |
+| `location:items` | 주소의 `item[]=<상품id>:<수량>` — 주문 내용 스냅샷 키 | — |
+
+구현 주의:
+- 실 DOM은 XPath(`document.evaluate`), linkedom(픽스처 테스트)은 순회로 폴백.
+- **라이브 함정**: 쿠팡은 `총 결제 금액` 뒤에 숫자 없는 빈 `원` 노드가 온다.
+  XPath `contains(text(),"원")`가 이를 잡으므로 `label:`은 금액성(`[\d,]{2,}원`)을
+  재검증하고, 실패 시 다음 후보로 넘어간다. 앵커는 `최종 결제 금액`을 쓴다.
+- `chrome.scripting.executeScript`는 함수를 소스로 직렬화해 주입하므로 모듈
+  참조가 불가하다 → `platform/chrome-page-bridge.ts`의 `pageOp`가 리졸버를
+  **인라인 복제**한다. 규칙 동기화는 `selector.test.ts`가 지킨다.
+- 상품 DOM 앵커가 없어 `itemsKey`는 DOM이 아니라 **URL의 `item[]`** 에서 얻는다.
+  금액이 같아도 상품이 바뀌면 스냅샷이 달라져 TOCTOU가 잡힌다.
 - **금액 독립 검증**: `verify()`의 amount를 policy가 `verifiedAmount`로 사용.
   에이전트가 주장한 `totalAmount`와 불일치면 policy가 `amount_mismatch`로 deny.
 

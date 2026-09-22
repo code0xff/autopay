@@ -64,19 +64,31 @@ export const KAKAO: AdapterConfig = {
   },
 };
 
+// ✅ 라이브 캡처로 확정 (2026-09-22, checkout.coupang.com/direct/checkout/…).
+// 쿠팡 결제창은 Tailwind 자동생성 클래스뿐이고 의미 있는 id가 없어 CSS 셀렉터를
+// 고정할 수 없다 → 텍스트/라벨 앵커를 쓴다 (executor/selector.ts).
+// 관측된 화면: "결제수단 / 쿠페이 머니 / 최종 결제 금액 3,650원 / 배송비 0원 /
+//              총 결제 금액 3,650원 / [결제하기]", 비밀번호 키패드 없음(=원터치).
 export const COUPAY: AdapterConfig = {
   method: "coupay",
   hasExternalApproval: false,
   flow: "patternC",
   merchantName: "쿠팡",
   selectors: {
-    amount: ".total-price",
-    merchant: ".merchant-name",
-    items: ".order-items",
-    payButton: "#place-order",
-    success: ".order-complete",
-    orderId: ".order-number",
-    passwordUi: ".payment-password-keypad", // 등장 = 원터치 아님 → failed
+    // "총 결제 금액" 앵커는 빈 "원" 노드를 먼저 잡아 불안정 → "최종 결제 금액" 채택.
+    amount: "label:최종 결제 금액",
+    // 결제창에 가맹점명 노드가 없다 → null 반환 시 merchantName("쿠팡")으로 폴백.
+    merchant: "css:[data-autopay-merchant]",
+    // 상품명 DOM 앵커가 없다(클래스 재사용). 주문 내용은 URL이 정확히 인코딩:
+    // item[]=<상품id>:<수량> → TOCTOU 스냅샷 키로 더 정확하다.
+    items: "location:items",
+    payButton: "text:결제하기",
+    // ⚠️ 미검증: 아래 둘은 결제 **완료 후** 페이지에만 존재한다. 실결제를 하지
+    //    않아 라이브 캡처하지 못했다 — 첫 실주문 시 반드시 확정할 것(M3 잔여).
+    success: "text:주문이 완료되었습니다",
+    orderId: "after:주문번호",
+    // 등장 = 원터치 아님 → failed(password_required). 라이브에선 부재 확인됨.
+    passwordUi: "css:[class*=keypad],[class*=password]",
   },
 };
 
