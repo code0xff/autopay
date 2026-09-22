@@ -26,14 +26,19 @@ export function App() {
 
       <SiteAccessNotice />
       <Unlock locked={state.locked} onDone={refresh} />
-      <PolicyForm policy={state.policy} onSaved={refresh} />
-      <ProfileForm hasProfile={state.hasProfile} locked={state.locked} onSaved={refresh} />
-      <BridgeCard
-        connected={state.bridgeConnected}
-        hasToken={state.hasBridgeToken}
-        onSaved={refresh}
-      />
-      <AuditTable state={state} />
+
+      {!state.locked && (
+        <>
+          <PolicyForm policy={state.policy} onSaved={refresh} />
+          <ProfileForm hasProfile={state.hasProfile} locked={state.locked} onSaved={refresh} />
+          <BridgeCard
+            connected={state.bridgeConnected}
+            hasToken={state.hasBridgeToken}
+            onSaved={refresh}
+          />
+          <AuditTable state={state} />
+        </>
+      )}
     </div>
   );
 }
