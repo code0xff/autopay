@@ -55,25 +55,42 @@ function findByText(doc: Document, text: string): Element | null {
   );
 }
 
-/** 문자열을 포함하는 아무 요소나(존재 여부 판정용 — 정확한 문구를 모를 때).
- *  가장 안쪽(자식 없는) 일치 요소를 우선해 컨테이너가 아니라 실제 텍스트
- *  노드에 가까운 걸 반환한다. (예: contains:비밀번호) */
+/** 문자열을 포함하는 **화면에 보이는** 요소(존재 여부 판정용 — 정확한 문구를 모를 때).
+ *  가장 안쪽(같은 문자열을 포함하는 자식이 없는) 일치 요소만 후보로 삼아
+ *  컨테이너가 아니라 실제 텍스트 노드에 가까운 걸 반환한다. (예: contains:비밀번호)
+ *  숨김 요소(미리 렌더된 모달·display:none 템플릿 등)는 건너뛴다 — 그런 곳의
+ *  "비밀번호" 문구가 원터치 정상 결제를 password_required로 오판하게 만들기 때문. */
 function findByContains(doc: Document, needle: string): Element | null {
   const lit = xpLiteral(needle);
-  const xp = tryXPath(
+  const snap = trySnapshot(
     doc,
     `//*[contains(normalize-space(.),${lit})][not(.//*[contains(normalize-space(.),${lit})])]`,
   );
-  if (xp) return xp;
-  // 폴백(XPath 미지원): 전체 순회에서 텍스트가 가장 짧게 일치하는(=가장 안쪽) 요소.
-  const matches = Array.from(doc.querySelectorAll("*")).filter((el) =>
-    (el.textContent ?? "").includes(needle),
-  );
-  if (matches.length === 0) return null;
-  // 길이가 같으면(조상-자손이 같은 텍스트만 감쌀 때) 문서순 뒤쪽 = 더 안쪽을 우선.
-  return matches.reduce((a, b) =>
-    (b.textContent ?? "").length <= (a.textContent ?? "").length ? b : a,
-  );
+  // 폴백(XPath 미지원): 전체 순회에서 같은 문자열을 포함하는 자식이 없는 일치 요소.
+  const innermost =
+    snap ??
+    Array.from(doc.querySelectorAll("*")).filter(
+      (el) =>
+        (el.textContent ?? "").includes(needle) &&
+        !Array.from(el.children).some((c) => (c.textContent ?? "").includes(needle)),
+    );
+  return innermost.find(isVisible) ?? null;
+}
+
+/** 화면에 보이는가. 실 브라우저는 checkVisibility(레이아웃 기준)로, 레이아웃이
+ *  없는 환경(linkedom)은 hidden/aria-hidden/inline style 조상 검사로 판정한다.
+ *  ⚠️ chrome-page-bridge.pageOp에 같은 로직이 인라인 복제돼 있다 — 같이 고칠 것. */
+function isVisible(el: Element): boolean {
+  const check = (el as { checkVisibility?: (o?: object) => boolean }).checkVisibility;
+  if (typeof check === "function") {
+    return check.call(el, { visibilityProperty: true, opacityProperty: true });
+  }
+  for (let cur: Element | null = el; cur; cur = cur.parentElement) {
+    if (cur.hasAttribute("hidden") || cur.getAttribute("aria-hidden") === "true") return false;
+    const style = (cur.getAttribute("style") ?? "").replace(/\s+/g, "").toLowerCase();
+    if (/display:none|visibility:hidden|opacity:0(?![.\d])/.test(style)) return false;
+  }
+  return true;
 }
 
 /** 라벨 뒤 문서순 첫 요소. amountOnly면 "…원"인 것만.
@@ -106,6 +123,20 @@ function tryXPath(doc: Document, query: string): Element | null {
   try {
     const r = evaluate.call(doc, query, doc, null, 9 /* FIRST_ORDERED_NODE_TYPE */, null);
     return (r.singleNodeValue as Element | null) ?? null;
+  } catch {
+    return null;
+  }
+}
+
+/** XPath 결과 전체(문서순). XPath 미지원이면 null. */
+function trySnapshot(doc: Document, query: string): Element[] | null {
+  const evaluate = (doc as { evaluate?: Document["evaluate"] }).evaluate;
+  if (typeof evaluate !== "function") return null;
+  try {
+    const r = evaluate.call(doc, query, doc, null, 7 /* ORDERED_NODE_SNAPSHOT_TYPE */, null);
+    const out: Element[] = [];
+    for (let i = 0; i < r.snapshotLength; i++) out.push(r.snapshotItem(i) as Element);
+    return out;
   } catch {
     return null;
   }

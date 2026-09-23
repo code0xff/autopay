@@ -57,10 +57,24 @@ export function pageOp(
       xp(`//*[normalize-space(text())=${lit}]`);
   } else if (sel.startsWith("contains:")) {
     const lit = xpLiteral(sel.slice(9));
-    // 가장 안쪽(자식 중엔 같은 문자열을 포함하는 게 없는) 일치 요소.
-    el = xp(
-      `//*[contains(normalize-space(.),${lit})][not(.//*[contains(normalize-space(.),${lit})])]`,
-    );
+    // 가장 안쪽(자식 중엔 같은 문자열을 포함하는 게 없는) 일치 요소 중 **화면에
+    // 보이는** 첫 요소(selector.ts findByContains·isVisible과 동일 — 숨김 모달의
+    // "비밀번호" 문구로 원터치 정상 결제를 password_required로 오판하지 않도록).
+    try {
+      const r = document.evaluate(
+        `//*[contains(normalize-space(.),${lit})][not(.//*[contains(normalize-space(.),${lit})])]`,
+        document,
+        null,
+        7,
+        null,
+      );
+      for (let i = 0; i < r.snapshotLength && !el; i++) {
+        const cand = r.snapshotItem(i) as Element;
+        if (cand.checkVisibility({ visibilityProperty: true, opacityProperty: true })) el = cand;
+      }
+    } catch {
+      el = null;
+    }
   } else if (sel.startsWith("label:") || sel.startsWith("after:")) {
     const amountOnly = sel.startsWith("label:");
     const lit = xpLiteral(sel.slice(6));

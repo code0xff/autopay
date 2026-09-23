@@ -64,6 +64,36 @@ describe("resolveIn — contains 스킴(부분 포함, 존재 여부 판정용)"
     );
     expect(el?.tagName.toLowerCase()).toBe("p");
   });
+
+  // 2026-09-23: 숨김 요소의 "비밀번호" 문구(미리 렌더된 모달 등)로 원터치 정상
+  // 결제가 password_required로 오판되지 않도록 — 보이는 요소만 잡는다.
+  it("숨김 요소(hidden·aria-hidden·display:none·visibility:hidden·opacity:0)는 무시한다", () => {
+    for (const hidden of [
+      "<div hidden><p>비밀번호 6자리</p></div>",
+      `<div aria-hidden="true"><p>비밀번호 6자리</p></div>`,
+      `<div style="display: none"><p>비밀번호 6자리</p></div>`,
+      `<div style="visibility:hidden"><p>비밀번호 6자리</p></div>`,
+      `<div style="opacity: 0"><p>비밀번호 6자리</p></div>`,
+    ]) {
+      expect(resolveIn(doc(CHECKOUT + hidden), "contains:비밀번호")).toBeNull();
+    }
+  });
+
+  it("숨김 사본이 있어도 보이는 비번 모달은 잡는다", () => {
+    const el = resolveIn(
+      doc("<div hidden><p>비밀번호 템플릿</p></div><div><p>결제 비밀번호 입력</p></div>"),
+      "contains:비밀번호",
+    );
+    expect(el?.textContent).toBe("결제 비밀번호 입력");
+  });
+
+  it("opacity:0.5처럼 반투명은 보이는 것으로 본다", () => {
+    const el = resolveIn(
+      doc(`<div style="opacity:0.5"><p>비밀번호</p></div>`),
+      "contains:비밀번호",
+    );
+    expect(el).not.toBeNull();
+  });
 });
 
 describe("resolveIn — label 스킴(금액)", () => {
