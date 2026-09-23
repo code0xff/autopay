@@ -399,3 +399,17 @@ tbody tr:hover {
   margin: 24px auto 0;
   width: 100%;
 }
+.badge .dot {
+  width: 6px;
+  height: 6px;
+  border-radius: 50%;
+  background: currentColor;
+  display: inline-block;
+}
+.pager {
+  margin-top: 12px;
+}
+.icon-btn:disabled {
+  opacity: 0.45;
+  cursor: not-allowed;
+}

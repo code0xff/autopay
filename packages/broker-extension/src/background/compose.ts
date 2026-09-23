@@ -1,4 +1,4 @@
-import type { AuditRecord, PaymentMethod, PaymentPolicy } from "@autopay/shared";
+import type { PaymentMethod, PaymentPolicy } from "@autopay/shared";
 import { KvAuditLog } from "../audit/audit-log.js";
 import { BridgeTools } from "../bridge/bridge-tools.js";
 import { ChromeGenericPageBridge } from "../bridge/page-bridge.js";
@@ -53,7 +53,6 @@ const BRIDGE_URL = "ws://127.0.0.1:8765"; // mcp-server 로컬 WS 허브(docs/sp
 export interface UiState {
   policy: PaymentPolicy;
   summary: PolicySummary;
-  recentAudit: AuditRecord[];
   pending: PendingConfirmation[];
   hasProfile: boolean;
   locked: boolean;
@@ -176,6 +175,8 @@ export class Background {
         this.key = null;
         await this.session.set(SESSION_KEY, null);
         return { ok: true };
+      case "getAudit":
+        return this.audit.page({ offset: req.offset, limit: req.limit });
       case "setProfile":
         await this.refstore.setProfile(req.identity);
         return { ok: true };
@@ -193,7 +194,6 @@ export class Background {
     return {
       policy: await this.getPolicy(),
       summary: await this.broker.getPolicySummary(),
-      recentAudit: await this.audit.list({ limit: 20 }),
       pending: await this.broker.listPending(),
       hasProfile: await this.safeHasProfile(),
       locked: !(await this.restoreKey()),

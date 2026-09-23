@@ -13,6 +13,14 @@ export const RpcRequest = z.discriminatedUnion("type", [
   z.object({ type: z.literal("setPolicy"), policy: PaymentPolicy }).strict(),
   z.object({ type: z.literal("unlock"), passphrase: z.string().min(1) }).strict(),
   z.object({ type: z.literal("lock") }).strict(),
+  // 기록 탭 페이지네이션 — 최신순 offset/limit
+  z
+    .object({
+      type: z.literal("getAudit"),
+      offset: z.number().int().nonnegative(),
+      limit: z.number().int().min(1).max(50),
+    })
+    .strict(),
   z.object({ type: z.literal("setProfile"), identity: IdentityInput }).strict(),
   z
     .object({

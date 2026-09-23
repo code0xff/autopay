@@ -94,4 +94,28 @@ describe("KvAuditLog", () => {
     expect(since.map((r) => r.id)).toEqual(["c", "b"]); // 최신순
     expect(await log.list({ limit: 1 })).toHaveLength(1);
   });
+
+  it("page — 최신순으로 offset/limit만큼 자르고 전체 건수를 함께 준다", async () => {
+    for (let i = 1; i <= 12; i++) {
+      const hh = String(i).padStart(2, "0");
+      await log.append(rec({ id: `r${i}`, at: `2026-09-02T${hh}:00:00+09:00` }));
+    }
+    const first = await log.page({ offset: 0, limit: 10 });
+    expect(first.total).toBe(12);
+    expect(first.records.map((r) => r.id)).toEqual([
+      "r12",
+      "r11",
+      "r10",
+      "r9",
+      "r8",
+      "r7",
+      "r6",
+      "r5",
+      "r4",
+      "r3",
+    ]);
+    const second = await log.page({ offset: 10, limit: 10 });
+    expect(second.records.map((r) => r.id)).toEqual(["r2", "r1"]);
+    expect(second.total).toBe(12);
+  });
 });

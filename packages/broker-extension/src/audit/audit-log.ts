@@ -6,7 +6,9 @@ import type { Kv } from "../platform/kv.js";
 
 export interface AuditLog {
   append(record: AuditRecord): Promise<void>;
-  list(opts?: { since?: string; limit?: number }): Promise<AuditRecord[]>;
+  list(opts?: { since?: string; limit?: number; offset?: number }): Promise<AuditRecord[]>;
+  /** 최신순 한 페이지 + 전체 건수(기록 탭 페이지네이션). */
+  page(opts: { offset: number; limit: number }): Promise<{ records: AuditRecord[]; total: number }>;
   usageFor(now: Date): Promise<UsageSnapshot>;
 }
 
@@ -30,7 +32,7 @@ export class KvAuditLog implements AuditLog {
     await this.kv.set(this.key, records);
   }
 
-  async list(opts?: { since?: string; limit?: number }): Promise<AuditRecord[]> {
+  async list(opts?: { since?: string; limit?: number; offset?: number }): Promise<AuditRecord[]> {
     let records = await this.all();
     if (opts?.since) {
       const since = opts.since;
@@ -38,8 +40,18 @@ export class KvAuditLog implements AuditLog {
     }
     // 최신순
     records.sort((a, b) => (a.at < b.at ? 1 : a.at > b.at ? -1 : 0));
-    if (opts?.limit !== undefined) records = records.slice(0, opts.limit);
+    const offset = opts?.offset ?? 0;
+    if (opts?.limit !== undefined) records = records.slice(offset, offset + opts.limit);
+    else if (offset > 0) records = records.slice(offset);
     return records;
+  }
+
+  async page(opts: { offset: number; limit: number }): Promise<{
+    records: AuditRecord[];
+    total: number;
+  }> {
+    const total = (await this.all()).length;
+    return { records: await this.list(opts), total };
   }
 
   /** approved 건만 합산. 오늘/이번달/오늘 건수. 로컬 타임존 기준. */

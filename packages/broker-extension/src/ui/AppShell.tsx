@@ -90,7 +90,7 @@ export function AppShell({ wide = false }: { wide?: boolean }) {
             <div className="body">
               {tab === "home" && <Home state={state} onRefresh={refresh} />}
               {tab === "policy" && <PolicyForm policy={state.policy} onSaved={refresh} />}
-              {tab === "history" && <AuditTable state={state} />}
+              {tab === "history" && <AuditTable refreshKey={state} />}
               {tab === "settings" && (
                 <>
                   <BridgeCard

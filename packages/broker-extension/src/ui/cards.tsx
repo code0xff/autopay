@@ -1,6 +1,7 @@
-import { useState } from "react";
+import type { AuditRecord } from "@autopay/shared";
+import { useEffect, useState } from "react";
 import type { UiState } from "../background/compose.js";
-import { setBridgeToken, setProfile } from "./rpc-client.js";
+import { getAudit, setBridgeToken, setProfile } from "./rpc-client.js";
 
 // 탭 앱(AppShell)의 카드들 — 홈·기록·설정 탭에서 쓴다.
 
@@ -212,33 +213,103 @@ export function BridgeCard({
   );
 }
 
-export function AuditTable({ state }: { state: UiState }) {
+const PAGE_SIZE = 10;
+
+// 감사 결과 → 상태 배지(점 + 단어, 색은 의미만)
+const OUTCOME: Record<AuditRecord["outcome"], { label: string; tone: string }> = {
+  approved: { label: "완료", tone: "ok" },
+  rejected: { label: "거절", tone: "danger" },
+  failed: { label: "실패", tone: "danger" },
+  canceled: { label: "취소", tone: "" },
+  timeout: { label: "시간 초과", tone: "warn" },
+  confirm_required: { label: "승인 대기", tone: "info" },
+};
+
+// 기록 탭 — 최신순 10건씩 페이지로. refreshKey가 바뀌면(부모 폴링) 현재 페이지를 다시 읽는다.
+export function AuditTable({ refreshKey }: { refreshKey: unknown }) {
   const won = (n: number) => `₩${n.toLocaleString("ko-KR")}`;
+  const [page, setPage] = useState(0);
+  const [data, setData] = useState<{ records: AuditRecord[]; total: number } | null>(null);
+  // biome-ignore lint/correctness/useExhaustiveDependencies: refreshKey는 재조회 트리거로만 쓴다
+  useEffect(() => {
+    getAudit(page * PAGE_SIZE, PAGE_SIZE)
+      .then(setData)
+      .catch(() => undefined);
+  }, [page, refreshKey]);
+
+  const total = data?.total ?? 0;
+  const pages = Math.max(1, Math.ceil(total / PAGE_SIZE));
+  // 기록이 줄어 현재 페이지가 범위를 벗어나면 마지막 페이지로
+  useEffect(() => {
+    if (page > pages - 1) setPage(pages - 1);
+  }, [page, pages]);
+  const from = total === 0 ? 0 : page * PAGE_SIZE + 1;
+  const to = Math.min(total, (page + 1) * PAGE_SIZE);
+
   return (
     <div className="card">
       <div className="label" style={{ marginBottom: 8 }}>
-        최근 결제 (감사 로그)
+        결제 기록 (감사 로그)
       </div>
-      <table>
-        <thead>
-          <tr>
-            <th>시각</th>
-            <th>가맹점</th>
-            <th>금액</th>
-            <th>결과</th>
-          </tr>
-        </thead>
-        <tbody>
-          {state.recentAudit.map((r) => (
-            <tr key={r.id}>
-              <td className="mono muted">{r.at.slice(5, 16).replace("T", " ")}</td>
-              <td>{r.merchant.name}</td>
-              <td className="mono">{won(r.amount)}</td>
-              <td>{r.outcome}</td>
+      {data && total === 0 ? (
+        <div className="muted" style={{ fontSize: 13 }}>
+          아직 결제 기록이 없습니다.
+        </div>
+      ) : (
+        <table>
+          <thead>
+            <tr>
+              <th>시각</th>
+              <th>가맹점</th>
+              <th>금액</th>
+              <th>결과</th>
             </tr>
-          ))}
-        </tbody>
-      </table>
+          </thead>
+          <tbody>
+            {(data?.records ?? []).map((r) => {
+              const o = OUTCOME[r.outcome];
+              return (
+                <tr key={r.id}>
+                  <td className="mono muted">{r.at.slice(5, 16).replace("T", " ")}</td>
+                  <td>{r.merchant.name}</td>
+                  <td className="mono">{won(r.amount)}</td>
+                  <td>
+                    <span className={`badge ${o.tone}`}>
+                      <span className="dot" aria-hidden="true" />
+                      {o.label}
+                    </span>
+                  </td>
+                </tr>
+              );
+            })}
+          </tbody>
+        </table>
+      )}
+      {total > PAGE_SIZE && (
+        <div className="row between pager">
+          <span className="muted mono" style={{ fontSize: 12 }}>
+            {from}–{to} / {total}
+          </span>
+          <div className="row" style={{ gap: 6 }}>
+            <button
+              type="button"
+              className="icon-btn"
+              disabled={page === 0}
+              onClick={() => setPage((p) => Math.max(0, p - 1))}
+            >
+              이전
+            </button>
+            <button
+              type="button"
+              className="icon-btn"
+              disabled={page >= pages - 1}
+              onClick={() => setPage((p) => Math.min(pages - 1, p + 1))}
+            >
+              다음
+            </button>
+          </div>
+        </div>
+      )}
     </div>
   );
 }
