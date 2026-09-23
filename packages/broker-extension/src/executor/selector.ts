@@ -20,6 +20,24 @@
 
 const AMOUNT_RE = /[\d,]{2,}\s*원/;
 
+// 2026-09-23: 라벨 매칭이 실제 쿠팡 DOM에서 계속 실패해 amount_parse_failed로
+// 이어진 진짜 원인 — 한국어 사이트는 여러 단어짜리 라벨(예: "총 결제 금액")이
+// 줄바꿈 없이 붙어 보이도록 단어 사이에 **NBSP(U+00A0)** 를 흔히 쓴다. XPath의
+// normalize-space()는 ASCII 공백(스페이스/탭/개행)만 처리하고 NBSP는 그대로
+// 남기기 때문에, 소스에 일반 스페이스로 적은 라벨 문자열과 절대 안 같아진다
+// (짧은 단일 단어 버튼명 "결제하기" 등은 NBSP를 안 쓰니 이 문제가 없었다 —
+// 그래서 그동안 다른 셀렉터는 멀쩡했다). 그래서 라벨류 매칭은 XPath가 아니라
+// 직접 정규화한 JS 문자열 비교로 한다.
+function normText(s: string): string {
+  return s
+    .replace(/[   -​  　]/g, " ")
+    .replace(/\s+/g, " ")
+    .trim();
+}
+function elementText(el: Element): string {
+  return normText(el.textContent ?? "");
+}
+
 /** 문서에서 스킴을 해석해 요소 하나를 찾는다. 못 찾으면 null. */
 export function resolveIn(doc: Document, sel: string): Element | null {
   if (sel.startsWith("text:")) return findByText(doc, sel.slice(5));
@@ -59,21 +77,15 @@ function findByText(doc: Document, text: string): Element | null {
  *  가장 안쪽(같은 문자열을 포함하는 자식이 없는) 일치 요소만 후보로 삼아
  *  컨테이너가 아니라 실제 텍스트 노드에 가까운 걸 반환한다. (예: contains:비밀번호)
  *  숨김 요소(미리 렌더된 모달·display:none 템플릿 등)는 건너뛴다 — 그런 곳의
- *  "비밀번호" 문구가 원터치 정상 결제를 password_required로 오판하게 만들기 때문. */
+ *  "비밀번호" 문구가 원터치 정상 결제를 password_required로 오판하게 만들기 때문.
+ *  XPath가 아니라 순수 JS 순회 + normText로 비교한다(NBSP 등 대응, 위 설명 참조). */
 function findByContains(doc: Document, needle: string): Element | null {
-  const lit = xpLiteral(needle);
-  const snap = trySnapshot(
-    doc,
-    `//*[contains(normalize-space(.),${lit})][not(.//*[contains(normalize-space(.),${lit})])]`,
+  const target = normText(needle);
+  const innermost = Array.from(doc.querySelectorAll("*")).filter(
+    (el) =>
+      elementText(el).includes(target) &&
+      !Array.from(el.children).some((c) => elementText(c).includes(target)),
   );
-  // 폴백(XPath 미지원): 전체 순회에서 같은 문자열을 포함하는 자식이 없는 일치 요소.
-  const innermost =
-    snap ??
-    Array.from(doc.querySelectorAll("*")).filter(
-      (el) =>
-        (el.textContent ?? "").includes(needle) &&
-        !Array.from(el.children).some((c) => (c.textContent ?? "").includes(needle)),
-    );
   return innermost.find(isVisible) ?? null;
 }
 
@@ -95,70 +107,37 @@ function isVisible(el: Element): boolean {
 
 /** 라벨 뒤 문서순 첫 요소. amountOnly면 "…원"인 것만.
  *  (label:총 결제 금액 → "16,300원" / after:주문번호 → "8842-1179")
- *  ⚠️ 2026-09-23: 라벨 자체를 예전엔 정확한 direct text(`normalize-space(text())=`)로만
- *  찾았는데, 실제 쿠팡 DOM에서 라벨이 강조 태그·아이콘 등으로 한 겹 더 감싸여
- *  있으면(direct text child가 아니게 되면) 이 매칭이 조용히 실패해 amount_parse_failed로
- *  이어졌다(실사용 중 발견). findByContains와 같은 전략(부분 포함 + 가장 안쪽 +
- *  화면에 보이는 요소)으로 라벨을 앵커해 더 안정적으로 만든다. */
+ *  라벨 자체는 findByContains와 같은 전략(부분 포함 + 가장 안쪽 + 화면에
+ *  보이는 요소 + normText)으로 앵커한다 — 강조 태그로 감싸여 있어도, 단어
+ *  사이에 NBSP가 있어도 안정적으로 잡는다(둘 다 실사용 중 발견한 실패 원인). */
 function findAfterLabel(doc: Document, label: string, amountOnly: boolean): Element | null {
-  const lit = xpLiteral(label);
-  const cond = amountOnly ? '[contains(text(),"원")]' : '[normalize-space(text())!=""]';
-  const labelSnap = trySnapshot(
-    doc,
-    `//*[contains(normalize-space(.),${lit})][not(.//*[contains(normalize-space(.),${lit})])]`,
-  );
-  const labelEl = (labelSnap ?? []).find(isVisible) ?? null;
-  if (labelEl) {
-    const xp = tryXPath(labelEl, `following::*${cond}[1]`);
-    // 라이브 함정: 쿠팡은 라벨 뒤에 숫자 없는 빈 "원" 노드가 올 수 있다.
-    // XPath contains()는 그걸 잡으므로 금액성 검증을 통과할 때만 채택한다.
-    if (xp && isVisible(xp) && (!amountOnly || AMOUNT_RE.test((xp.textContent ?? "").trim())))
-      return xp;
-  }
-  // 폴백(XPath 미지원 또는 위에서 못 찾음): 전체 순회에서 라벨(부분 포함, 가장
-  // 안쪽) 위치를 찾고 그 이후 첫 리프.
   const all = Array.from(doc.querySelectorAll("*"));
+  const target = normText(label);
   const idx = all.findIndex(
     (el) =>
-      (el.textContent ?? "").includes(label) &&
-      !Array.from(el.children).some((c) => (c.textContent ?? "").includes(label)),
+      isVisible(el) &&
+      elementText(el).includes(target) &&
+      !Array.from(el.children).some((c) => elementText(c).includes(target)),
   );
   if (idx < 0) return null;
   for (let i = idx + 1; i < all.length; i++) {
     const el = all[i];
-    if (!el || el.children.length > 0) continue;
-    const t = (el.textContent ?? "").trim();
+    if (!el || el.children.length > 0) continue; // 리프만
+    const t = elementText(el);
     if (t === "") continue;
-    if (amountOnly && !AMOUNT_RE.test(t)) continue;
+    if (amountOnly && !AMOUNT_RE.test(t)) continue; // 라이브 함정: 빈 "원" 노드 건너뜀
+    if (!isVisible(el)) continue;
     return el;
   }
   return null;
 }
 
-/** context가 Document면 그 문서 전체(절대경로 //)에, Element면 그 요소 기준
- *  상대경로(예: following::*)에 평가한다 — 라벨 요소를 찾은 뒤 "그 요소부터
- *  이후" 같은 상대 탐색을 하기 위함. */
-function tryXPath(context: Node, query: string): Element | null {
-  const doc = (context.nodeType === 9 ? context : context.ownerDocument) as Document | null;
-  const evaluate = (doc as { evaluate?: Document["evaluate"] } | null)?.evaluate;
-  if (typeof evaluate !== "function" || !doc) return null; // linkedom 등 XPath 미지원
-  try {
-    const r = evaluate.call(doc, query, context, null, 9 /* FIRST_ORDERED_NODE_TYPE */, null);
-    return (r.singleNodeValue as Element | null) ?? null;
-  } catch {
-    return null;
-  }
-}
-
-/** XPath 결과 전체(문서순). XPath 미지원이면 null. */
-function trySnapshot(doc: Document, query: string): Element[] | null {
+function tryXPath(doc: Document, query: string): Element | null {
   const evaluate = (doc as { evaluate?: Document["evaluate"] }).evaluate;
-  if (typeof evaluate !== "function") return null;
+  if (typeof evaluate !== "function") return null; // linkedom 등 XPath 미지원
   try {
-    const r = evaluate.call(doc, query, doc, null, 7 /* ORDERED_NODE_SNAPSHOT_TYPE */, null);
-    const out: Element[] = [];
-    for (let i = 0; i < r.snapshotLength; i++) out.push(r.snapshotItem(i) as Element);
-    return out;
+    const r = evaluate.call(doc, query, doc, null, 9 /* FIRST_ORDERED_NODE_TYPE */, null);
+    return (r.singleNodeValue as Element | null) ?? null;
   } catch {
     return null;
   }

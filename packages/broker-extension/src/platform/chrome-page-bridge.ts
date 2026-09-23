@@ -34,7 +34,7 @@ export function pageOp(
   }
   if (sel === "location:href") return location.href;
 
-  // ── 요소 해석 (selector.ts resolveIn과 동일 로직) ──
+  // ── 요소 해석 (selector.ts resolveIn과 동일 로직 — 아래 normText 주석 참조) ──
   const xpLiteral = (s: string): string => {
     if (!s.includes('"')) return `"${s}"`;
     if (!s.includes("'")) return `'${s}'`;
@@ -47,6 +47,29 @@ export function pageOp(
       return null;
     }
   };
+  // 2026-09-23: 한국어 사이트는 여러 단어짜리 라벨(예: "총 결제 금액")이 줄바꿈
+  // 없이 붙어 보이도록 단어 사이에 NBSP( )를 흔히 쓴다. XPath의
+  // normalize-space()는 ASCII 공백만 처리해 NBSP를 그대로 남기므로, 소스에 일반
+  // 스페이스로 적은 라벨 리터럴과 절대 안 맞는다 — 그래서 라벨류(`contains:`/
+  // `label:`/`after:`)는 XPath 문자열 비교가 아니라 이 정규화 + JS 순회로 찾는다
+  // (짧은 단일 단어 버튼명 `text:`는 NBSP를 안 써서 XPath로도 문제없었다).
+  const normText = (s: string): string =>
+    s
+      .replace(/[   -​  　]/g, " ")
+      .replace(/\s+/g, " ")
+      .trim();
+  const elText = (e: Element): string => normText(e.textContent ?? "");
+  /** 문자열을 포함하는 가장 안쪽(자식 중엔 없는) + 화면에 보이는 요소. */
+  const findInnermostVisible = (needle: string): Element | null => {
+    const target = normText(needle);
+    const all = Array.from(document.querySelectorAll("*"));
+    for (const cand of all) {
+      if (!elText(cand).includes(target)) continue;
+      if (Array.from(cand.children).some((c) => elText(c).includes(target))) continue;
+      if (cand.checkVisibility({ visibilityProperty: true, opacityProperty: true })) return cand;
+    }
+    return null;
+  };
   let el: Element | null = null;
   if (sel.startsWith("text:")) {
     const lit = xpLiteral(sel.slice(5));
@@ -56,67 +79,28 @@ export function pageOp(
       xp(`//*[@role="button"][normalize-space(.)=${lit}]`) ??
       xp(`//*[normalize-space(text())=${lit}]`);
   } else if (sel.startsWith("contains:")) {
-    const lit = xpLiteral(sel.slice(9));
-    // 가장 안쪽(자식 중엔 같은 문자열을 포함하는 게 없는) 일치 요소 중 **화면에
-    // 보이는** 첫 요소(selector.ts findByContains·isVisible과 동일 — 숨김 모달의
-    // "비밀번호" 문구로 원터치 정상 결제를 password_required로 오판하지 않도록).
-    try {
-      const r = document.evaluate(
-        `//*[contains(normalize-space(.),${lit})][not(.//*[contains(normalize-space(.),${lit})])]`,
-        document,
-        null,
-        7,
-        null,
-      );
-      for (let i = 0; i < r.snapshotLength && !el; i++) {
-        const cand = r.snapshotItem(i) as Element;
-        if (cand.checkVisibility({ visibilityProperty: true, opacityProperty: true })) el = cand;
-      }
-    } catch {
-      el = null;
-    }
+    // 숨김 요소(미리 렌더된 모달·display:none 템플릿 등)는 findInnermostVisible이
+    // 건너뛴다 — 그런 곳의 "비밀번호" 문구가 원터치 정상 결제를
+    // password_required로 오판하게 만들기 때문.
+    el = findInnermostVisible(sel.slice(9));
   } else if (sel.startsWith("label:") || sel.startsWith("after:")) {
     const amountOnly = sel.startsWith("label:");
-    const lit = xpLiteral(sel.slice(6));
-    const cond = amountOnly ? '[contains(text(),"원")]' : '[normalize-space(text())!=""]';
-    // 2026-09-23: 라벨을 정확한 direct text(normalize-space(text())=)로만 찾다가
-    // 실제 쿠팡 DOM에서 라벨이 강조 태그로 한 겹 더 감싸여 있어(direct text
-    // child가 아니게 됨) 통째로 못 찾고 amount_parse_failed로 이어진 실사용
-    // 버그가 있었다. contains(normalize-space(.),…) + 가장 안쪽 + 화면에 보이는
-    // 요소로 라벨을 앵커해 selector.ts findAfterLabel과 동일하게 맞춘다.
-    let labelEl: Element | null = null;
-    try {
-      const r = document.evaluate(
-        `//*[contains(normalize-space(.),${lit})][not(.//*[contains(normalize-space(.),${lit})])]`,
-        document,
-        null,
-        7,
-        null,
-      );
-      for (let i = 0; i < r.snapshotLength && !labelEl; i++) {
-        const cand = r.snapshotItem(i) as Element;
-        if (cand.checkVisibility({ visibilityProperty: true, opacityProperty: true }))
-          labelEl = cand;
-      }
-    } catch {
-      labelEl = null;
-    }
+    const labelEl = findInnermostVisible(sel.slice(6));
     if (labelEl) {
-      try {
-        el =
-          (document.evaluate(`following::*${cond}[1]`, labelEl, null, 9, null)
-            .singleNodeValue as Element) ?? null;
-      } catch {
-        el = null;
+      const all = Array.from(document.querySelectorAll("*"));
+      const idx = all.indexOf(labelEl);
+      for (let i = idx + 1; i < all.length; i++) {
+        const cand = all[i];
+        if (!cand || cand.children.length > 0) continue; // 리프만
+        const t = elText(cand);
+        if (t === "") continue;
+        // 라이브 함정: 라벨 뒤에 숫자 없는 빈 "원" 노드가 올 수 있다 → 금액성 검증.
+        if (amountOnly && !/[\d,]{2,}\s*원/.test(t)) continue;
+        if (!cand.checkVisibility({ visibilityProperty: true, opacityProperty: true })) continue;
+        el = cand;
+        break;
       }
     }
-    // 라이브 함정: 라벨 뒤에 숫자 없는 빈 "원" 노드가 올 수 있다 → 금액성 검증.
-    if (
-      el &&
-      (!el.checkVisibility({ visibilityProperty: true, opacityProperty: true }) ||
-        (amountOnly && !/[\d,]{2,}\s*원/.test((el.textContent ?? "").trim())))
-    )
-      el = null;
   } else {
     const css = sel.startsWith("css:") ? sel.slice(4) : sel;
     try {

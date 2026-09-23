@@ -146,6 +146,16 @@ describe("resolveIn — label 스킴(금액)", () => {
       <span>16,300원</span>`;
     expect(resolveIn(doc(wrapped), "label:총 결제 금액")?.textContent).toBe("16,300원");
   });
+
+  it("[2026-09-23 회귀] 라벨 단어 사이에 NBSP(줄바꿈 방지용)가 있어도 잡는다", () => {
+    // 실제 원인으로 의심되는 케이스: 한국어 사이트는 여러 단어 라벨이 줄바꿈되지
+    // 않도록 단어 사이에 일반 스페이스 대신 NBSP( )를 쓰는 경우가 흔하다.
+    // 소스 코드의 라벨 리터럴은 일반 스페이스라서, 정규화 없이는 절대 안 맞는다.
+    const nbsp = `
+      <span>총 결제 금액</span>
+      <span>16,300원</span>`;
+    expect(resolveIn(doc(nbsp), "label:총 결제 금액")?.textContent).toBe("16,300원");
+  });
 });
 
 describe("resolveIn — after 스킴(비금액)", () => {
