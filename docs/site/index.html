@@ -151,43 +151,60 @@
   @media (min-width: 960px) { .hero { grid-template-columns: 1fr 1.05fr; align-items: center; padding: 96px 0 112px; } }
   .actions { display: flex; flex-wrap: wrap; gap: 10px; margin-top: 28px; }
 
-  /* Protocol trace (Slate §Motion) */
+  /* Sequence trace — 한 결제의 메시지 흐름(Slate §Motion: 제품이 일하는 모습만 움직인다) */
   .beam { padding: 1px; border-radius: var(--radius-lg);
     background: conic-gradient(from var(--beam-angle), var(--ui-line-strong) 0deg, var(--ui-line-strong) 300deg,
       var(--ui-accent) 330deg, var(--ui-line-strong) 360deg);
     animation: beam 7s linear infinite; }
   @keyframes beam { to { --beam-angle: 360deg; } }
-  .trace { background: var(--ui-surface); border-radius: calc(var(--radius-lg) - 1px); padding: 18px; }
+  .trace { background: var(--ui-surface); border-radius: calc(var(--radius-lg) - 1px); padding: 18px 18px 16px; }
   .trace-head { display: flex; align-items: center; justify-content: space-between; gap: 10px; margin-bottom: 14px; }
   .trace-head .eyebrow { margin: 0; }
   .replay { border: 1px solid var(--ui-line-strong); background: var(--ui-surface); color: var(--ui-ink-soft);
     height: 28px; padding: 0 12px; border-radius: 999px; font: 500 12.5px var(--font-sans);
     display: inline-flex; align-items: center; gap: 6px; flex: none; }
   .replay:hover { background: var(--ui-subtle); color: var(--ui-ink); }
-  .nodes { position: relative; display: grid; grid-template-columns: repeat(4, 1fr); gap: 8px; margin-bottom: 14px; }
-  .nodes::before { content: ""; position: absolute; left: 12.5%; right: 12.5%; top: 50%; height: 1px; background: var(--ui-line-strong); }
-  .node { position: relative; z-index: 1; justify-self: center; background: var(--ui-surface);
-    border: 1px solid var(--ui-line-strong); border-radius: 999px; padding: 5px 12px; font-size: 12.5px;
-    font-weight: 500; color: var(--ui-ink-soft); white-space: nowrap;
-    transition: border-color 220ms var(--ease-soft), color 220ms var(--ease-soft); }
-  .node.lit { border-color: var(--lit); color: var(--ui-ink); }
-  .packet { position: absolute; z-index: 2; top: 50%; width: 8px; height: 8px; margin: -4px 0 0 -4px;
-    border-radius: 50%; background: var(--c); box-shadow: 0 0 10px var(--c); left: var(--to);
-    animation: hop .95s cubic-bezier(.65,0,.35,1) both; }
-  @keyframes hop { from { left: var(--from); opacity: 1; } 92% { opacity: 1; } to { left: var(--to); opacity: 0; } }
-  .log { font-family: var(--font-mono); font-size: 12.5px; line-height: 1.7; background: var(--ui-canvas);
-    border: 1px solid var(--ui-line); border-radius: var(--radius-md); padding: 12px 14px; overflow-x: auto; }
-  .log .ln { white-space: pre; color: var(--ui-ink-soft); }
-  .log .ln.new { animation: lnin 300ms var(--ease-soft) both, flash 1.4s var(--ease-soft); }
-  @keyframes lnin { from { opacity: 0; transform: translateY(4px); } }
-  @keyframes flash { from { background: color-mix(in srgb, var(--ui-accent) 18%, transparent); } to { background: transparent; } }
-  .log .ln.hidden { visibility: hidden; }
-  .log .k { color: var(--ui-ink-faint); }
-  .log .req { color: var(--ui-accent); }
-  .log .wrn { color: var(--ui-warn); }
-  .log .okc { color: var(--ui-ok); }
+
+  .seq { --head: 58px; --row: 30px; position: relative; font-family: var(--font-mono); }
+  .seq .life { position: absolute; top: 30px; bottom: 0; width: 0; border-left: 1px dashed var(--ui-line-strong); }
+  .seq .actors { position: relative; height: var(--head); }
+  .seq .actor { position: absolute; top: 0; transform: translateX(-50%); display: flex; flex-direction: column;
+    align-items: center; gap: 4px; }
+  .seq .actor b { font: 500 12.5px var(--font-sans); color: var(--ui-ink); background: var(--ui-surface);
+    border: 1px solid var(--ui-line-strong); border-radius: 999px; padding: 4px 11px; white-space: nowrap;
+    position: relative; z-index: 1; transition: border-color 220ms var(--ease-soft); }
+  .seq .actor.hit b { border-color: var(--hit); }
+  .seq .actor small { font: 500 10.5px var(--font-sans); color: var(--ui-ink-faint); letter-spacing: .06em; }
+  .seq .msg { position: relative; height: var(--row); }
+  .seq .arrow { position: absolute; top: 20px; height: 1px; background: var(--c); transform-origin: var(--origin);
+    left: var(--l); width: var(--w); }
+  .seq .arrow::after { content: ""; position: absolute; top: -3.5px; border: 4px solid transparent; }
+  .seq .arrow[data-dir="r"]::after { right: -2px; border-left: 6px solid var(--c); border-right: 0; }
+  .seq .arrow[data-dir="l"]::after { left: -2px; border-right: 6px solid var(--c); border-left: 0; }
+  .seq .label { position: absolute; top: 2px; left: calc(var(--l) + var(--w) / 2); transform: translateX(-50%);
+    font-size: 11px; color: var(--c); white-space: nowrap; background: var(--ui-surface); padding: 0 5px; line-height: 16px; }
+  .seq .note { position: absolute; top: 5px; left: var(--x); transform: translateX(-50%); font-size: 11px; line-height: 18px;
+    color: var(--ui-ink-soft); background: var(--ui-subtle); border: 1px solid var(--ui-line); border-radius: 999px;
+    padding: 0 8px; white-space: nowrap; }
+  /* 잠금 = 생명선 위 활성 막대(라벨을 가리지 않도록 메시지 행 아래에 깔린다) */
+  .seq .lock { position: absolute; left: 37.5%; width: 7px; margin-left: -3.5px; border-radius: 999px; z-index: 0;
+    background: var(--ui-warn-soft); border: 1px solid var(--ui-warn);
+    top: calc(var(--head) + var(--from) * var(--row) + 8px); height: calc((var(--to) - var(--from)) * var(--row) - 6px); }
+  .seq .msg { z-index: 1; }
+  .seq .actor small.locked { color: var(--ui-warn); }
+  .seq .hidden { opacity: 0; }
+  .seq .arrow.play { animation: draw 520ms cubic-bezier(.65,0,.35,1) both; }
+  .seq .label.play, .seq .note.play { animation: lnin 300ms var(--ease-soft) 260ms both; }
+  .seq .lock.play { animation: fadein 400ms var(--ease-soft) both; }
+  @keyframes draw { from { transform: scaleX(0); } }
+  @keyframes lnin { from { opacity: 0; transform: translate(-50%, 4px); } }
+  @keyframes fadein { from { opacity: 0; } }
+  .readout { margin-top: 12px; font-family: var(--font-mono); font-size: 12px; color: var(--ui-ink-soft);
+    background: var(--ui-canvas); border: 1px solid var(--ui-line); border-radius: var(--radius-md);
+    padding: 9px 12px; min-height: 38px; overflow-x: auto; white-space: nowrap; }
+  .readout .k { color: var(--ui-ink-faint); }
   .caret { display: inline-block; width: .55em; height: 1.15em; vertical-align: -0.2em; background: var(--ui-accent);
-    margin-left: 2px; animation: blink 1.05s steps(1) infinite; }
+    margin-left: 3px; animation: blink 1.05s steps(1) infinite; }
   @keyframes blink { 50% { opacity: 0; } }
 
   /* ── Sections ───────────────────────────────── */
@@ -263,12 +280,13 @@
   @media (max-width: 719px) {
     nav.links { display: none; }
     .wordmark { font-size: 14px; }
-    .nodes .node { padding: 4px 7px; font-size: 11px; }
+    .seq .label, .seq .note { font-size: 10px; }
+    .seq .actor b { font-size: 11px; padding: 3px 7px; }
     .pick .lang-label { display: none; }
   }
   @media (prefers-reduced-motion: reduce) {
     *, *::before, *::after { transition: none !important; }
-    .beam, .rise, .beam.rise, .reveal, .caret, .packet, .log .ln.new { animation: none !important; }
+    .beam, .rise, .beam.rise, .reveal, .caret, .seq .play { animation: none !important; }
     .replay { display: none; }
     html { scroll-behavior: auto; }
   }
@@ -339,26 +357,22 @@
     <div class="beam rise">
       <div class="trace">
         <div class="trace-head">
-          <p class="eyebrow" data-i18n="trace.title">실제 도구 호출 · 쿠팡 8,900원</p>
+          <p class="eyebrow" data-i18n="trace.title">결제 한 건의 메시지 흐름</p>
           <button class="replay" type="button" id="replay"><svg class="lucide"><use href="#i-replay"/></svg><span data-i18n="trace.replay">다시 보기</span></button>
         </div>
-        <div class="nodes" id="nodes" aria-hidden="true">
-          <span class="node" data-i18n="node.you">나</span>
-          <span class="node">Claude Code</span>
-          <span class="node">AutoPay</span>
-          <span class="node" data-i18n="node.shop">쿠팡</span>
+        <div class="seq" id="seq" role="img" aria-label="Sequence: User prompts Claude Code; Claude Code calls request_payment on AutoPay; AutoPay verifies the amount on Coupang and applies policy; Coupang asks for a password; AutoPay notifies the user and locks Claude Code's page tools; the user enters the password directly on Coupang; Coupang completes the order; Claude Code reads approved.">
+          <span class="life" style="left:12.5%"></span><span class="life" style="left:37.5%"></span>
+          <span class="life" style="left:62.5%"></span><span class="life" style="left:87.5%"></span>
+          <div class="actors" aria-hidden="true">
+            <span class="actor" style="left:12.5%"><b>User</b><small>human</small></span>
+            <span class="actor" style="left:37.5%"><b>Claude Code</b><small id="cc-state">untrusted</small></span>
+            <span class="actor" style="left:62.5%"><b>AutoPay</b><small>trusted</small></span>
+            <span class="actor" style="left:87.5%"><b>Coupang</b><small>merchant</small></span>
+          </div>
+          <div id="rows" aria-hidden="true"></div>
+          <span class="lock" id="lock" style="--from:8;--to:11" aria-hidden="true"></span>
         </div>
-        <div class="log" id="log">
-<div class="ln"><span class="k">user    </span><span data-i18n="log.ask">"아이패드 에어2 검정 케이스 주문해줘"</span></div>
-<div class="ln"><span class="req">→ request_payment</span> <span class="k">{ totalAmount:</span> 8900<span class="k">, method:</span> "coupay" <span class="k">}</span></div>
-<div class="ln"><span class="k">  verify</span>  <span data-i18n="log.verify">최종 결제 금액</span> 8,900 = 8,900</div>
-<div class="ln"><span class="k">  policy</span>  allow <span class="k">· perTransaction ≤</span> 20,000</div>
-<div class="ln"><span class="k">← </span>{ requestId: "17ec3585-…" }</div>
-<div class="ln"><span class="k">  pay   </span>  <span data-i18n="log.pay">[결제하기] → 비밀번호 재요구</span></div>
-<div class="ln"><span class="wrn">! enter_password_on_page</span>  <span class="k">page_locked_during_payment</span></div>
-<div class="ln"><span class="k">  you   </span>  <span data-i18n="log.you">결제 탭에서 직접 입력</span></div>
-<div class="ln"><span class="okc">← get_payment_result</span>  approved<span class="caret" aria-hidden="true"></span></div>
-        </div>
+        <div class="readout" id="readout" aria-live="off"></div>
       </div>
     </div>
   </div>
@@ -369,7 +383,7 @@
       <h2 data-i18n="how.title">AI는 준비하고, 결제의 문지기는 AutoPay와 당신입니다.</h2>
     </div>
     <div class="rows four">
-      <div class="cell"><span class="badge who" data-i18n="node.you">나</span><h3 data-i18n="how.1t">요청</h3><p data-i18n="how.1p">Claude Code에 "○○ 사줘"라고 말합니다.</p></div>
+      <div class="cell"><span class="badge who">User</span><h3 data-i18n="how.1t">요청</h3><p data-i18n="how.1p">Claude Code에 "○○ 사줘"라고 말합니다.</p></div>
       <div class="cell"><span class="badge who">Claude Code</span><h3 data-i18n="how.2t">준비</h3><p data-i18n="how.2p">쿠팡에서 검색·비교하고 체크아웃까지 진입해 결제를 요청만 합니다.</p></div>
       <div class="cell"><span class="badge who">AutoPay</span><h3 data-i18n="how.3t">검증</h3><p data-i18n="how.3p">화면의 실제 금액을 직접 읽어 대조하고 한도·횟수·머천트·결제수단을 검사합니다.</p></div>
       <div class="cell"><span class="badge who">AutoPay</span><h3 data-i18n="how.4t">기록</h3><p data-i18n="how.4p">주문 완료를 독립적으로 확인하고 알림과 감사 로그를 남깁니다.</p></div>
@@ -539,10 +553,7 @@
     "hero.t1": "AI does the buying.", "hero.t2": "You keep control.",
     "hero.lead": "Claude searches, compares and reaches checkout. AutoPay allows a payment only within the limits you set, records every attempt and tells you at once. The AI never touches a payment secret.",
     "hero.cta": "Get started",
-    "trace.title": "Real tool calls · Coupang ₩8,900", "trace.replay": "Replay",
-    "node.you": "You", "node.shop": "Coupang",
-    "log.ask": "\"Order a black iPad Air 2 case\"", "log.verify": "final amount",
-    "log.pay": "[Pay] → password asked again", "log.you": "types it in the checkout tab",
+    "trace.title": "One payment, message by message", "trace.replay": "Replay",
     "how.eyebrow": "How it works", "how.title": "The AI prepares. AutoPay and you hold the gate.",
     "how.1t": "Ask", "how.1p": "Tell Claude Code what to buy.",
     "how.2t": "Prepare", "how.2p": "It searches Coupang, compares, reaches checkout, and only requests the payment.",
@@ -647,46 +658,95 @@
     });
   });
 
-  // ── Protocol trace: 완성된 교환을 먼저 보여주고(4.6s 유지), 비운 뒤 0.5s 후
-  //    1.3s 간격으로 한 줄씩 재생. 숨은 탭·JS 실패 시에도 완성 상태가 보인다. ──
-  var reduce = matchMedia("(prefers-reduced-motion: reduce)").matches;
-  var lines = Array.prototype.slice.call(document.querySelectorAll("#log .ln"));
-  var nodes = Array.prototype.slice.call(document.querySelectorAll("#nodes .node"));
-  var nodesBox = document.getElementById("nodes");
-  var pos = ["12.5%", "37.5%", "62.5%", "87.5%"];
-  var C = { req: "var(--ui-accent)", wrn: "var(--ui-warn)", ok: "var(--ui-ok)" };
-  // 로그 줄마다 [보낸 노드, 받는 노드, 색] — 요청 accent, 사람 개입 warn, 완료 ok
-  var hops = [[0, 1, C.req], [1, 2, C.req], [2, 3, C.req], null, [2, 1, C.req], [2, 3, C.req], [2, 0, C.wrn], [0, 3, C.wrn], [2, 1, C.ok]];
+  // ── Sequence trace: 한 결제의 메시지를 시퀀스 다이어그램으로.
+  //    완성 상태를 먼저 보여주고(4.6s), 비운 뒤 0.5s 후 1.1s 간격으로 한 단계씩.
+  //    숨은 탭·JS 지연에도 끝 상태가 보이도록 먼저 전부 그린다(Slate §Motion). ──
+  var X = [12.5, 37.5, 62.5, 87.5]; // User, Claude Code, AutoPay, Coupang
+  var A = "var(--ui-accent)", W = "var(--ui-warn)", O = "var(--ui-ok)";
+  var PROMPT = { ko: '"아이패드 에어2 검정 케이스 주문해줘"', en: '"Order a black iPad Air 2 case"' };
+  // [from, to, colour, label, readout] — to가 null이면 from 레인의 노트
+  var STEPS = [
+    [0, 1, A, "prompt", function () { return '<span class="k">User → Claude Code</span>  ' + PROMPT[root.lang === "en" ? "en" : "ko"]; }],
+    [1, 3, A, "browse · checkout", '<span class="k">open · read_page · click</span>  checkout.coupang.com'],
+    [1, 2, A, "request_payment", '<span class="k">request_payment</span> { totalAmount: 8900, method: "coupay" }'],
+    [2, 3, A, "read amount", '<span class="k">verify</span>  final amount 8,900 == requested 8,900'],
+    [2, null, A, "policy: allow", '<span class="k">policy</span>  allow · perTransaction ≤ 20,000'],
+    [2, 1, A, "requestId", '<span class="k">←</span> { requestId: "17ec3585-…" }  pending_user_confirmation'],
+    [2, 3, A, "click pay", '<span class="k">pay</span>  one-touch click'],
+    [3, 2, W, "password prompt", '<span class="k">coupang</span>  password re-requested (risk check)'],
+    [2, 0, W, "enter_password_on_page", '<span class="k">notify</span>  enter_password_on_page · page_locked_during_payment'],
+    [0, 3, W, "password · user only", '<span class="k">user → coupang</span>  typed on the page · AutoPay never reads it'],
+    [3, 2, O, "order complete", '<span class="k">verify</span>  completion parsed independently'],
+    [2, 1, O, "approved", '<span class="k">get_payment_result</span> → approved'],
+  ];
+  var LOCK_AT = 8; // enter_password_on_page 단계에 잠금 표시
+  var seq = document.getElementById("seq");
+  var rowsBox = document.getElementById("rows");
+  var lock = document.getElementById("lock");
+  var readout = document.getElementById("readout");
+  var ccState = document.getElementById("cc-state");
+  function setLocked(on) { ccState.textContent = on ? "untrusted · locked" : "untrusted"; ccState.classList.toggle("locked", on); }
+  var actors = Array.prototype.slice.call(seq.querySelectorAll(".actor"));
+  var rows = STEPS.map(function (st) {
+    var row = document.createElement("div");
+    row.className = "msg";
+    row.style.setProperty("--c", st[2]);
+    if (st[1] === null) {
+      row.innerHTML = '<span class="note" style="--x:' + X[st[0]] + '%">' + st[3] + "</span>";
+    } else {
+      var l = Math.min(X[st[0]], X[st[1]]), w = Math.abs(X[st[1]] - X[st[0]]);
+      var right = X[st[1]] > X[st[0]];
+      row.style.setProperty("--l", l + "%");
+      row.style.setProperty("--w", w + "%");
+      row.style.setProperty("--origin", right ? "left" : "right");
+      row.innerHTML = '<span class="arrow" data-dir="' + (right ? "r" : "l") + '"></span><span class="label">' + st[3] + "</span>";
+    }
+    rowsBox.appendChild(row);
+    return row;
+  });
+  function text(st) { return typeof st[4] === "function" ? st[4]() : st[4]; }
+  function showReadout(i, withCaret) {
+    readout.innerHTML = text(STEPS[i]) + (withCaret ? '<span class="caret" aria-hidden="true"></span>' : "");
+  }
+  function showAll() {
+    rows.forEach(function (r) { r.querySelectorAll("span").forEach(function (e) { e.classList.remove("hidden", "play"); }); });
+    lock.classList.remove("hidden", "play");
+    showReadout(STEPS.length - 1, true);
+  }
   var timers = [];
   function later(fn, ms) { timers.push(setTimeout(fn, ms)); }
-  function hop(h) {
-    if (!h) return;
-    var p = document.createElement("span");
-    p.className = "packet";
-    p.style.setProperty("--from", pos[h[0]]);
-    p.style.setProperty("--to", pos[h[1]]);
-    p.style.setProperty("--c", h[2]);
-    nodesBox.appendChild(p);
-    later(function () {
-      p.remove();
-      var n = nodes[h[1]];
-      n.style.setProperty("--lit", h[2]);
-      n.classList.add("lit");
-      later(function () { n.classList.remove("lit"); }, 500);
-    }, 950);
+  function hit(i) {
+    var to = STEPS[i][1] === null ? STEPS[i][0] : STEPS[i][1];
+    var a = actors[to];
+    a.style.setProperty("--hit", STEPS[i][2]);
+    a.classList.add("hit");
+    later(function () { a.classList.remove("hit"); }, 600);
   }
   function play() {
     timers.forEach(clearTimeout); timers = [];
-    nodesBox.querySelectorAll(".packet").forEach(function (p) { p.remove(); });
-    lines.forEach(function (l) { l.classList.add("hidden"); l.classList.remove("new"); });
+    rows.forEach(function (r) { r.querySelectorAll("span").forEach(function (e) { e.classList.remove("play"); e.classList.add("hidden"); }); });
+    lock.classList.remove("play"); lock.classList.add("hidden");
+    readout.innerHTML = "";
+    setLocked(false);
     later(function () {
-      lines.forEach(function (l, i) {
-        later(function () { l.classList.remove("hidden"); l.classList.add("new"); hop(hops[i]); }, i * 1300);
+      rows.forEach(function (r, i) {
+        later(function () {
+          r.querySelectorAll("span").forEach(function (e) { e.classList.remove("hidden"); e.classList.add("play"); });
+          if (i === LOCK_AT) { lock.classList.remove("hidden"); lock.classList.add("play"); setLocked(true); }
+          if (i === STEPS.length - 1) setLocked(false); // 실행 종료 → 잠금 해제
+          showReadout(i, i === STEPS.length - 1);
+          later(function () { hit(i); }, 450);
+        }, i * 1100);
       });
-      later(function () { later(play, 4600); }, lines.length * 1300);
+      later(function () { later(play, 4600); }, STEPS.length * 1100);
     }, 500);
   }
+  showAll();
   document.getElementById("replay").addEventListener("click", play);
+  document.querySelectorAll("[data-lang]").forEach(function (b) {
+    b.addEventListener("click", function () { if (!readout.querySelector(".caret")) return; showReadout(STEPS.length - 1, true); });
+  });
+  var reduce = matchMedia("(prefers-reduced-motion: reduce)").matches;
   if (!reduce) later(play, 4600);
 })();
 </script>
