@@ -60,6 +60,9 @@
 | verifiedAmount | executor가 결제창에서 독립 파싱한 실제 금액(위조 방지 기준) |
 | BrokerTools | 두뇌가 코어에 접근하는 유일한 도구 인터페이스(경계) |
 | decision | 정책 판정 결과: allow / confirm / deny |
+| 핸드오프(handoff) | 결제사가 사람 입력(쿠팡 비번 재요구 등)을 요구할 때 브로커가 통지만 하고 사용자가 직접 입력하게 넘기는 것. 브로커는 입력값을 읽거나 채우지 않고 완료만 독립 파싱(`spec/executor.md §3.2`) |
+| 페이지 도구 잠금 | 결제 실행 중 브리지의 open/read_page/click/fill을 `page_locked_during_payment`로 거부하는 것 |
+| 잠금 해제(unlock) | 패턴 B 본인 식별 정보(PII) 복호화 키를 메모리에 올리는 것. 앱 로그인이 아님 — 쿠팡(패턴 C)엔 불필요 |
 | 감시(Watch) | ~~지정가 모니터링 엔진~~ — 2026-09-23 제거됨(`spec/watch.md`). 지금은 MCP 에이전트가 대신 수행 |
 | confirm 해소 | UI [승인]/[거절] 또는 타임아웃으로 pending confirm을 재개/취소(`resolveConfirmation`) |
 

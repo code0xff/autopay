@@ -75,12 +75,22 @@ content scripts        페이지 직렬화·DOM 실행 (Executor/AgentLoop의 �
   PolicyEngine.evaluate(req, policy, usage, verifiedAmount)
      ├ deny    ─▶ result=rejected(violation), audit, notify(설정 시)
      ├ confirm ─▶ Side Panel 승인 요청 → resolveConfirmation (패턴 C·임계값 초과)
-     └ allow   ─▶ Executor.pay(...)
+     └ allow   ─▶ requestId 즉시 반환 + Executor.pay(...)를 백그라운드로 시작
                     ├ 패턴 B: 식별정보 입력→폰 푸시→폰 승인 대기→완료 파싱
                     └ 패턴 C: [결제하기] 클릭→완료 파싱 (외부게이트 없음)
+                         └ 쿠팡이 비번 재요구 → notify(enter_password_on_page)
+                           → 사용자가 결제 탭에서 직접 입력 → 완료 파싱 (핸드오프)
+                    ※ 실행 중에는 브리지 페이지 도구(open/read_page/click/fill) 잠금
   성공 ─▶ usage 갱신, audit(approved), Notifier.completed
-두뇌 ◀──getPaymentResult(id): 요약만(비밀 없음)──
+두뇌 ◀──getPaymentResult(id) 폴링: 요약만(비밀 없음)──
 ```
+
+- **실행은 비동기**: 폰 승인·비번 핸드오프로 최대 `payTimeoutMs`(180s)가 걸리므로
+  `requestPayment`/`resolveConfirmation`은 실행 완료를 기다리지 않는다(MCP 허브
+  호출 타임아웃 30s). 결과는 `getPaymentResult` 폴링으로 확인.
+- **핸드오프 중 격리**: 브로커는 비번칸을 읽거나 채우지 않고, 에이전트의 페이지
+  도구는 잠기며, `read_page`는 `input[type=password]` 값을 반환하지 않는다
+  (`spec/executor.md §3.2`).
 
 - 상세 순서: `spec/broker-api.md §2.3`. 패턴 정의: `AGENTS.md §2.5`.
 - **금액 독립 검증**: 에이전트 주장 금액이 아니라 Executor가 파싱한

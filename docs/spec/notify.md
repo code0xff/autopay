@@ -14,6 +14,7 @@
 export type NotifyEvent =
   | { kind: "confirm_required"; merchant: string; amount: number; requestId: string }
   | { kind: "approve_on_phone"; merchant: string; amount: number; method: "kakaopay"|"tosspay" }
+  | { kind: "enter_password_on_page"; merchant: string; amount: number } // 쿠팡 비번 재요구 핸드오프
   | { kind: "completed"; merchant: string; amount: number; orderId: string }
   | { kind: "rejected"; merchant: string; amount: number; violation: string }
   | { kind: "failed"; merchant: string; amount: number; error: string };
@@ -23,7 +24,10 @@ export interface Notifier {
 }
 ```
 
-- `confirm_required` / `approve_on_phone`은 진행 중 안내(사용자 액션 유도).
+- `confirm_required` / `approve_on_phone` / `enter_password_on_page`는 진행 중 안내(사용자 액션 유도).
+  `enter_password_on_page`는 패턴 C에서 쿠팡이 비번을 재요구할 때 1회 발송 —
+  "○○원 — 결제 탭에서 비밀번호를 직접 입력하세요"(`executor.md §3.2`). 브로커는
+  비번을 다루지 않고 알리기만 한다.
 - `completed` / `rejected` / `failed`는 종료 통지.
 - 채널은 정책의 `notifications.channels`를 따른다. MVP는 `chrome`만 구현하고
   나머지 채널은 no-op 또는 미구현(선택 도입).
@@ -46,6 +50,7 @@ export interface Notifier {
 
 1. `completed` → chrome 알림에 금액·가맹점·주문번호 표시
 2. `approve_on_phone` → "폰에서 승인" 안내 표시
+2b. `enter_password_on_page` → "비밀번호 입력 필요" + "결제 탭에서 직접 입력" 안내 표시
 3. `rejected` + `notifyOnRejection:false` → 발송 안 함
 4. `rejected` + `notifyOnRejection:true` → 발송함
 5. 채널에 `telegram`(미구현) 포함 → chrome은 발송, telegram은 무시(에러 없음)

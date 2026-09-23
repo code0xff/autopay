@@ -347,6 +347,8 @@ autopay/
 │   ├── shared/                # Broker API 메시지 스키마 (zod), 공용 타입
 │   ├── mcp-server/            # 로컬 에이전트용 MCP 서버 (Native Host 경유)
 │   └── agent-skill/           # Claude/Codex용 쇼핑 스킬 (프롬프트 + 도구 정의)
+├── scripts/bootstrap.mjs      # pnpm bootstrap: 설치·빌드·브리지 토큰 준비
+├── .github/workflows/pages.yml # docs/site → GitHub Pages 배포
 └── docs/
     ├── architecture.md        # 시스템 뷰(컴포넌트·데이터흐름·상태·배포)
     ├── payment-flows.md       # 결제수단 조사 + 패턴 B/C 플로우
@@ -354,6 +356,7 @@ autopay/
     ├── methodology.md         # 개발 방법론·DoD·워크플로
     ├── coding-guide.md        # 코딩 컨벤션·보안 코딩·테스트 규범
     ├── documentation-guide.md # 문서 품질 규칙·드리프트 방지·용어집
+    ├── site/                  # 사용자 가이드 랜딩(정적, GitHub Pages)
     └── spec/                  # 모듈별 스펙 (data-model, policy, broker-api,
                                #   executor, audit, notify, agent-integration)
 ```
@@ -399,7 +402,7 @@ autopay/
    (`.claude/skills/autopay-shopping`) + 익스텐션 `src/bridge`(WS 클라이언트 +
    도구→broker 매핑) 완성. 유닛테스트 + **실제 MCP SDK Client/Server·`ws`로
    프로토콜 전 구간을 왕복시키는 E2E**(`packages/mcp-server/src/e2e.test.ts`)
-   까지 검증(146 케이스 중 다수). 잔여: 실제 Claude Code 프로세스·Chrome
+   까지 검증(전체 155 케이스 중 다수). 잔여: 실제 Claude Code 프로세스·Chrome
    익스텐션 라이브 연결(이 세션 자신이 Claude Code라 자기 재시작으론 검증
    불가 — 사용자 확인 필요). 두뇌 내장(①)은 대안으로 미채택.
 4. **M3 — Payment Executor (쿠팡 ✅ / 카카오·토스 잔여)**: `SimplePayAdapter`로
@@ -437,7 +440,9 @@ autopay/
 - [ ] 패턴 B 핸드오프 UX (1차 목표의 핵심) — 에이전트가 체크아웃 진입 후
       사용자 폰 승인까지 대기하는 흐름의 추적/타임아웃/취소 UX 상세.
       (승인 대기 중 대상 바꿔치기 방어는 해결됨 — 스냅샷 재검증,
-      `docs/spec/executor.md §2.1`.)
+      `docs/spec/executor.md §2.1`. 패턴 C의 **비번 재요구 핸드오프**와 그 동안의
+      에이전트 페이지 도구 잠금·비동기 실행은 2026-09-23 구현 — `executor.md §3.2`.
+      같은 구조를 패턴 B 폰 승인 대기에 재사용할 수 있다. 취소 UX는 여전히 미정.)
 - [ ] 패턴 B에서 브로커가 "결제 완료"를 어떻게 독립 확인하나 — 에이전트
       보고가 아니라 체크아웃 페이지의 완료 신호/주문번호를 브로커가 직접 파싱
 - [ ] 첫 타깃 쇼핑몰·결제수단 조합 선정 — 패턴 B가 가장 매끄럽게 동작하는

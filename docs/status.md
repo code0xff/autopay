@@ -1,6 +1,6 @@
 # 구현 상태 (Status)
 
-> 갱신: 2026-09-22. 무엇이 **실제로 만들어져 테스트·빌드로 검증**됐고, 무엇이
+> 갱신: 2026-09-23. 무엇이 **실제로 만들어져 테스트·빌드로 검증**됐고, 무엇이
 > 남았는지 정직하게 기록한다.
 
 ## 완료 (검증됨)
@@ -16,9 +16,13 @@
 | 브로커 익스텐션 (M1) | ✅ | WXT MV3, Side Panel+Options+background, `wxt build` 성공 |
 | **MCP 브리지 (M2 코어)** | ✅ | `packages/mcp-server`(stdio+WS 허브) + `src/bridge` + `packages/agent-skill`, 실물 프로토콜 E2E |
 | **교차 워커 원자성 복구** | ✅ | `recoverStaleExecutions()` — 중단된 실행을 재시도 없이 안전 실패 처리, 유닛 테스트 2건 |
+| **비번 핸드오프 + 페이지 도구 잠금** (2026-09-23) | ✅(코어) | `executor.md §3.2` — 비번 재요구 시 통지 후 사용자 직접 입력 대기, 실행 중 브리지 페이지 도구 거부, `read_page` 비번칸 값 차단. 픽스처 E2E·broker·bridge 테스트. 라이브 미검증 |
+| **비동기 결제 실행** (2026-09-23) | ✅ | `requestPayment`가 `requestId` 즉시 반환, 실행은 백그라운드(허브 30s 타임아웃에 requestId를 잃던 High 수정). 회귀 테스트 #20 |
+| **설치 단순화** (2026-09-23) | ✅ | `pnpm bootstrap`(설치·빌드·토큰 준비·클립보드), 옵션 "시작하기" 체크리스트, 잠금은 패턴 B PII에만(정책·브리지·쿠팡 승인 상시 노출, 사이드패널 해제 카드는 패턴 B 대기 시에만). 로컬 실행 검증 |
+| **사용자 가이드 사이트** (2026-09-23) | ✅ | `docs/site` → GitHub Pages(`https://code0xff.github.io/autopay/`, `.github/workflows/pages.yml`). Slate 디자인, KO/EN |
 | Codex 리뷰 | ✅×4 | M0·M1코어·M1익스텐션·최종, High/Medium 반영 |
 
-**테스트 총계**: 146 (shared 17 + broker-extension 111 + mcp-server 18). typecheck·biome 클린.
+**테스트 총계**: 155 (shared 17 + broker-extension 120 + mcp-server 18). typecheck·biome 클린.
 
 ### Codex 최종 리뷰 High 3건 — 반영 + 회귀 테스트로 검증
 - confirm 후 실행 직전 정책·사용량 재평가(한도 소진 시 차단) — `broker-core.test.ts` #15
