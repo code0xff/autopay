@@ -31,7 +31,7 @@ describe("Background RPC (compose)", () => {
     const bg = new Background(new MemoryKv());
     const state = (await bg.handle({ type: "getState" })) as UiState;
     expect(state.locked).toBe(true);
-    expect(state.policy.limits.perTransaction).toBe(0); // deny 지향 기본값
+    expect(state.policy.limits.perTransaction).toBe(20_000); // 소액 기본 한도
   });
 
   it("기본 정책 — 머천트·카테고리는 예외로 완화, 한도만 여전히 deny", async () => {
@@ -42,8 +42,16 @@ describe("Background RPC (compose)", () => {
       origins: ["https://coupang.com", "https://www.coupang.com", "https://checkout.coupang.com"],
     });
     expect(state.policy.categories).toEqual({ mode: "denylist", values: [] }); // 전부 허용
-    // 한도는 여전히 0(deny) — "얼마까지 쓸지"는 사용자가 직접 정해야 함.
-    expect(state.policy.limits.perTransaction).toBe(0);
+    expect(state.policy.limits).toEqual({
+      perTransaction: 20_000,
+      daily: 50_000,
+      monthly: 100_000,
+      maxTransactionsPerDay: 3,
+    });
+    expect(state.policy.confirmation).toEqual({
+      requireUserConfirmationAbove: 10_000,
+      alwaysConfirm: false,
+    });
   });
 
   it("잘못된 정책(스키마 위반) → 저장 거부", async () => {

@@ -408,7 +408,7 @@
       </div></li>
       <li><div>
         <h3 data-i18n="s3.t">연결과 한도</h3>
-        <p data-i18n="s3.p">툴바의 AutoPay 아이콘으로 사이드패널을 열고, 설정 탭의 MCP 브리지에 토큰을 붙여넣은 뒤 정책 탭에서 결제 한도를 저장합니다. 기본값은 0원이라 설정 전에는 모든 결제가 거절됩니다. 홈 탭의 "시작하기" 카드가 남은 단계를 보여줍니다.</p>
+        <p data-i18n="s3.p">툴바의 AutoPay 아이콘으로 사이드패널을 열고, 설정 탭의 MCP 브리지에 토큰을 붙여넣은 뒤 정책 탭에서 결제 한도를 확인합니다. 기본값은 건당 2만·일 5만·월 10만 원, 하루 3회이고 1만 원을 넘으면 승인을 요구합니다. 홈 탭의 "시작하기" 카드가 남은 단계를 보여줍니다.</p>
       </div></li>
       <li><div>
         <h3 data-i18n="s4.t">쿠팡 준비</h3>
@@ -491,7 +491,7 @@
     <details><summary><svg class="lucide"><use href="#i-chev"/></svg><span data-i18n="q2">비밀번호를 설정에 넣어 두면 대신 입력해 줄 수 있나요?</span></summary>
       <p data-i18n="a2">아니요. 비밀번호를 저장하는 순간 "AI가 훔칠 비밀이 없다"는 전제가 깨지고, 보안 키패드를 대신 누르는 것은 결제사의 보안 통제를 우회하는 일입니다. 텔레그램 같은 원격 채널로 전달하는 것도 같은 이유로 지원하지 않습니다. 원격 승인이 필요하면 폰 승인 결제수단이 그 역할을 합니다.</p></details>
     <details><summary><svg class="lucide"><use href="#i-chev"/></svg><span data-i18n="q3">결제가 모두 거절돼요.</span></summary>
-      <p data-i18n="a3">설치 직후 한도가 0원이기 때문입니다. 사이드패널 정책 탭에서 건당·일·월 한도와 일 횟수를 정하고 저장하세요.</p></details>
+      <p data-i18n="a3">건당·일·월 한도나 하루 횟수를 넘었을 수 있습니다. 홈 탭의 남은 한도를 확인하고, 필요하면 정책 탭에서 한도를 올려 저장하세요.</p></details>
     <details><summary><svg class="lucide"><use href="#i-chev"/></svg><span data-i18n="q4">브리지가 연결되지 않아요.</span></summary>
       <p data-i18n="a4">사이드패널 설정 탭의 MCP 브리지에 토큰이 등록되어 있는지, Claude Code가 저장소 폴더에서 실행 중인지 확인하세요. pnpm bootstrap을 다시 실행하면 토큰이 클립보드에 복사됩니다. 익스텐션을 다시 빌드했다면 chrome://extensions에서 새로고침하세요.</p></details>
     <details><summary><svg class="lucide"><use href="#i-chev"/></svg><span data-i18n="q5">패스프레이즈 잠금 해제는 꼭 해야 하나요?</span></summary>
@@ -561,7 +561,7 @@
     "start.lead": "You need Node 20+, pnpm 9, Chrome and Claude Code.",
     "s1.t": "Install and build", "s1.p": "Installs dependencies, builds everything and prepares the pairing token. The token is copied to the clipboard, never printed.",
     "s2.t": "Load the extension in Chrome", "s2.p": "In developer mode, choose \"Load unpacked\" and pick this folder. After a rebuild, just press reload.",
-    "s3.t": "Pair and set limits", "s3.p": "Open the side panel from the AutoPay toolbar icon, paste the token into MCP Bridge on the Settings tab, then save your payment limits on the Policy tab. The default is ₩0, so every payment is refused until you do. The Getting started card on the Home tab lists what's left.",
+    "s3.t": "Pair and set limits", "s3.p": "Open the side panel from the AutoPay toolbar icon, paste the token into MCP Bridge on the Settings tab, then check your payment limits on the Policy tab. Defaults are ₩20,000 per payment, ₩50,000 a day, ₩100,000 a month and 3 payments a day, with approval above ₩10,000. The Getting started card on the Home tab lists what's left.",
     "s4.t": "Prepare Coupang", "s4.p": "Log in to Coupang yourself and turn on one-touch payment in the Coupang app. AutoPay never handles login details.",
     "s5.t": "Ask in Claude Code", "s5.p": "Run Claude Code in the repository folder and ask.", "s5.c": "Order a black iPad Air 2 case from Coupang",
     "copy": "Copy",
@@ -581,7 +581,7 @@
     "faq.title": "Questions",
     "q1": "A password prompt appeared during payment.", "a1": "Even with one-touch on, Coupang may ask for the password again based on risk. When AutoPay notifies you, type it yourself in that checkout tab. Within about three minutes the payment completes and is recorded.",
     "q2": "Could AutoPay type the password if I store it in settings?", "a2": "No. Storing it breaks the premise that there is no secret for the AI to steal, and pressing a secure keypad on your behalf bypasses the provider's controls. Relaying it through a remote channel such as Telegram is out for the same reason. For remote approval, phone-approved payment methods fill that role.",
-    "q3": "Every payment is refused.", "a3": "Limits start at ₩0. Set per-payment, daily and monthly limits and a daily count on the side panel's Policy tab, then save.",
+    "q3": "Every payment is refused.", "a3": "You may have hit a per-payment, daily or monthly limit or the daily count. Check the remaining limits on the Home tab and raise them on the Policy tab if needed.",
     "q4": "The bridge won't connect.", "a4": "Check that the token is registered under MCP Bridge on the Settings tab and that Claude Code is running in the repository folder. Running pnpm bootstrap again copies the token to the clipboard. After a rebuild, reload the extension at chrome://extensions.",
     "q5": "Do I have to unlock with a passphrase?", "a5": "Not if you only use Coupang. It is the key that encrypts the identity details used for KakaoPay and Toss Pay.",
     "q6": "Can I use it alongside other AI browser extensions?", "a6": "AutoPay cannot limit another extension's permissions. An AI extension with cookie or site access can read your logged-in sessions, so use a separate browser profile for automated shopping.",

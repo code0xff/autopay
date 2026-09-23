@@ -22,7 +22,7 @@ export function GettingStarted({ state }: { state: UiState }) {
     {
       done: limitsSet,
       title: "결제 한도 설정",
-      hint: "기본값은 0원(전부 거절)입니다 — 정책 탭에서 한도를 정하고 저장하세요",
+      hint: "한도가 0이면 모든 결제가 거절됩니다 — 정책 탭에서 한도를 정하고 저장하세요",
     },
     {
       done: null,

@@ -27,17 +27,17 @@ import { RpcRequest } from "./rpc.js";
 // 예외로 완화한다: 빈 allowlist는 "설치만 하면 아무것도 안 되는" 마찰이 커서
 // (2026-09-23 실사용 중 직접 겪음 — 데모하기도 어려움), 지금 실제로 지원되는
 // 경로(쿠팡 상품·체크아웃 도메인 + coupay)는 미리 열어두고 카테고리는 통째로
-// 허용한다. **한도(얼마까지 쓸지)만은 여전히 0(deny)** — 이건 사용자가 명시적으로
-// 정해야 하는, 이 제품에서 유일하게 타협하지 않는 기본값이다.
+// 허용한다. 한도도 2026-09-23 사용자 결정으로 소액 기본값(건당 2만·일 5만·월 10만·일 3회,
+// 1만 원 초과 시 승인)을 둔다.
 const DEFAULT_POLICY: PaymentPolicy = {
-  limits: { perTransaction: 0, daily: 0, monthly: 0, maxTransactionsPerDay: 0 },
+  limits: { perTransaction: 20_000, daily: 50_000, monthly: 100_000, maxTransactionsPerDay: 3 },
   merchants: {
     mode: "allowlist",
     origins: ["https://coupang.com", "https://www.coupang.com", "https://checkout.coupang.com"],
   },
   categories: { mode: "denylist", values: [] }, // denylist + 빈 값 = 전부 허용
   methods: ["coupay"],
-  confirmation: { requireUserConfirmationAbove: 0, alwaysConfirm: true },
+  confirmation: { requireUserConfirmationAbove: 10_000, alwaysConfirm: false },
   notifications: { channels: ["chrome"], notifyOnRejection: true },
 };
 
