@@ -36,13 +36,9 @@ export function App() {
         <ThemeToggle />
       </header>
 
-      {state?.locked && (
-        <div className="body">
-          <Unlock locked={state.locked} onDone={refresh} />
-        </div>
-      )}
-
-      {state && !state.locked && (
+      {/* 승인은 잠금과 무관하게 항상 보인다 — 잠금은 카카오·토스(패턴 B)의 암호화된
+          본인 식별 정보에만 필요하다(그 경우 잠겨 있으면 실행이 no_profile로 실패). */}
+      {state && (
         <Approval
           state={state}
           onRefresh={refresh}
@@ -55,6 +51,15 @@ export function App() {
             refresh();
           }}
         />
+      )}
+
+      {state?.locked && (
+        <div className="body">
+          <div className="muted" style={{ fontSize: 12, marginBottom: 6 }}>
+            카카오·토스 결제 시에만 필요
+          </div>
+          <Unlock locked={state.locked} onDone={refresh} />
+        </div>
       )}
     </div>
   );

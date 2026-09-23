@@ -33,40 +33,43 @@ packages/agent-skill          Claude Code 쇼핑 스킬(SKILL.md)
 docs/                         설계·스펙·규범 (spec/ 12종)
 ```
 
-## 개발
+## 빠른 시작
 
-요구: Node 20+, pnpm 9.
+요구: Node 20+, pnpm 9, Chrome, Claude Code.
 
 ```bash
-pnpm install            # 의존성 설치 (postinstall이 wxt prepare 실행)
-pnpm test               # 전체 유닛 테스트 (146)
-pnpm typecheck          # 타입 체크
-pnpm lint               # Biome
-pnpm --filter @autopay/broker-extension build   # 익스텐션 빌드(.output/chrome-mv3)
-pnpm --filter @autopay/broker-extension dev     # WXT 개발 모드
-pnpm --filter @autopay/mcp-server build         # MCP 서버 번들(dist/index.js)
+pnpm bootstrap   # 설치 → MCP 서버·익스텐션 빌드 → 브리지 토큰 준비(클립보드 복사)
 ```
 
-### Chrome에 로드
+이어서 수동 1회:
 
-1. `pnpm --filter @autopay/broker-extension build`
-2. Chrome → 확장 프로그램 → 개발자 모드 → "압축해제된 확장 프로그램 로드"
-3. `packages/broker-extension/.output/chrome-mv3` 선택
-4. 툴바 아이콘 클릭 → Side Panel(우측), 옵션에서 정책·프로필 설정
+1. `chrome://extensions` → 개발자 모드 → "압축해제된 확장 프로그램 로드" →
+   `packages/broker-extension/.output/chrome-mv3` (재빌드 후엔 새로고침 ⟳만)
+2. AutoPay 옵션 → **MCP 브리지**에 토큰 붙여넣기(클립보드에 있음) → **결제 한도**
+   저장(기본 0원 = 전부 거절)
+3. 쿠팡에 직접 로그인 + 쿠팡 앱에서 원터치 결제 켜기
+4. 이 폴더에서 Claude Code 실행(`.mcp.json`에 `autopay` 서버 등록돼 있음) →
+   "이 노트북 스탠드 3만원 밑으로 사줘"
 
-### Claude Code에서 자율 쇼핑(M2, MCP 브리지)
+옵션 상단 **시작하기** 카드가 남은 단계를 보여준다. 패스프레이즈 잠금 해제는
+카카오·토스(패턴 B)용 본인 식별 정보에만 필요하다 — 쿠팡만 쓰면 생략.
+결제 중 쿠팡이 비밀번호를 재요구하면 알림이 오고, **본인이 결제 탭에서 직접**
+입력하면 된다(AutoPay·에이전트는 비밀번호를 다루지 않는다).
 
-1. `pnpm --filter @autopay/mcp-server build`
-2. `.mcp.json`에 이미 `autopay` 서버가 등록돼 있음(`node
-   packages/mcp-server/dist/index.js`) — Claude Code 재시작 시 자동 연결.
-   최초 실행 시 stderr에 브리지 토큰이 출력되고 `~/.autopay/bridge-token`
-   (0600)에 저장된다.
-3. 익스텐션 옵션 → "MCP 브리지" 카드에 그 토큰을 붙여넣어 등록(1회).
-4. `packages/agent-skill/SKILL.md`(= `.claude/skills/autopay-shopping/`)가
-   자동 트리거된다 — "이 노트북 스탠드 3만원 밑으로 사줘"처럼 요청.
-5. 도구는 `open/read_page/click/fill/request_payment/get_payment_result/
-   get_policy_summary` 7개뿐이며, 결제는 항상 정책·확인·감사를 거친다
-   (`docs/spec/mcp-integration.md`).
+에이전트 도구는 `open/read_page/click/fill/request_payment/get_payment_result/
+get_policy_summary` 7개뿐이며, 결제는 항상 정책·확인·감사를 거친다
+(`docs/spec/mcp-integration.md`).
+
+## 개발
+
+```bash
+pnpm test               # 전체 유닛 테스트
+pnpm typecheck          # 타입 체크
+pnpm lint               # Biome
+pnpm --filter @autopay/broker-extension dev     # WXT 개발 모드
+pnpm --filter @autopay/broker-extension build   # 익스텐션 빌드(.output/chrome-mv3)
+pnpm --filter @autopay/mcp-server build         # MCP 서버 번들(dist/index.js)
+```
 
 ## 워크플로
 

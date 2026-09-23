@@ -25,20 +25,67 @@ export function App() {
       </header>
 
       <SiteAccessNotice />
-      <Unlock locked={state.locked} onDone={refresh} />
+      <GettingStarted state={state} />
 
-      {!state.locked && (
-        <>
-          <PolicyForm policy={state.policy} onSaved={refresh} />
-          <ProfileForm hasProfile={state.hasProfile} locked={state.locked} onSaved={refresh} />
-          <BridgeCard
-            connected={state.bridgeConnected}
-            hasToken={state.hasBridgeToken}
-            onSaved={refresh}
-          />
-          <AuditTable state={state} />
-        </>
-      )}
+      {/* 잠금(패스프레이즈)은 암호화된 본인 식별 정보(패턴 B)에만 필요하다 —
+          정책·브리지·감사까지 잠그면 쿠팡(패턴 C)만 쓰는 사용자도 매번 해제해야 했다. */}
+      <PolicyForm policy={state.policy} onSaved={refresh} />
+      <BridgeCard
+        connected={state.bridgeConnected}
+        hasToken={state.hasBridgeToken}
+        onSaved={refresh}
+      />
+      <Unlock locked={state.locked} onDone={refresh} />
+      <ProfileForm hasProfile={state.hasProfile} locked={state.locked} onSaved={refresh} />
+      <AuditTable state={state} />
+    </div>
+  );
+}
+
+// 첫 사용 체크리스트 — 설치 후 무엇이 남았는지 한눈에. 브로커가 알 수 없는 항목
+// (쿠팡 로그인·원터치)은 안내만 한다.
+function GettingStarted({ state }: { state: UiState }) {
+  const limits = state.policy.limits;
+  const limitsSet =
+    limits.perTransaction > 0 && limits.daily > 0 && limits.maxTransactionsPerDay > 0;
+  const steps: { done: boolean | null; title: string; hint: string }[] = [
+    {
+      done: state.bridgeConnected,
+      title: "Claude Code 연결",
+      hint: state.hasBridgeToken
+        ? "토큰 등록됨 — Claude Code를 실행하면 자동 연결됩니다"
+        : "아래 'MCP 브리지'에 토큰을 붙여넣으세요(pnpm bootstrap이 클립보드에 복사해 둠)",
+    },
+    {
+      done: limitsSet,
+      title: "결제 한도 설정",
+      hint: "기본값은 0원(전부 거절)입니다 — 아래 '결제 한도'를 정하고 저장하세요",
+    },
+    {
+      done: null,
+      title: "쿠팡 로그인 · 원터치 결제 켜기",
+      hint: "로그인은 직접 해두세요(AutoPay는 로그인을 다루지 않음). 원터치는 쿠팡 앱에서 켭니다",
+    },
+  ];
+  if (steps.every((s) => s.done !== false)) return null; // 확인 가능한 단계가 다 끝나면 숨김
+  return (
+    <div className="card" style={{ marginBottom: 14 }}>
+      <div className="label" style={{ marginBottom: 10 }}>
+        시작하기
+      </div>
+      {steps.map((s) => (
+        <div key={s.title} className="listrow" style={{ alignItems: "flex-start", gap: 10 }}>
+          <span className={`badge ${s.done === true ? "ok" : s.done === false ? "warn" : "info"}`}>
+            {s.done === true ? "완료" : s.done === false ? "필요" : "확인"}
+          </span>
+          <div>
+            <div style={{ fontWeight: 600 }}>{s.title}</div>
+            <div className="muted" style={{ fontSize: 12 }}>
+              {s.hint}
+            </div>
+          </div>
+        </div>
+      ))}
     </div>
   );
 }
