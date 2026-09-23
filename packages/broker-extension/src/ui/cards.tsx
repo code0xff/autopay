@@ -37,8 +37,15 @@ export function GettingStarted({ state }: { state: UiState }) {
         시작하기
       </div>
       {steps.map((s) => (
-        <div key={s.title} className="listrow" style={{ alignItems: "flex-start", gap: 10 }}>
-          <span className={`badge ${s.done === true ? "ok" : s.done === false ? "warn" : "info"}`}>
+        <div
+          key={s.title}
+          className="listrow"
+          style={{ alignItems: "flex-start", justifyContent: "flex-start", gap: 12 }}
+        >
+          <span
+            className={`badge ${s.done === true ? "ok" : s.done === false ? "warn" : "info"}`}
+            style={{ flexShrink: 0, whiteSpace: "nowrap", marginTop: 2 }}
+          >
             {s.done === true ? "완료" : s.done === false ? "필요" : "확인"}
           </span>
           <div>
