@@ -11,8 +11,15 @@ import { BrokerNotifier } from "../notify/notifier.js";
 import { ChromeKv } from "../platform/chrome-kv.js";
 import { chromeNotificationSender } from "../platform/chrome-notify.js";
 import { ChromePageBridge } from "../platform/chrome-page-bridge.js";
-import type { Kv } from "../platform/kv.js";
-import { WebCryptoRefStore, deriveKey } from "../refstore/refstore.js";
+import { type Kv, MemoryKv } from "../platform/kv.js";
+import {
+  type Sealed,
+  WebCryptoRefStore,
+  checkVerifier,
+  deriveKeyBytes,
+  importAesKey,
+  makeVerifier,
+} from "../refstore/refstore.js";
 import { RpcRequest } from "./rpc.js";
 
 // 합성 루트 — 코어 모듈을 chrome 어댑터로 조립하고 UI RPC를 처리한다.
@@ -39,6 +46,8 @@ const SALT_KEY = "refstore:salt";
 const PROFILE_KEY = "refstore:profile"; // refstore 내부 키와 일치(패스프레이즈 검증용)
 const BRIDGE_TOKEN_KEY = "bridge:token"; // mcp-server 발급 토큰(스토리지 평문 — 비밀 아님, 로컬 전용 공유키)
 const BRIDGE_TAB_KEY = "bridge:tabId"; // 스킬이 open()으로 연 브리지 탭 추적(§3)
+const VERIFIER_KEY = "lock:verifier"; // 패스프레이즈 검증용 봉인값(평문 비밀 아님)
+const SESSION_KEY = "lock:key"; // 잠금 해제 키 원본 — chrome.storage.session(메모리 전용)에만
 const BRIDGE_URL = "ws://127.0.0.1:8765"; // mcp-server 로컬 WS 허브(docs/spec/mcp-integration.md §2)
 
 export interface UiState {
@@ -48,13 +57,18 @@ export interface UiState {
   pending: PendingConfirmation[];
   hasProfile: boolean;
   locked: boolean;
+  hasPassphrase: boolean; // false면 첫 실행 — 잠금 화면이 "패스프레이즈 설정"으로 뜬다
   bridgeConnected: boolean;
   hasBridgeToken: boolean;
 }
 
 export class Background {
-  private key: CryptoKey | null = null; // 세션 메모리에만 보관(스토리지 밖)
+  // 잠금 해제 키. 잠겨 있으면 AutoPay는 비활성 — UI는 잠금 화면만, 브리지 도구는 전부 거부.
+  // 서비스워커가 재시작돼도 브라우저를 닫기 전까진 풀린 상태를 유지하도록 키 원본을
+  // chrome.storage.session(디스크에 쓰지 않는 메모리 저장소)에 둔다.
+  private key: CryptoKey | null = null;
   private readonly kv: Kv;
+  private readonly session: Kv;
   private readonly audit: KvAuditLog;
   private readonly refstore: WebCryptoRefStore;
   private readonly broker: BrokerCore;
@@ -63,8 +77,9 @@ export class Background {
   private readonly bridgeClient: BridgeClient;
   private bridgeConnected = false;
 
-  constructor(kv: Kv = new ChromeKv()) {
+  constructor(kv: Kv = new ChromeKv(), session?: Kv) {
     this.kv = kv;
+    this.session = session ?? defaultSessionKv();
     this.audit = new KvAuditLog(kv);
     this.refstore = new WebCryptoRefStore(kv, async () => this.requireKey());
     const notify = new BrokerNotifier({
@@ -94,6 +109,7 @@ export class Background {
     this.bridgeTools = new BridgeTools({
       pageBridge: new ChromeGenericPageBridge(),
       broker: this.broker,
+      isLocked: async () => !(await this.restoreKey()),
       getBridgeTabId: async () => (await this.kv.get<number>(BRIDGE_TAB_KEY)) ?? null,
       setBridgeTabId: async (tabId) => {
         await this.kv.set(BRIDGE_TAB_KEY, tabId);
@@ -143,27 +159,23 @@ export class Background {
     const parsed = RpcRequest.safeParse(raw);
     if (!parsed.success) return { ok: false, error: "invalid_request" };
     const req = parsed.data;
+    // 잠겨 있으면 상태 조회와 잠금 해제만 허용 — 정책 변경·승인·설정은 해제 후에.
+    const unlocked = await this.restoreKey();
+    if (!unlocked && req.type !== "getState" && req.type !== "unlock") {
+      return { ok: false, error: "locked" };
+    }
     switch (req.type) {
       case "getState":
         return this.state();
       case "setPolicy":
         await this.kv.set(POLICY_KEY, req.policy);
         return { ok: true };
-      case "unlock": {
-        const key = await deriveKey(req.passphrase, await this.salt());
-        // 기존 프로필이 있으면 복호화로 패스프레이즈를 검증(오입력 시 unlock 거부
-        // → 기존 PII 덮어쓰기 방지).
-        if ((await this.kv.get(PROFILE_KEY)) !== undefined) {
-          const probe = new WebCryptoRefStore(this.kv, async () => key);
-          try {
-            await probe.getIdentity();
-          } catch {
-            return { ok: false, error: "wrong_passphrase" };
-          }
-        }
-        this.key = key;
+      case "unlock":
+        return this.unlock(req.passphrase);
+      case "lock":
+        this.key = null;
+        await this.session.set(SESSION_KEY, null);
         return { ok: true };
-      }
       case "setProfile":
         await this.refstore.setProfile(req.identity);
         return { ok: true };
@@ -184,7 +196,10 @@ export class Background {
       recentAudit: await this.audit.list({ limit: 20 }),
       pending: await this.broker.listPending(),
       hasProfile: await this.safeHasProfile(),
-      locked: this.key === null,
+      locked: !(await this.restoreKey()),
+      hasPassphrase:
+        (await this.kv.get(VERIFIER_KEY)) !== undefined ||
+        (await this.kv.get(PROFILE_KEY)) !== undefined,
       bridgeConnected: this.bridgeConnected,
       hasBridgeToken: (await this.kv.get<string>(BRIDGE_TOKEN_KEY)) !== undefined,
     };
@@ -196,6 +211,39 @@ export class Background {
     } catch {
       return false;
     }
+  }
+
+  /** 패스프레이즈 검증 후 잠금 해제. 검증값이 없으면 첫 실행(=설정)으로 보고 만든다.
+   *  검증값 도입 전 설치본은 저장된 프로필 복호화로 검증한 뒤 검증값을 만든다. */
+  private async unlock(passphrase: string): Promise<unknown> {
+    const raw = await deriveKeyBytes(passphrase, await this.salt());
+    const key = await importAesKey(raw);
+    const verifier = await this.kv.get<Sealed>(VERIFIER_KEY);
+    if (verifier) {
+      if (!(await checkVerifier(key, verifier))) return { ok: false, error: "wrong_passphrase" };
+    } else {
+      if ((await this.kv.get(PROFILE_KEY)) !== undefined) {
+        const probe = new WebCryptoRefStore(this.kv, async () => key);
+        try {
+          await probe.getIdentity();
+        } catch {
+          return { ok: false, error: "wrong_passphrase" };
+        }
+      }
+      await this.kv.set(VERIFIER_KEY, await makeVerifier(key));
+    }
+    this.key = key;
+    await this.session.set(SESSION_KEY, [...raw]);
+    return { ok: true };
+  }
+
+  /** 메모리에 키가 없으면 세션 저장소에서 복원(서비스워커 재시작 대비). 풀려 있으면 true. */
+  private async restoreKey(): Promise<boolean> {
+    if (this.key) return true;
+    const raw = await this.session.get<number[] | null>(SESSION_KEY).catch(() => null);
+    if (!raw) return false;
+    this.key = await importAesKey(new Uint8Array(raw));
+    return true;
   }
 
   private requireKey(): CryptoKey {
@@ -210,4 +258,12 @@ export class Background {
     await this.kv.set(SALT_KEY, [...salt]);
     return salt;
   }
+}
+
+/** 익스텐션 런타임은 chrome.storage.session(메모리 전용), 그 밖(테스트)은 메모리 Kv. */
+function defaultSessionKv(): Kv {
+  if (typeof chrome !== "undefined" && chrome.storage?.session) {
+    return new ChromeKv(chrome.storage.session);
+  }
+  return new MemoryKv();
 }

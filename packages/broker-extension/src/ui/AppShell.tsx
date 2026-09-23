@@ -2,7 +2,7 @@ import { useEffect, useState } from "react";
 import type { UiState } from "../background/compose.js";
 import { PolicyForm } from "./PolicyForm.js";
 import { ThemeToggle } from "./ThemeToggle.js";
-import { Unlock } from "./Unlock.js";
+import { LockButton, LockScreen } from "./Unlock.js";
 import { AuditTable, BridgeCard, GettingStarted, ProfileForm, SiteAccessNotice } from "./cards.js";
 import { getState, resolveConfirmation } from "./rpc-client.js";
 
@@ -56,48 +56,59 @@ export function AppShell({ wide = false }: { wide?: boolean }) {
         <span className="logo">A</span>
         <span className="brand">AutoPay</span>
         <span className="spacer" />
+        {state && !state.locked && <LockButton onDone={refresh} />}
         <ThemeToggle />
       </header>
-      <nav className="tabs" role="tablist" aria-label="AutoPay">
-        {TABS.map((t) => (
-          <button
-            key={t.id}
-            type="button"
-            role="tab"
-            aria-selected={tab === t.id}
-            onClick={() => choose(t.id)}
-          >
-            {t.label}
-            {t.id === "home" && pendingCount > 0 && (
-              <span className="count" aria-label={`승인 대기 ${pendingCount}건`}>
-                {pendingCount}
-              </span>
-            )}
-          </button>
-        ))}
-      </nav>
-
-      {!state ? (
-        <div className="body muted">불러오는 중…</div>
-      ) : (
+      {state?.locked ? (
         <div className="body">
-          {tab === "home" && <Home state={state} onRefresh={refresh} />}
-          {tab === "policy" && <PolicyForm policy={state.policy} onSaved={refresh} />}
-          {tab === "history" && <AuditTable state={state} />}
-          {tab === "settings" && (
-            <>
-              <BridgeCard
-                connected={state.bridgeConnected}
-                hasToken={state.hasBridgeToken}
-                onSaved={refresh}
-              />
-              {/* 잠금은 패턴 B 본인 식별 정보(PII)의 복호화 키일 뿐 — 쿠팡엔 불필요 */}
-              <Unlock locked={state.locked} onDone={refresh} />
-              <ProfileForm hasProfile={state.hasProfile} locked={state.locked} onSaved={refresh} />
-              <SiteAccessNotice />
-            </>
-          )}
+          <LockScreen firstRun={!state.hasPassphrase} onDone={refresh} />
         </div>
+      ) : (
+        <>
+          <nav className="tabs" role="tablist" aria-label="AutoPay">
+            {TABS.map((t) => (
+              <button
+                key={t.id}
+                type="button"
+                role="tab"
+                aria-selected={tab === t.id}
+                onClick={() => choose(t.id)}
+              >
+                {t.label}
+                {t.id === "home" && pendingCount > 0 && (
+                  <span className="count" aria-label={`승인 대기 ${pendingCount}건`}>
+                    {pendingCount}
+                  </span>
+                )}
+              </button>
+            ))}
+          </nav>
+
+          {!state ? (
+            <div className="body muted">불러오는 중…</div>
+          ) : (
+            <div className="body">
+              {tab === "home" && <Home state={state} onRefresh={refresh} />}
+              {tab === "policy" && <PolicyForm policy={state.policy} onSaved={refresh} />}
+              {tab === "history" && <AuditTable state={state} />}
+              {tab === "settings" && (
+                <>
+                  <BridgeCard
+                    connected={state.bridgeConnected}
+                    hasToken={state.hasBridgeToken}
+                    onSaved={refresh}
+                  />
+                  <ProfileForm
+                    hasProfile={state.hasProfile}
+                    locked={state.locked}
+                    onSaved={refresh}
+                  />
+                  <SiteAccessNotice />
+                </>
+              )}
+            </div>
+          )}
+        </>
       )}
     </div>
   );
@@ -115,18 +126,8 @@ function Home({ state, onRefresh }: { state: UiState; onRefresh: () => void }) {
   return (
     <>
       <GettingStarted state={state} />
-      <Pending state={state} onResolve={resolve} />
-      {/* locked는 "메모리에 PII 복호화 키가 없다"는 뜻일 뿐이라 워커 재시작마다 true다 —
-          키가 실제로 필요한 순간(카카오·토스 승인 대기)에만 해제 카드를 띄운다. */}
-      {state.locked && state.pending.some((p) => p.method !== "coupay") && (
-        <div>
-          <div className="muted" style={{ fontSize: 12, marginBottom: 6 }}>
-            카카오·토스 결제를 진행하려면 본인 식별 정보 잠금을 해제하세요
-          </div>
-          <Unlock locked={state.locked} onDone={onRefresh} />
-        </div>
-      )}
       <Remaining state={state} />
+      <Pending state={state} onResolve={resolve} />
     </>
   );
 }
@@ -168,7 +169,7 @@ function Pending({
 }) {
   if (state.pending.length === 0) {
     return (
-      <div className="muted" style={{ fontSize: 13 }}>
+      <div className="card muted" style={{ fontSize: 13 }}>
         승인 대기 중인 결제가 없습니다.
       </div>
     );

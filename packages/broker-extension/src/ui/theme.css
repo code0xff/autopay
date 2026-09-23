@@ -394,3 +394,8 @@ tbody tr {
 tbody tr:hover {
   background: var(--subtle);
 }
+.lock {
+  max-width: 420px;
+  margin: 24px auto 0;
+  width: 100%;
+}

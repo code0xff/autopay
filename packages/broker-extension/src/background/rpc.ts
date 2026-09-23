@@ -12,6 +12,7 @@ export const RpcRequest = z.discriminatedUnion("type", [
   z.object({ type: z.literal("getState") }).strict(),
   z.object({ type: z.literal("setPolicy"), policy: PaymentPolicy }).strict(),
   z.object({ type: z.literal("unlock"), passphrase: z.string().min(1) }).strict(),
+  z.object({ type: z.literal("lock") }).strict(),
   z.object({ type: z.literal("setProfile"), identity: IdentityInput }).strict(),
   z
     .object({

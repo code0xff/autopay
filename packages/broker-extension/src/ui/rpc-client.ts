@@ -13,6 +13,7 @@ async function rpc<T = { ok: boolean }>(msg: Record<string, unknown>): Promise<T
 export const getState = () => rpc<UiState>({ type: "getState" });
 export const setPolicy = (policy: PaymentPolicy) => rpc({ type: "setPolicy", policy });
 export const unlock = (passphrase: string) => rpc({ type: "unlock", passphrase });
+export const lock = () => rpc({ type: "lock" });
 export const setProfile = (identity: { phone: string; birth: string }) =>
   rpc({ type: "setProfile", identity });
 export const resolveConfirmation = (requestId: string, approved: boolean) =>

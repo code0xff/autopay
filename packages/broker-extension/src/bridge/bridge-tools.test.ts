@@ -5,7 +5,9 @@ import type { GenericPageBridge, PageSnapshot } from "./page-bridge.js";
 
 // docs/spec/mcp-integration.md §3·§10 테스트 케이스
 
-function makeDeps(overrides: { tabId?: number | null; executing?: boolean } = {}) {
+function makeDeps(
+  overrides: { tabId?: number | null; executing?: boolean; locked?: boolean } = {},
+) {
   let bridgeTabId: number | null = overrides.tabId ?? null;
   const pageBridge: GenericPageBridge = {
     openOrReuse: vi.fn(async () => 7),
@@ -40,6 +42,7 @@ function makeDeps(overrides: { tabId?: number | null; executing?: boolean } = {}
   return {
     pageBridge,
     broker,
+    isLocked: vi.fn(async () => overrides.locked ?? false),
     getBridgeTabId: vi.fn(async () => bridgeTabId),
     setBridgeTabId: vi.fn(async (id: number) => {
       bridgeTabId = id;
@@ -177,5 +180,21 @@ describe("BridgeTools", () => {
     const r2 = await tools.handle({ id: "b", tool: "get_policy_summary", args: {} });
     expect(r1.ok).toBe(true);
     expect(r2.ok).toBe(true);
+  });
+
+  it("10. 잠겨 있으면(AutoPay 비활성) 모든 도구를 autopay_locked로 거부", async () => {
+    const deps = makeDeps({ tabId: 7, locked: true });
+    const tools = new BridgeTools(deps);
+    const calls: BridgeToolCall[] = [
+      { id: "a", tool: "open", args: { url: "https://shop.example" } },
+      { id: "b", tool: "read_page", args: {} },
+      { id: "c", tool: "get_policy_summary", args: {} },
+      { id: "d", tool: "get_payment_result", args: { requestId: "r1" } },
+    ];
+    for (const call of calls) {
+      expect(await tools.handle(call)).toEqual({ id: call.id, ok: false, error: "autopay_locked" });
+    }
+    expect(deps.pageBridge.openOrReuse).not.toHaveBeenCalled();
+    expect(deps.broker.getPolicySummary).not.toHaveBeenCalled();
   });
 });

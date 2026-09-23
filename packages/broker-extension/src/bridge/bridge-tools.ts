@@ -18,6 +18,8 @@ export interface BridgeBroker {
 export interface BridgeToolsDeps {
   pageBridge: GenericPageBridge;
   broker: BridgeBroker;
+  /** 잠겨 있으면 true — AutoPay 비활성, 모든 도구를 autopay_locked로 거부. */
+  isLocked?: () => Promise<boolean>;
   getBridgeTabId: () => Promise<number | null>;
   setBridgeTabId: (tabId: number) => Promise<void>;
 }
@@ -40,6 +42,8 @@ export class BridgeTools {
   private async dispatch(call: BridgeToolCall): Promise<unknown> {
     // 결제 실행 중(사용자가 비번을 직접 입력하는 핸드오프 포함)에는 페이지를 읽거나
     // 조작하는 도구를 거부한다 — 입력 중인 값 읽기·키패드 클릭·이탈을 원천 차단.
+    // 잠금 해제 전에는 AutoPay 자체가 비활성 — 페이지·결제·조회 도구 모두 거부.
+    if (await this.deps.isLocked?.()) throw new Error("autopay_locked");
     if (PAGE_TOOLS.has(call.tool) && (await this.deps.broker.hasActiveExecution())) {
       throw new Error("page_locked_during_payment");
     }

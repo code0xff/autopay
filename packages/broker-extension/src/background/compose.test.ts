@@ -16,7 +16,8 @@ const policy: PaymentPolicy = {
 
 describe("Background RPC (compose)", () => {
   it("setPolicy → 저장되고 getState에 반영된다", async () => {
-    const bg = new Background(new MemoryKv());
+    const bg = new Background(new MemoryKv(), new MemoryKv());
+    expect(await bg.handle({ type: "unlock", passphrase: "pw" })).toEqual({ ok: true });
     const res = await bg.handle({ type: "setPolicy", policy });
     expect(res).toEqual({ ok: true });
 
@@ -49,5 +50,59 @@ describe("Background RPC (compose)", () => {
     const bg = new Background(new MemoryKv());
     const res = await bg.handle({ type: "setPolicy", policy: { limits: { perTransaction: -1 } } });
     expect(res).toEqual({ ok: false, error: "invalid_request" });
+  });
+
+  // 잠금 = AutoPay 활성 스위치(docs/spec/ui.md §4.2)
+  describe("잠금", () => {
+    it("첫 해제는 패스프레이즈 설정 — 이후엔 틀린 패스프레이즈를 거부한다", async () => {
+      const kv = new MemoryKv();
+      const bg = new Background(kv, new MemoryKv());
+      let state = (await bg.handle({ type: "getState" })) as UiState;
+      expect(state.locked).toBe(true);
+      expect(state.hasPassphrase).toBe(false);
+
+      expect(await bg.handle({ type: "unlock", passphrase: "right" })).toEqual({ ok: true });
+      state = (await bg.handle({ type: "getState" })) as UiState;
+      expect(state.locked).toBe(false);
+      expect(state.hasPassphrase).toBe(true);
+
+      const fresh = new Background(kv, new MemoryKv()); // 브라우저 재시작(세션 비어 있음)
+      expect(await fresh.handle({ type: "unlock", passphrase: "wrong" })).toEqual({
+        ok: false,
+        error: "wrong_passphrase",
+      });
+      expect(await fresh.handle({ type: "unlock", passphrase: "right" })).toEqual({ ok: true });
+    });
+
+    it("잠겨 있으면 getState·unlock 외 RPC는 locked로 거부", async () => {
+      const bg = new Background(new MemoryKv(), new MemoryKv());
+      expect(await bg.handle({ type: "setPolicy", policy })).toEqual({
+        ok: false,
+        error: "locked",
+      });
+      expect(
+        await bg.handle({ type: "resolveConfirmation", requestId: "r1", approved: true }),
+      ).toEqual({ ok: false, error: "locked" });
+    });
+
+    it("서비스워커가 재시작돼도 같은 브라우저 세션이면 풀린 상태를 유지", async () => {
+      const kv = new MemoryKv();
+      const session = new MemoryKv();
+      await new Background(kv, session).handle({ type: "unlock", passphrase: "pw" });
+      const restarted = new Background(kv, session);
+      const state = (await restarted.handle({ type: "getState" })) as UiState;
+      expect(state.locked).toBe(false);
+    });
+
+    it("lock → 즉시 잠기고 재시작한 워커도 잠긴 상태", async () => {
+      const kv = new MemoryKv();
+      const session = new MemoryKv();
+      const bg = new Background(kv, session);
+      await bg.handle({ type: "unlock", passphrase: "pw" });
+      expect(await bg.handle({ type: "lock" })).toEqual({ ok: true });
+      expect(((await bg.handle({ type: "getState" })) as UiState).locked).toBe(true);
+      const restarted = new Background(kv, session);
+      expect(((await restarted.handle({ type: "getState" })) as UiState).locked).toBe(true);
+    });
   });
 });

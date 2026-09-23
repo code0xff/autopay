@@ -17,7 +17,7 @@ export interface RefStore {
   getBillingRef(methodId: string): Promise<string | null>;
 }
 
-interface Sealed {
+export interface Sealed {
   v: 1;
   iv: string; // base64
   ct: string; // base64
@@ -77,6 +77,58 @@ export class WebCryptoRefStore implements RefStore {
       fromB64(sealed.ct) as BufferSource,
     );
     return JSON.parse(new TextDecoder().decode(pt)) as T;
+  }
+}
+
+/** 패스프레이즈 → PBKDF2 → 256비트 키 원본. deriveKey와 같은 비트다(같은 키가 된다).
+ *  세션 메모리(chrome.storage.session)에 잠금 해제 상태를 유지할 때 쓴다 — 디스크엔 두지 않는다. */
+export async function deriveKeyBytes(passphrase: string, salt: Uint8Array): Promise<Uint8Array> {
+  const base = await crypto.subtle.importKey(
+    "raw",
+    new TextEncoder().encode(passphrase) as BufferSource,
+    "PBKDF2",
+    false,
+    ["deriveBits"],
+  );
+  const bits = await crypto.subtle.deriveBits(
+    { name: "PBKDF2", salt: salt as BufferSource, iterations: 210_000, hash: "SHA-256" },
+    base,
+    256,
+  );
+  return new Uint8Array(bits);
+}
+
+/** 키 원본 → AES-GCM 키(추출 불가). */
+export function importAesKey(raw: Uint8Array): Promise<CryptoKey> {
+  return crypto.subtle.importKey("raw", raw as BufferSource, { name: "AES-GCM" }, false, [
+    "encrypt",
+    "decrypt",
+  ]);
+}
+
+/** 패스프레이즈 검증용 봉인값 — 알려진 평문을 봉인해 두고, 잠금 해제 때 열리는지로 검증한다. */
+const VERIFIER_PLAINTEXT = "autopay-unlock-v1";
+
+export async function makeVerifier(key: CryptoKey): Promise<Sealed> {
+  const iv = crypto.getRandomValues(new Uint8Array(12));
+  const ct = await crypto.subtle.encrypt(
+    { name: "AES-GCM", iv: iv as BufferSource },
+    key,
+    new TextEncoder().encode(VERIFIER_PLAINTEXT) as BufferSource,
+  );
+  return { v: 1, iv: toB64(iv), ct: toB64(new Uint8Array(ct)) };
+}
+
+export async function checkVerifier(key: CryptoKey, sealed: Sealed): Promise<boolean> {
+  try {
+    const pt = await crypto.subtle.decrypt(
+      { name: "AES-GCM", iv: fromB64(sealed.iv) as BufferSource },
+      key,
+      fromB64(sealed.ct) as BufferSource,
+    );
+    return new TextDecoder().decode(pt) === VERIFIER_PLAINTEXT;
+  } catch {
+    return false;
   }
 }
 
