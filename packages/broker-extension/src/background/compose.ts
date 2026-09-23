@@ -170,54 +170,11 @@ export class Background {
       case "resolveConfirmation":
         await this.broker.resolveConfirmation(req.requestId, req.approved);
         return { ok: true };
-      case "payActiveTab":
-        return this.payActiveTab(req.method);
       case "setBridgeToken":
         await this.kv.set(BRIDGE_TOKEN_KEY, req.token);
         await this.connectBridge();
         return { ok: true };
     }
-  }
-
-  /** 현재 활성 탭(체크아웃 화면)에서 수동 결제 요청. 에이전트 없이 실사용 진입점.
-   *  탭에서 금액·origin을 파싱해 요청을 구성 → 정책 게이트 → (패턴 C) 확인 대기. */
-  private async payActiveTab(method: PaymentMethod): Promise<unknown> {
-    const [tab] = await chrome.tabs.query({ active: true, currentWindow: true });
-    if (!tab?.id || !tab.url) return { ok: false, error: "no_active_tab" };
-    let origin: string;
-    try {
-      origin = new URL(tab.url).origin;
-    } catch {
-      return { ok: false, error: "bad_tab_url" };
-    }
-    // 익스텐션이 읽을 수 없는 탭(쿠팡 외 페이지, chrome:// 등)이면 executeScript가
-    // 예외를 던진다 — 미리 거르고, 그래도 실패하면 구체 코드로 돌려준다.
-    const readable = await chrome.permissions
-      .contains({ origins: [`${origin}/*`] })
-      .catch(() => false);
-    if (!readable) return { ok: false, error: "no_host_permission" };
-    // 탭에서 실제 금액을 먼저 파싱(요청 totalAmount 구성용). 실패 시 중단.
-    let verified: Awaited<ReturnType<SimplePayAdapter["verify"]>>;
-    try {
-      verified = await this.deps_adapter(method).verify(tab.id);
-    } catch {
-      return { ok: false, error: "page_unreadable" };
-    }
-    if (!Number.isFinite(verified.amount)) return { ok: false, error: "amount_parse_failed" };
-    const { requestId } = await this.broker.requestPayment({
-      merchant: { origin, name: verified.merchantName || origin },
-      items: [{ title: "수동 결제", quantity: 1, unitPrice: verified.amount }],
-      totalAmount: verified.amount,
-      currency: "KRW",
-      method,
-      checkoutTabId: tab.id,
-    });
-    // 실행은 백그라운드라 여기선 판정 직후 상태(rejected/failed/pending)만 알 수 있다.
-    const result = await this.broker.getPaymentResult(requestId);
-    const awaitingConfirm = (await this.broker.listPending()).some(
-      (p) => p.requestId === requestId,
-    );
-    return { ok: true, requestId, result, awaitingConfirm };
   }
 
   private async state(): Promise<UiState> {

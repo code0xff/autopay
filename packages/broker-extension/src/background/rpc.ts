@@ -1,4 +1,4 @@
-import { PaymentMethod, PaymentPolicy } from "@autopay/shared";
+import { PaymentPolicy } from "@autopay/shared";
 import { z } from "zod";
 
 // UI(Side Panel/Options) ↔ background 내부 RPC. 같은 익스텐션이라도 인바운드를
@@ -13,10 +13,6 @@ export const RpcRequest = z.discriminatedUnion("type", [
   z.object({ type: z.literal("setPolicy"), policy: PaymentPolicy }).strict(),
   z.object({ type: z.literal("unlock"), passphrase: z.string().min(1) }).strict(),
   z.object({ type: z.literal("setProfile"), identity: IdentityInput }).strict(),
-  // 현재 활성 탭(체크아웃 화면)에서 수동으로 결제 요청 — 에이전트 없이 실사용 진입점
-  z
-    .object({ type: z.literal("payActiveTab"), method: PaymentMethod })
-    .strict(),
   z
     .object({
       type: z.literal("resolveConfirmation"),
