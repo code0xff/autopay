@@ -8,9 +8,12 @@ import type { CompletionResult } from "./types.js";
 // verify→(재검증)→클릭/입력→완료 파싱까지 "실제 실행 직전"까지 검증한다.
 // 실결제·실계정 없이 어댑터 config 셀렉터 + 코어 로직을 확인.
 //
-// 쿠팡 픽스처는 **라이브 캡처(2026-09-22 checkout.coupang.com)** 구조를 그대로
-// 옮긴 것이다 — Tailwind 클래스뿐이라 id/의미 클래스가 없고, 금액은 "최종 결제
-// 금액" 라벨 뒤에, 결제는 텍스트 "결제하기" 버튼으로 존재한다.
+// 쿠팡 픽스처는 **라이브 캡처(2026-09-22 checkout.coupang.com) + 2026-09-23
+// 실사용 재확인** 구조를 그대로 옮긴 것이다 — Tailwind 클래스뿐이라 id/의미
+// 클래스가 없고, 결제는 텍스트 "결제하기" 버튼으로 존재한다. 금액은 주의:
+// "최종 결제 금액"은 값이 안 붙은 **섹션 제목**이고 그 뒤엔 "총 상품 가격"
+// (할인 전, 최종 금액 아님)이 먼저 나온다 — 실제 최종 금액은 맨 아래
+// "총 결제 금액" 옆에 있다(실사용 중 발견한 버그, adapters.ts 주석 참조).
 
 /** linkedom 기반 PageBridge. completeOn 셀렉터 클릭 시 afterClick 페이지로 전이. */
 class FixtureBridge implements PageBridge {
@@ -92,7 +95,8 @@ class FixtureBridge implements PageBridge {
 // ── 픽스처 HTML (라이브 캡처 구조 반영) ──
 const COUPANG_CHECKOUT = `
   <div><span>결제수단</span><span>쿠페이 머니</span></div>
-  <div><span>최종 결제 금액</span><span>3,650원</span></div>
+  <h2>최종 결제 금액</h2>
+  <div><span>총 상품 가격</span><span>3,850원</span></div>
   <div><span>배송비</span><span>0원</span></div>
   <div><span>총 결제 금액</span><span>3,650원</span></div>
   <button>결제하기</button>`;
@@ -125,7 +129,9 @@ describe("결제 흐름 E2E (픽스처)", () => {
     const adapter = createAdapter("coupay", bridge);
 
     const v = await adapter.verify(0);
-    expect(v.amount).toBe(3_650); // "최종 결제 금액" 라벨 뒤 금액
+    // "총 결제 금액"(진짜 최종가) — "총 상품 가격"(3,850원, 할인 전 데코이)이
+    // 아니라 이 값이어야 한다(2026-09-23 회귀: 예전엔 데코이를 잘못 집었음).
+    expect(v.amount).toBe(3_650);
     expect(v.merchantName).toBe("쿠팡"); // 가맹점 노드 없음 → 폴백
     expect(v.origin).toBe("https://checkout.coupang.com");
     expect(v.snapshot).toMatch(/^[0-9a-f]{64}$/);
@@ -145,7 +151,7 @@ describe("결제 흐름 E2E (픽스처)", () => {
     const adapter = createAdapter("coupay", bridge);
     const v = await adapter.verify(0);
     bridge.mutate(() => {
-      const el = bridge.find("label:최종 결제 금액");
+      const el = bridge.find("label:총 결제 금액");
       if (el) el.textContent = "250,000원"; // 결제 직전 대상 변경
     });
     const out = await adapter.pay({ tabId: 0, timeoutMs: 1000, approvedSnapshot: v.snapshot });

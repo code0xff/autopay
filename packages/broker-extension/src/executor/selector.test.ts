@@ -17,6 +17,22 @@ const CHECKOUT = `
   <div><span>총 결제 금액</span><span>원</span><span>3,650원</span></div>
   <button class="twc-cursor-pointer twc-text-sm">결제하기</button>`;
 
+// 2026-09-23 실사용 버그 재현: "최종 결제 금액"은 값이 바로 붙은 라벨이 아니라
+// **섹션 제목**이고, 그 뒤엔 최종 금액이 아닌 "총 상품 가격"(줄어들기 전 금액)이
+// 먼저 나온다. 진짜 최종 금액은 맨 아래 "총 결제 금액" 옆에 있다. 이걸 몰라서
+// amount 셀렉터가 "최종 결제 금액"을 앵커로 써서 "총 상품 가격"을 잘못 집었고,
+// 브로커가 사용자가 실제로 결제한 금액과 다르다며 정상적으로 거절했다
+// (amount_mismatch — 안전하게 작동한 것이지 결제 사고는 아니었음).
+const REAL_CHECKOUT_SUMMARY = `
+  <h2>최종 결제 금액</h2>
+  <div><span>총 상품 가격</span><span>16,500원</span></div>
+  <div><span>WOW 와우회원 총 추가 혜택</span><span>-200원</span></div>
+  <div><span>와우 전용 즉시할인</span><span>-200원</span></div>
+  <div><span>배송비</span><span>0원</span></div>
+  <div><span>쿠팡캐시</span><button>전액사용</button><input value="0" /><span>원</span></div>
+  <div>잔여 : 34원</div>
+  <div><span>총 결제 금액</span><span>16,300원</span></div>`;
+
 describe("resolveIn — css 스킴", () => {
   it("접두사 없으면 querySelector, css: 접두사도 동일", () => {
     const d = doc(`<div class="x">v</div>`);
@@ -107,6 +123,19 @@ describe("resolveIn — label 스킴(금액)", () => {
 
   it("없는 라벨 → null", () => {
     expect(resolveIn(doc(CHECKOUT), "label:존재하지 않는 라벨")).toBeNull();
+  });
+
+  it("[2026-09-23 회귀] '최종 결제 금액'은 제목일 뿐이라 그 뒤 첫 금액(총 상품 가격)을 " +
+    "잘못 집는다 — 그래서 amount 앵커로 쓰면 안 된다(실사용 버그였음)", () => {
+    expect(resolveIn(doc(REAL_CHECKOUT_SUMMARY), "label:최종 결제 금액")?.textContent).toBe(
+      "16,500원",
+    ); // 총 상품 가격 — 진짜 최종 금액이 아님. 이 값을 쓰면 amount_mismatch.
+  });
+
+  it("[2026-09-23 회귀] '총 결제 금액'을 앵커로 쓰면 실제 최종 금액을 정확히 잡는다", () => {
+    expect(resolveIn(doc(REAL_CHECKOUT_SUMMARY), "label:총 결제 금액")?.textContent).toBe(
+      "16,300원",
+    );
   });
 });
 
