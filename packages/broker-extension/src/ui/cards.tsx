@@ -7,13 +7,16 @@ import { getAudit, setBridgeToken } from "./rpc-client.js";
 
 // 첫 사용 체크리스트 — 설치 후 무엇이 남았는지 한눈에. 브로커가 알 수 없는 항목
 // (쿠팡 로그인·원터치)은 안내만 한다.
+// bridgeConnected는 SW 깨어남 직후 브리지 연결까지(~1-2초) false였다가 바뀌는
+// 런타임 상태라 체크리스트에 쓰면 깜빡인다. 여기선 사용자가 할 일(토큰 등록
+// 여부)만 본다 — 런타임 연결 상태는 설정 탭 BridgeCard가 이미 보여준다.
 export function GettingStarted({ state }: { state: UiState }) {
   const limits = state.policy.limits;
   const limitsSet =
     limits.perTransaction > 0 && limits.daily > 0 && limits.maxTransactionsPerDay > 0;
   const steps: { done: boolean | null; title: string; hint: string }[] = [
     {
-      done: state.bridgeConnected,
+      done: state.hasBridgeToken,
       title: "Claude Code 연결",
       hint: state.hasBridgeToken
         ? "토큰 등록됨 — Claude Code를 실행하면 자동 연결됩니다"
