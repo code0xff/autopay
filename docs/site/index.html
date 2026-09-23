@@ -5,309 +5,618 @@
 <meta name="viewport" content="width=device-width, initial-scale=1" />
 <title>AutoPay 시작 가이드</title>
 <meta name="description" content="AI 에이전트가 돈을 쓸 때도 통제권과 가시성을 잃지 않게 — AutoPay 설치·사용 가이드" />
+<script>
+  // 첫 페인트 전에 테마·언어를 확정한다(Slate §Theming). system은 OS를 따르되
+  // 토큰은 항상 data-theme 기준으로 바뀐다.
+  (function () {
+    var root = document.documentElement;
+    var pref = "system";
+    try { pref = localStorage.getItem("autopay-site-theme") || "system"; } catch (e) {}
+    var dark = pref === "dark" || (pref === "system" && matchMedia("(prefers-color-scheme: dark)").matches);
+    root.setAttribute("data-theme", dark ? "dark" : "light");
+    root.setAttribute("data-theme-pref", pref);
+    try {
+      if (localStorage.getItem("autopay-site-lang") === "en") root.setAttribute("lang", "en");
+    } catch (e) {}
+  })();
+</script>
+<link rel="stylesheet" href="fonts/wanted-sans.css" />
 <style>
-  :root {
-    --bg: #fbfaf7;
-    --surface: #ffffff;
-    --text: #1d1c1a;
-    --muted: #6b675f;
-    --line: #e7e3da;
-    --accent: #2f5bd3;
-    --accent-soft: #e8eefc;
-    --ok: #1f7a4d;
-    --ok-soft: #e4f3ea;
-    --warn: #9a5b00;
-    --warn-soft: #fbf0dc;
-    --code-bg: #f3f1ec;
-    --radius: 14px;
+  @font-face {
+    font-family: "JetBrains Mono Variable";
+    font-style: normal;
+    font-display: swap;
+    font-weight: 100 800;
+    src: url("fonts/jetbrains-mono/jetbrains-mono-latin-wght-normal.woff2") format("woff2-variations");
   }
-  @media (prefers-color-scheme: dark) {
-    :root:not([data-theme="light"]) {
-      --bg: #141413;
-      --surface: #1c1c1a;
-      --text: #ecebe7;
-      --muted: #a29e95;
-      --line: #2e2d2a;
-      --accent: #7c9cf5;
-      --accent-soft: #1f2640;
-      --ok: #5cc28e;
-      --ok-soft: #173024;
-      --warn: #e0a54a;
-      --warn-soft: #33270f;
-      --code-bg: #242422;
-    }
+  @property --beam-angle { syntax: "<angle>"; inherits: false; initial-value: 0deg; }
+
+  /* ── Slate tokens ───────────────────────────── */
+  :root {
+    --ui-canvas: #faf9fb; --ui-surface: #ffffff; --ui-subtle: #f5f3f7; --ui-raised: #ffffff;
+    --ui-line: #e8e5ee; --ui-line-strong: #d5d1dd;
+    --ui-ink: #12101a; --ui-ink-soft: #565064; --ui-ink-faint: #6f687f;
+    --ui-primary: #12101a; --ui-on-primary: #faf9fb;
+    --ui-accent: #6d5bd0; --ui-accent-soft: #f1eefc; --ui-on-accent: #ffffff;
+    --ui-ok: #1a7a43; --ui-ok-soft: #e9f7ef;
+    --ui-warn: #8a5e00; --ui-warn-soft: #fdf3dc;
+    --ui-danger: #c2403f; --ui-danger-soft: #fdeeee;
+    --shadow-pop: 0 1px 2px rgb(18 16 26 / .05), 0 18px 44px rgb(18 16 26 / .09);
+    --radius-sm: 8px; --radius-md: 10px; --radius-lg: 16px; --radius-xl: 20px;
+    --font-sans: "Wanted Sans Variable", "Wanted Sans", "Pretendard Variable", Pretendard,
+      -apple-system, BlinkMacSystemFont, system-ui, "Apple SD Gothic Neo", "Noto Sans KR", sans-serif;
+    --font-mono: "JetBrains Mono Variable", ui-monospace, SFMono-Regular, "SF Mono", Menlo, Consolas, monospace;
+    --ease-soft: cubic-bezier(0.22, 0.61, 0.36, 1);
+    color-scheme: light;
   }
   :root[data-theme="dark"] {
-    --bg: #141413;
-    --surface: #1c1c1a;
-    --text: #ecebe7;
-    --muted: #a29e95;
-    --line: #2e2d2a;
-    --accent: #7c9cf5;
-    --accent-soft: #1f2640;
-    --ok: #5cc28e;
-    --ok-soft: #173024;
-    --warn: #e0a54a;
-    --warn-soft: #33270f;
-    --code-bg: #242422;
+    --ui-canvas: #0b0a0f; --ui-surface: #131219; --ui-subtle: #1b1a23; --ui-raised: #191822;
+    --ui-line: #26242f; --ui-line-strong: #383544;
+    --ui-ink: #eeecf2; --ui-ink-soft: #a8a2b8; --ui-ink-faint: #8983a0;
+    --ui-primary: #eeecf2; --ui-on-primary: #0b0a0f;
+    --ui-accent: #a898f5; --ui-accent-soft: rgb(168 152 245 / .13); --ui-on-accent: #0d0a1a;
+    --ui-ok: #5fd08a; --ui-ok-soft: rgb(95 208 138 / .12);
+    --ui-warn: #e3b25a; --ui-warn-soft: rgb(227 178 90 / .12);
+    --ui-danger: #f07a7a; --ui-danger-soft: rgb(240 122 122 / .12);
+    --shadow-pop: 0 0 0 1px rgb(0 0 0 / .35), 0 20px 56px rgb(0 0 0 / .5);
+    color-scheme: dark;
   }
+
+  /* ── Base ───────────────────────────────────── */
   * { box-sizing: border-box; }
-  html { -webkit-text-size-adjust: 100%; }
+  html { -webkit-text-size-adjust: 100%; scroll-behavior: smooth; }
   body {
-    margin: 0;
-    background: var(--bg);
-    color: var(--text);
-    font: 16px/1.65 -apple-system, BlinkMacSystemFont, "Apple SD Gothic Neo", "Pretendard", "Noto Sans KR", "Segoe UI", sans-serif;
-    word-break: keep-all;
+    margin: 0; background: var(--ui-canvas); color: var(--ui-ink);
+    font: 16px/1.55 var(--font-sans); -webkit-font-smoothing: antialiased;
+    word-break: keep-all; font-variant-numeric: tabular-nums;
   }
-  .wrap { max-width: 880px; margin: 0 auto; padding: 0 16px; }
-  header.top {
-    display: flex; align-items: center; justify-content: space-between;
-    padding: 20px 0;
+  ::selection { background: var(--ui-accent-soft); color: var(--ui-ink); }
+  a { color: var(--ui-accent); text-decoration: none; }
+  a:hover { text-decoration: underline; text-underline-offset: 3px; }
+  button, summary, label[for], [role="button"], a { cursor: pointer; }
+  button:disabled { cursor: not-allowed; }
+  :focus-visible { outline: 2px solid var(--ui-accent); outline-offset: 2px; border-radius: 999px; }
+  code, .mono { font-family: var(--font-mono); font-size: .88em; }
+  svg.lucide { width: 14px; height: 14px; stroke: currentColor; stroke-width: 1.5; fill: none;
+    stroke-linecap: round; stroke-linejoin: round; flex: none; }
+  .wrap { max-width: 1072px; margin: 0 auto; padding: 0 16px; }
+
+  /* ── Header (sticky, canvas 85% + blur) ─────── */
+  header.bar {
+    position: sticky; top: 0; z-index: 10;
+    background: color-mix(in srgb, var(--ui-canvas) 85%, transparent);
+    backdrop-filter: blur(12px); -webkit-backdrop-filter: blur(12px);
+    border-bottom: 1px solid var(--ui-line);
   }
-  .brand { display: flex; align-items: center; gap: 10px; font-weight: 700; }
-  .logo {
-    width: 30px; height: 30px; border-radius: 8px; display: grid; place-items: center;
-    background: var(--accent); color: #fff; font-weight: 800;
+  .bar .wrap { display: flex; align-items: center; gap: 10px; height: 60px; }
+  .wordmark { display: flex; align-items: center; gap: 10px; color: var(--ui-ink); font-weight: 500; font-size: 15px; }
+  .wordmark:hover { text-decoration: none; }
+  .glyph { width: 24px; height: 24px; border-radius: var(--radius-sm); background: var(--ui-primary);
+    color: var(--ui-on-primary); display: grid; place-items: center; font-size: 13px; font-weight: 600; }
+  nav.links { display: flex; gap: 4px; margin-left: 12px; }
+  nav.links a { color: var(--ui-ink-soft); font-size: 14px; padding: 6px 12px; border-radius: var(--radius-md); }
+  nav.links a:hover { background: var(--ui-subtle); color: var(--ui-ink); text-decoration: none; }
+  .spacer { flex: 1; }
+  .seg { display: inline-flex; padding: 3px; gap: 2px; border: 1px solid var(--ui-line-strong);
+    border-radius: 999px; background: var(--ui-surface); }
+  .seg button { border: 0; background: transparent; color: var(--ui-ink-soft); font: 500 12.5px var(--font-sans);
+    height: 26px; padding: 0 10px; border-radius: 999px; display: inline-flex; align-items: center; gap: 5px;
+    transition: background 220ms var(--ease-soft), color 220ms var(--ease-soft); }
+  .seg button[aria-pressed="true"] { background: var(--ui-primary); color: var(--ui-on-primary); }
+
+  /* ── Type ───────────────────────────────────── */
+  .eyebrow { font-size: 11px; font-weight: 500; text-transform: uppercase; letter-spacing: .14em;
+    color: var(--ui-ink-faint); margin: 0 0 12px; }
+  :lang(ko) .eyebrow, :lang(ko) th { font-size: 11.5px; text-transform: none; letter-spacing: 0; }
+  h1, h2, h3 { font-weight: 500; margin: 0; }
+  h1 { font-size: clamp(34px, 6vw, 52px); line-height: 1.18; letter-spacing: -.015em; }
+  h2 { font-size: clamp(26px, 3.4vw, 30px); line-height: 1.25; letter-spacing: -.01em; }
+  h3 { font-size: 17px; line-height: 1.4; letter-spacing: -.01em; }
+  .lead { color: var(--ui-ink-soft); font-size: 17px; margin: 14px 0 0; max-width: 620px; }
+
+  /* ── Controls ───────────────────────────────── */
+  .btn { display: inline-flex; align-items: center; gap: 8px; height: 44px; padding: 0 22px;
+    border-radius: 999px; font: 500 15px var(--font-sans); border: 1px solid transparent;
+    transition: background 220ms var(--ease-soft), border-color 220ms var(--ease-soft); }
+  .btn:hover { text-decoration: none; }
+  .btn.primary { background: var(--ui-primary); color: var(--ui-on-primary); }
+  .btn.ghost { background: var(--ui-surface); color: var(--ui-ink); border-color: var(--ui-line-strong); }
+  .btn.ghost:hover { background: var(--ui-subtle); }
+  .badge { display: inline-flex; align-items: center; gap: 6px; height: 24px; padding: 0 10px;
+    border-radius: 999px; font-size: 12.5px; font-weight: 500; background: var(--ui-subtle);
+    color: var(--ui-ink-soft); border: 1px solid var(--ui-line); white-space: nowrap; }
+  .badge .dot { width: 6px; height: 6px; border-radius: 50%; background: currentColor; }
+  .badge.ok { background: var(--ui-ok-soft); color: var(--ui-ok); border-color: transparent; }
+  .badge.warn { background: var(--ui-warn-soft); color: var(--ui-warn); border-color: transparent; }
+
+  /* ── Hero ───────────────────────────────────── */
+  .hero { padding: 72px 0 80px; display: grid; gap: 48px; }
+  .hero > * { min-width: 0; }
+  @media (min-width: 960px) { .hero { grid-template-columns: 1fr 1.05fr; align-items: center; padding: 96px 0 112px; } }
+  .actions { display: flex; flex-wrap: wrap; gap: 10px; margin-top: 28px; }
+
+  /* Protocol trace (Slate §Motion) */
+  .beam { padding: 1px; border-radius: var(--radius-lg);
+    background: conic-gradient(from var(--beam-angle), var(--ui-line-strong) 0deg, var(--ui-line-strong) 300deg,
+      var(--ui-accent) 330deg, var(--ui-line-strong) 360deg);
+    animation: beam 7s linear infinite; }
+  @keyframes beam { to { --beam-angle: 360deg; } }
+  .trace { background: var(--ui-surface); border-radius: calc(var(--radius-lg) - 1px); padding: 18px; }
+  .trace-head { display: flex; align-items: center; justify-content: space-between; gap: 10px; margin-bottom: 14px; }
+  .trace-head .eyebrow { margin: 0; }
+  .replay { border: 1px solid var(--ui-line-strong); background: var(--ui-surface); color: var(--ui-ink-soft);
+    height: 28px; padding: 0 12px; border-radius: 999px; font: 500 12.5px var(--font-sans);
+    display: inline-flex; align-items: center; gap: 6px; flex: none; }
+  .replay:hover { background: var(--ui-subtle); color: var(--ui-ink); }
+  .nodes { position: relative; display: grid; grid-template-columns: repeat(4, 1fr); gap: 8px; margin-bottom: 14px; }
+  .nodes::before { content: ""; position: absolute; left: 12.5%; right: 12.5%; top: 50%; height: 1px; background: var(--ui-line-strong); }
+  .node { position: relative; z-index: 1; justify-self: center; background: var(--ui-surface);
+    border: 1px solid var(--ui-line-strong); border-radius: 999px; padding: 5px 12px; font-size: 12.5px;
+    font-weight: 500; color: var(--ui-ink-soft); white-space: nowrap;
+    transition: border-color 220ms var(--ease-soft), color 220ms var(--ease-soft); }
+  .node.lit { border-color: var(--lit); color: var(--ui-ink); }
+  .packet { position: absolute; z-index: 2; top: 50%; width: 8px; height: 8px; margin: -4px 0 0 -4px;
+    border-radius: 50%; background: var(--c); box-shadow: 0 0 10px var(--c); left: var(--to);
+    animation: hop .95s cubic-bezier(.65,0,.35,1) both; }
+  @keyframes hop { from { left: var(--from); opacity: 1; } 92% { opacity: 1; } to { left: var(--to); opacity: 0; } }
+  .log { font-family: var(--font-mono); font-size: 12.5px; line-height: 1.7; background: var(--ui-canvas);
+    border: 1px solid var(--ui-line); border-radius: var(--radius-md); padding: 12px 14px; overflow-x: auto; }
+  .log .ln { white-space: pre; color: var(--ui-ink-soft); }
+  .log .ln.new { animation: lnin 300ms var(--ease-soft) both, flash 1.4s var(--ease-soft); }
+  @keyframes lnin { from { opacity: 0; transform: translateY(4px); } }
+  @keyframes flash { from { background: color-mix(in srgb, var(--ui-accent) 18%, transparent); } to { background: transparent; } }
+  .log .ln.hidden { visibility: hidden; }
+  .log .k { color: var(--ui-ink-faint); }
+  .log .req { color: var(--ui-accent); }
+  .log .wrn { color: var(--ui-warn); }
+  .log .okc { color: var(--ui-ok); }
+  .caret { display: inline-block; width: .55em; height: 1.15em; vertical-align: -0.2em; background: var(--ui-accent);
+    margin-left: 2px; animation: blink 1.05s steps(1) infinite; }
+  @keyframes blink { 50% { opacity: 0; } }
+
+  /* ── Sections ───────────────────────────────── */
+  section { padding: 80px 0; border-top: 1px solid var(--ui-line); }
+  @media (min-width: 1024px) { section { padding: 112px 0; } }
+  .shead { margin-bottom: 48px; max-width: 680px; }
+  .rows { display: grid; gap: 1px; background: var(--ui-line); border: 1px solid var(--ui-line);
+    border-radius: var(--radius-lg); overflow: hidden; }
+  @media (min-width: 760px) { .rows.four { grid-template-columns: repeat(4, 1fr); } .rows.two { grid-template-columns: 1fr 1fr; } }
+  .cell { background: var(--ui-surface); padding: 22px; }
+  .cell .who { margin-bottom: 14px; }
+  .cell p { color: var(--ui-ink-soft); margin: 8px 0 0; font-size: 14.5px; }
+
+  ol.steps { list-style: none; margin: 0; padding: 0; display: grid; gap: 12px; counter-reset: s; }
+  ol.steps li { counter-increment: s; display: grid; grid-template-columns: 28px 1fr; gap: 16px;
+    background: var(--ui-surface); border: 1px solid var(--ui-line); border-radius: var(--radius-lg); padding: 20px 22px; }
+  ol.steps li > div { min-width: 0; }
+  ol.steps li::before { content: counter(s); width: 28px; height: 28px; border-radius: 50%;
+    border: 1px solid var(--ui-line-strong); display: grid; place-items: center; font-family: var(--font-mono);
+    font-size: 12.5px; color: var(--ui-ink-soft); }
+  ol.steps p { color: var(--ui-ink-soft); margin: 6px 0 0; font-size: 14.5px; }
+  .copy { display: flex; align-items: center; gap: 8px; margin-top: 12px; background: var(--ui-canvas);
+    border: 1px solid var(--ui-line-strong); border-radius: 999px; padding: 4px 4px 4px 16px; max-width: 520px; min-height: 40px; }
+  .copy code { flex: 1; min-width: 0; font-size: 13px; color: var(--ui-ink); overflow-x: auto; white-space: nowrap; }
+  .copy.say { border-radius: var(--radius-xl); padding: 9px 16px; font-size: 14px; color: var(--ui-ink); }
+  .copy button { border: 0; background: var(--ui-subtle); color: var(--ui-ink-soft); height: 30px; padding: 0 12px;
+    border-radius: 999px; font: 500 12.5px var(--font-sans); display: inline-flex; align-items: center; gap: 6px; flex: none; }
+  .copy button:hover { color: var(--ui-ink); }
+
+  ul.list { list-style: none; margin: 14px 0 0; padding: 0; display: grid; gap: 10px; }
+  ul.list li { display: flex; gap: 10px; align-items: flex-start; font-size: 14.5px; color: var(--ui-ink-soft); }
+  ul.list li svg { margin-top: 4px; }
+  ul.list.yes svg { color: var(--ui-ok); }
+  ul.list.no svg { color: var(--ui-ink-faint); }
+
+  /* Data table (Slate §Data tables) */
+  .table { background: var(--ui-surface); border: 1px solid var(--ui-line); border-radius: var(--radius-lg); overflow: hidden; }
+  table { width: 100%; border-collapse: collapse; }
+  th { text-align: left; font-size: 11px; font-weight: 500; text-transform: uppercase; letter-spacing: .14em;
+    color: var(--ui-ink-faint); padding: 12px 16px; border-bottom: 1px solid var(--ui-line); background: var(--ui-surface); }
+  td { font-size: 13.5px; color: var(--ui-ink-soft); padding: 13px 16px; border-bottom: 1px solid var(--ui-line); vertical-align: top; }
+  tr:last-child td { border-bottom: 0; }
+  tbody tr { transition: background 120ms var(--ease-soft); }
+  tbody tr:hover { background: var(--ui-subtle); }
+  td:first-child { color: var(--ui-ink); font-weight: 500; }
+  @media (max-width: 719px) {
+    thead { display: none; }
+    table, tbody, tr, td { display: block; }
+    tr { padding: 12px 16px; border-bottom: 1px solid var(--ui-line); }
+    tr:last-child { border-bottom: 0; }
+    td { border: 0; padding: 4px 0; }
+    td::before { content: attr(data-label); display: block; font-size: 11.5px; font-weight: 400; color: var(--ui-ink-faint); }
   }
-  .topright { display: flex; align-items: center; }
-  nav a { color: var(--muted); text-decoration: none; margin-left: 16px; font-size: 14px; }
-  nav a:hover { color: var(--text); }
-  .hero { padding: 48px 0 32px; }
-  .eyebrow { color: var(--accent); font-weight: 600; font-size: 14px; letter-spacing: .02em; }
-  h1 { font-size: clamp(28px, 5vw, 42px); line-height: 1.25; margin: 10px 0 16px; letter-spacing: -.02em; }
-  .lead { font-size: 18px; color: var(--muted); max-width: 640px; margin: 0; }
-  .pill {
-    display: inline-block; margin-top: 20px; padding: 6px 12px; border-radius: 999px;
-    background: var(--warn-soft); color: var(--warn); font-size: 13px; font-weight: 600;
+
+  details { background: var(--ui-surface); border: 1px solid var(--ui-line); border-radius: var(--radius-lg);
+    padding: 16px 20px; margin-bottom: 10px; }
+  summary { font-weight: 500; list-style: none; display: flex; align-items: center; gap: 10px; }
+  summary::-webkit-details-marker { display: none; }
+  summary svg { color: var(--ui-ink-faint); transition: transform 220ms var(--ease-soft); }
+  details[open] summary svg { transform: rotate(90deg); }
+  details p { color: var(--ui-ink-soft); margin: 10px 0 0 24px; font-size: 14.5px; }
+
+  footer { border-top: 1px solid var(--ui-line); padding: 32px 0 56px; color: var(--ui-ink-faint); font-size: 13px; }
+
+  /* Motion: hero entry + scroll reveal (Slate §Motion — landing) */
+  .rise { animation: rise .9s cubic-bezier(.22,1,.36,1) both; animation-delay: var(--d, 0ms); }
+  .beam.rise { animation: rise 1.2s cubic-bezier(.22,1,.36,1) 300ms both, beam 7s linear infinite; }
+  @keyframes rise { from { opacity: 0; transform: translateY(14px); filter: blur(10px); } }
+  @supports (animation-timeline: view()) {
+    .reveal { animation: rise linear both; animation-timeline: view(); animation-range: entry 0% entry 70%; }
   }
-  section { padding: 36px 0; border-top: 1px solid var(--line); }
-  h2 { font-size: 24px; margin: 0 0 6px; letter-spacing: -.01em; }
-  .sub { color: var(--muted); margin: 0 0 22px; }
-  .card {
-    background: var(--surface); border: 1px solid var(--line); border-radius: var(--radius);
-    padding: 18px;
+
+  @media (max-width: 719px) {
+    nav.links { display: none; }
+    .wordmark { font-size: 14px; }
+    .nodes .node { padding: 4px 7px; font-size: 11px; }
+    .seg button { padding: 0 8px; }
   }
-  .card h3 { margin: 0 0 6px; font-size: 16px; }
-  .card p { margin: 0; color: var(--muted); font-size: 14.5px; }
-  ol.steps { list-style: none; padding: 0; margin: 0; counter-reset: s; }
-  ol.steps > li {
-    position: relative; padding: 0 0 22px 44px; counter-increment: s;
-  }
-  ol.steps > li::before {
-    content: counter(s); position: absolute; left: 0; top: 0;
-    width: 28px; height: 28px; border-radius: 50%; display: grid; place-items: center;
-    background: var(--accent); color: #fff; font-weight: 700; font-size: 13px;
-  }
-  ol.steps > li::after {
-    content: ""; position: absolute; left: 13.5px; top: 30px; bottom: 4px; width: 1px; background: var(--line);
-  }
-  ol.steps > li:last-child::after { display: none; }
-  ol.steps h3 { margin: 2px 0 6px; font-size: 16px; }
-  ol.steps p { margin: 0 0 8px; color: var(--muted); font-size: 14.5px; }
-  pre, code { font-family: ui-monospace, SFMono-Regular, Menlo, Consolas, monospace; }
-  code { background: var(--code-bg); padding: 1px 6px; border-radius: 6px; font-size: .9em; overflow-wrap: anywhere; }
-  pre {
-    background: var(--code-bg); border: 1px solid var(--line); border-radius: 10px;
-    padding: 12px 14px; margin: 8px 0; overflow-x: auto; font-size: 14px;
-  }
-  pre code { background: none; padding: 0; }
-  .flow { display: grid; gap: 10px; }
-  .flow .row {
-    display: grid; grid-template-columns: 92px 1fr; gap: 12px; align-items: start;
-    background: var(--surface); border: 1px solid var(--line); border-radius: 12px; padding: 12px 14px;
-  }
-  .who { font-size: 12.5px; font-weight: 700; padding: 3px 8px; border-radius: 6px; text-align: center; }
-  .who.ai { background: var(--accent-soft); color: var(--accent); }
-  .who.broker { background: var(--ok-soft); color: var(--ok); }
-  .who.you { background: var(--warn-soft); color: var(--warn); }
-  .flow p { margin: 0; font-size: 14.5px; }
-  .two { display: grid; gap: 14px; grid-template-columns: repeat(auto-fit, minmax(260px, 1fr)); }
-  ul.check, ul.cross { margin: 0; padding: 0; list-style: none; }
-  ul.check li, ul.cross li { padding-left: 24px; position: relative; margin: 6px 0; font-size: 14.5px; }
-  ul.check li::before { content: "✓"; position: absolute; left: 0; color: var(--ok); font-weight: 700; }
-  ul.cross li::before { content: "✕"; position: absolute; left: 0; color: var(--warn); font-weight: 700; }
-  details {
-    background: var(--surface); border: 1px solid var(--line); border-radius: 12px;
-    padding: 14px 16px; margin-bottom: 10px;
-  }
-  summary { cursor: pointer; font-weight: 600; }
-  details p { color: var(--muted); margin: 10px 0 0; font-size: 14.5px; }
-  table { width: 100%; border-collapse: collapse; font-size: 14px; }
-  th, td { text-align: left; padding: 10px 8px; border-bottom: 1px solid var(--line); vertical-align: top; }
-  th { color: var(--muted); font-weight: 600; font-size: 13px; }
-  .tablewrap { overflow-x: auto; background: var(--surface); border: 1px solid var(--line); border-radius: 12px; padding: 4px 10px; }
-  footer { color: var(--muted); font-size: 13px; padding: 32px 0 48px; border-top: 1px solid var(--line); }
-  .themebtn {
-    border: 1px solid var(--line); background: var(--surface); color: var(--text);
-    border-radius: 8px; padding: 4px 10px; font-size: 13px; cursor: pointer; margin-left: 16px;
-  }
-  @media (max-width: 560px) {
-    nav a { display: none; }
-    .flow .row { grid-template-columns: 1fr; gap: 6px; }
-    .who { justify-self: start; }
+  @media (prefers-reduced-motion: reduce) {
+    *, *::before, *::after { transition: none !important; }
+    .beam, .rise, .beam.rise, .reveal, .caret, .packet, .log .ln.new { animation: none !important; }
+    .replay { display: none; }
+    html { scroll-behavior: auto; }
   }
 </style>
 </head>
 <body>
-<div class="wrap">
-  <header class="top">
-    <div class="brand"><span class="logo">A</span> AutoPay</div>
-    <div class="topright">
-      <nav>
-        <a href="#how">작동 방식</a>
-        <a href="#start">시작하기</a>
-        <a href="#safety">안전장치</a>
-        <a href="#faq">FAQ</a>
-      </nav>
-      <button class="themebtn" id="theme" type="button" aria-label="테마 전환">◐</button>
-    </div>
-  </header>
+<svg width="0" height="0" style="position:absolute" aria-hidden="true">
+  <symbol id="i-check" viewBox="0 0 24 24"><path d="M20 6 9 17l-5-5"/></symbol>
+  <symbol id="i-x" viewBox="0 0 24 24"><path d="M18 6 6 18M6 6l12 12"/></symbol>
+  <symbol id="i-chev" viewBox="0 0 24 24"><path d="m9 18 6-6-6-6"/></symbol>
+  <symbol id="i-copy" viewBox="0 0 24 24"><rect x="9" y="9" width="13" height="13" rx="2"/><path d="M5 15H4a2 2 0 0 1-2-2V4a2 2 0 0 1 2-2h9a2 2 0 0 1 2 2v1"/></symbol>
+  <symbol id="i-replay" viewBox="0 0 24 24"><path d="M3 12a9 9 0 1 0 3-6.7L3 8"/><path d="M3 3v5h5"/></symbol>
+  <symbol id="i-sun" viewBox="0 0 24 24"><circle cx="12" cy="12" r="4"/><path d="M12 2v2M12 20v2M4.9 4.9l1.4 1.4M17.7 17.7l1.4 1.4M2 12h2M20 12h2M4.9 19.1l1.4-1.4M17.7 6.3l1.4-1.4"/></symbol>
+  <symbol id="i-moon" viewBox="0 0 24 24"><path d="M12 3a6 6 0 0 0 9 9 9 9 0 1 1-9-9Z"/></symbol>
+  <symbol id="i-monitor" viewBox="0 0 24 24"><rect x="2" y="3" width="20" height="14" rx="2"/><path d="M8 21h8M12 17v4"/></symbol>
+  <symbol id="i-arrow" viewBox="0 0 24 24"><path d="M5 12h14M12 5l7 7-7 7"/></symbol>
+</svg>
 
+<header class="bar">
+  <div class="wrap">
+    <a class="wordmark" href="#top"><span class="glyph" aria-hidden="true">A</span>AutoPay</a>
+    <nav class="links" aria-label="Sections">
+      <a href="#how" data-i18n="nav.how">작동 방식</a>
+      <a href="#start" data-i18n="nav.start">시작하기</a>
+      <a href="#safety" data-i18n="nav.safety">안전장치</a>
+      <a href="#faq">FAQ</a>
+    </nav>
+    <span class="spacer"></span>
+    <div class="seg" role="group" aria-label="Language">
+      <button type="button" data-lang="ko">한국어</button>
+      <button type="button" data-lang="en">EN</button>
+    </div>
+    <div class="seg" role="group" aria-label="Theme">
+      <button type="button" data-theme-set="light" aria-label="Light" title="Light"><svg class="lucide"><use href="#i-sun"/></svg></button>
+      <button type="button" data-theme-set="dark" aria-label="Dark" title="Dark"><svg class="lucide"><use href="#i-moon"/></svg></button>
+      <button type="button" data-theme-set="system" aria-label="System" title="System"><svg class="lucide"><use href="#i-monitor"/></svg></button>
+    </div>
+  </div>
+</header>
+
+<main id="top" class="wrap">
   <div class="hero">
-    <div class="eyebrow">자율 지출 거버넌스 계층</div>
-    <h1>AI가 대신 사도,<br />통제권은 당신에게.</h1>
-    <p class="lead">
-      "이 노트북 스탠드 3만원 밑으로 사줘" — Claude가 검색·비교·체크아웃까지 하고,
-      AutoPay가 정한 한도 안에서만 결제를 허락하며, 모든 시도를 기록하고 즉시 알립니다.
-      AI는 어떤 결제 비밀에도 닿지 않습니다.
-    </p>
-    <span class="pill">프로토타입 · 쿠팡(쿠페이) 우선 지원</span>
+    <div>
+      <span class="badge rise" style="--d:0ms" data-i18n="hero.badge">프로토타입 · 쿠팡(쿠페이) 우선 지원</span>
+      <h1 style="margin-top:20px">
+        <span class="rise" style="--d:120ms;display:block" data-i18n="hero.t1">AI가 대신 사도,</span>
+        <span class="rise" style="--d:260ms;display:block" data-i18n="hero.t2">통제권은 당신에게.</span>
+      </h1>
+      <p class="lead rise" style="--d:400ms" data-i18n="hero.lead">Claude가 검색·비교·체크아웃까지 하고, AutoPay는 정한 한도 안에서만 결제를 허락하며 모든 시도를 기록하고 즉시 알립니다. AI는 어떤 결제 비밀에도 닿지 않습니다.</p>
+      <div class="actions rise" style="--d:520ms">
+        <a class="btn primary" href="#start"><span data-i18n="hero.cta">시작하기</span><svg class="lucide"><use href="#i-arrow"/></svg></a>
+        <a class="btn ghost" href="https://github.com/code0xff/autopay">GitHub</a>
+      </div>
+    </div>
+
+    <div class="beam rise">
+      <div class="trace">
+        <div class="trace-head">
+          <p class="eyebrow" data-i18n="trace.title">실제 도구 호출 · 쿠팡 8,900원</p>
+          <button class="replay" type="button" id="replay"><svg class="lucide"><use href="#i-replay"/></svg><span data-i18n="trace.replay">다시 보기</span></button>
+        </div>
+        <div class="nodes" id="nodes" aria-hidden="true">
+          <span class="node" data-i18n="node.you">나</span>
+          <span class="node">Claude Code</span>
+          <span class="node">AutoPay</span>
+          <span class="node" data-i18n="node.shop">쿠팡</span>
+        </div>
+        <div class="log" id="log">
+<div class="ln"><span class="k">user    </span><span data-i18n="log.ask">"아이패드 에어2 검정 케이스 주문해줘"</span></div>
+<div class="ln"><span class="req">→ request_payment</span> <span class="k">{ totalAmount:</span> 8900<span class="k">, method:</span> "coupay" <span class="k">}</span></div>
+<div class="ln"><span class="k">  verify</span>  <span data-i18n="log.verify">최종 결제 금액</span> 8,900 = 8,900</div>
+<div class="ln"><span class="k">  policy</span>  allow <span class="k">· perTransaction ≤</span> 20,000</div>
+<div class="ln"><span class="k">← </span>{ requestId: "17ec3585-…" }</div>
+<div class="ln"><span class="k">  pay   </span>  <span data-i18n="log.pay">[결제하기] → 비밀번호 재요구</span></div>
+<div class="ln"><span class="wrn">! enter_password_on_page</span>  <span class="k">page_locked_during_payment</span></div>
+<div class="ln"><span class="k">  you   </span>  <span data-i18n="log.you">결제 탭에서 직접 입력</span></div>
+<div class="ln"><span class="okc">← get_payment_result</span>  approved<span class="caret" aria-hidden="true"></span></div>
+        </div>
+      </div>
+    </div>
   </div>
 
-  <section id="how">
-    <h2>작동 방식</h2>
-    <p class="sub">AI는 "무엇을·언제" 사는지 준비하고, 결제의 문지기는 AutoPay와 당신입니다.</p>
-    <div class="flow">
-      <div class="row"><span class="who you">나</span><p>Claude Code에 "○○ 사줘"라고 말합니다.</p></div>
-      <div class="row"><span class="who ai">AI 에이전트</span><p>쿠팡에서 검색·비교하고 상품을 골라 체크아웃 화면까지 진입한 뒤, 결제를 <b>요청</b>합니다.</p></div>
-      <div class="row"><span class="who broker">AutoPay</span><p>화면의 실제 금액을 직접 읽어 요청과 대조하고, 한도·횟수·머천트·결제수단 정책을 검사합니다. 벗어나면 거절.</p></div>
-      <div class="row"><span class="who you">나</span><p>정책이 요구하면 사이드패널에서 승인. 쿠팡이 비밀번호를 다시 요구하면 알림이 오고, 결제 탭에서 <b>직접</b> 입력합니다.</p></div>
-      <div class="row"><span class="who broker">AutoPay</span><p>주문 완료를 독립적으로 확인하고, 알림을 보내고, 감사 로그에 남깁니다.</p></div>
+  <section id="how" class="reveal">
+    <div class="shead">
+      <p class="eyebrow" data-i18n="how.eyebrow">작동 방식</p>
+      <h2 data-i18n="how.title">AI는 준비하고, 결제의 문지기는 AutoPay와 당신입니다.</h2>
+    </div>
+    <div class="rows four">
+      <div class="cell"><span class="badge who" data-i18n="node.you">나</span><h3 data-i18n="how.1t">요청</h3><p data-i18n="how.1p">Claude Code에 "○○ 사줘"라고 말합니다.</p></div>
+      <div class="cell"><span class="badge who">Claude Code</span><h3 data-i18n="how.2t">준비</h3><p data-i18n="how.2p">쿠팡에서 검색·비교하고 체크아웃까지 진입해 결제를 요청만 합니다.</p></div>
+      <div class="cell"><span class="badge who">AutoPay</span><h3 data-i18n="how.3t">검증</h3><p data-i18n="how.3p">화면의 실제 금액을 직접 읽어 대조하고 한도·횟수·머천트·결제수단을 검사합니다.</p></div>
+      <div class="cell"><span class="badge who">AutoPay</span><h3 data-i18n="how.4t">기록</h3><p data-i18n="how.4p">주문 완료를 독립적으로 확인하고 알림과 감사 로그를 남깁니다.</p></div>
     </div>
   </section>
 
-  <section id="start">
-    <h2>시작하기</h2>
-    <p class="sub">필요한 것: Node 20+, pnpm 9, Chrome, Claude Code.</p>
+  <section id="start" class="reveal">
+    <div class="shead">
+      <p class="eyebrow" data-i18n="start.eyebrow">시작하기</p>
+      <h2 data-i18n="start.title">한 줄 설치, 네 번의 확인.</h2>
+      <p class="lead" data-i18n="start.lead">필요한 것: Node 20+, pnpm 9, Chrome, Claude Code.</p>
+    </div>
     <ol class="steps">
-      <li>
-        <h3>한 줄로 설치·빌드</h3>
-        <p>저장소 루트에서 실행하면 의존성 설치, 빌드, 연결 토큰 준비(클립보드에 복사)까지 끝납니다.</p>
-        <pre><code>pnpm bootstrap</code></pre>
-      </li>
-      <li>
-        <h3>Chrome에 익스텐션 로드</h3>
-        <p><code>chrome://extensions</code> → 개발자 모드 → "압축해제된 확장 프로그램 로드" →
-          <code>packages/broker-extension/.output/chrome-mv3</code>. 다시 빌드한 뒤에는 새로고침 ⟳만 누르면 됩니다.</p>
-      </li>
-      <li>
-        <h3>옵션에서 연결 · 한도 설정</h3>
-        <p><b>MCP 브리지</b>에 토큰을 붙여넣고(이미 클립보드에 있음), <b>결제 한도</b>를 저장하세요.
-          기본값은 0원이라 설정 전에는 모든 결제가 거절됩니다. 상단 <b>시작하기</b> 카드가 남은 단계를 보여줍니다.</p>
-      </li>
-      <li>
-        <h3>쿠팡 준비</h3>
-        <p>쿠팡에 직접 로그인하고, 쿠팡 앱에서 원터치 결제를 켜 둡니다. AutoPay는 로그인 정보를 다루지 않습니다.</p>
-      </li>
-      <li>
-        <h3>Claude Code에서 요청</h3>
-        <p>저장소 폴더에서 Claude Code를 실행(이미 실행 중이면 재시작)하고 말하면 됩니다.</p>
-        <pre><code>아이패드 에어2 검정 케이스 쿠팡에서 주문해줘</code></pre>
-      </li>
+      <li><div>
+        <h3 data-i18n="s1.t">설치·빌드</h3>
+        <p data-i18n="s1.p">의존성 설치, 빌드, 연결 토큰 준비까지 끝납니다. 토큰은 화면에 출력하지 않고 클립보드에만 복사됩니다.</p>
+        <div class="copy"><code>pnpm bootstrap</code><button type="button" data-copy="pnpm bootstrap"><svg class="lucide"><use href="#i-copy"/></svg><span data-i18n="copy">복사</span></button></div>
+      </div></li>
+      <li><div>
+        <h3 data-i18n="s2.t">Chrome에 익스텐션 로드</h3>
+        <p data-i18n="s2.p">개발자 모드에서 "압축해제된 확장 프로그램 로드"로 아래 폴더를 선택합니다. 다시 빌드한 뒤에는 새로고침만 누르면 됩니다.</p>
+        <div class="copy"><code>packages/broker-extension/.output/chrome-mv3</code><button type="button" data-copy="packages/broker-extension/.output/chrome-mv3"><svg class="lucide"><use href="#i-copy"/></svg><span data-i18n="copy">복사</span></button></div>
+      </div></li>
+      <li><div>
+        <h3 data-i18n="s3.t">연결과 한도</h3>
+        <p data-i18n="s3.p">옵션의 MCP 브리지에 토큰을 붙여넣고 결제 한도를 저장합니다. 기본값은 0원이라 설정 전에는 모든 결제가 거절됩니다. 상단 "시작하기" 카드가 남은 단계를 보여줍니다.</p>
+      </div></li>
+      <li><div>
+        <h3 data-i18n="s4.t">쿠팡 준비</h3>
+        <p data-i18n="s4.p">쿠팡에 직접 로그인하고 쿠팡 앱에서 원터치 결제를 켭니다. AutoPay는 로그인 정보를 다루지 않습니다.</p>
+      </div></li>
+      <li><div>
+        <h3 data-i18n="s5.t">Claude Code에서 요청</h3>
+        <p data-i18n="s5.p">저장소 폴더에서 Claude Code를 실행하고 말하면 됩니다.</p>
+        <div class="copy say"><span data-i18n="s5.c">아이패드 에어2 검정 케이스 쿠팡에서 주문해줘</span></div>
+      </div></li>
     </ol>
   </section>
 
-  <section id="safety">
-    <h2>안전장치</h2>
-    <p class="sub">"AI를 막는 것"이 아니라 "AI가 훔칠 비밀 자체가 없게" 설계했습니다.</p>
-    <div class="two">
-      <div class="card">
-        <h3>AutoPay가 하는 일</h3>
-        <ul class="check">
-          <li>건당·일·월 한도와 일 횟수 제한</li>
-          <li>허용 쇼핑몰·결제수단 제한</li>
-          <li>화면의 실제 금액을 직접 읽어 대조</li>
-          <li>승인 후 상품·금액이 바뀌면 결제 중단</li>
-          <li>결제 진행 중 AI의 페이지 조작 잠금</li>
-          <li>모든 시도(성공·거절·실패) 기록과 즉시 알림</li>
+  <section id="safety" class="reveal">
+    <div class="shead">
+      <p class="eyebrow" data-i18n="safe.eyebrow">안전장치</p>
+      <h2 data-i18n="safe.title">AI를 막는 대신, 훔칠 비밀이 없게 만들었습니다.</h2>
+    </div>
+    <div class="rows two">
+      <div class="cell">
+        <h3 data-i18n="safe.yes">AutoPay가 하는 일</h3>
+        <ul class="list yes">
+          <li><svg class="lucide"><use href="#i-check"/></svg><span data-i18n="y1">건당·일·월 한도와 일 횟수 제한</span></li>
+          <li><svg class="lucide"><use href="#i-check"/></svg><span data-i18n="y2">허용 쇼핑몰·결제수단 제한</span></li>
+          <li><svg class="lucide"><use href="#i-check"/></svg><span data-i18n="y3">화면의 실제 금액을 직접 읽어 대조</span></li>
+          <li><svg class="lucide"><use href="#i-check"/></svg><span data-i18n="y4">승인 후 상품·금액이 바뀌면 결제 중단</span></li>
+          <li><svg class="lucide"><use href="#i-check"/></svg><span data-i18n="y5">결제 진행 중 AI의 페이지 조작 잠금</span></li>
+          <li><svg class="lucide"><use href="#i-check"/></svg><span data-i18n="y6">모든 시도 기록과 즉시 알림</span></li>
         </ul>
       </div>
-      <div class="card">
-        <h3>AutoPay·AI가 절대 하지 않는 일</h3>
-        <ul class="cross">
-          <li>결제 비밀번호·카드번호 저장이나 입력</li>
-          <li>보안 키패드 조작, 이상거래탐지 우회</li>
-          <li>로그인 정보 저장이나 입력</li>
-          <li>AI에게 비밀을 돌려주는 API</li>
+      <div class="cell">
+        <h3 data-i18n="safe.no">AutoPay와 AI가 하지 않는 일</h3>
+        <ul class="list no">
+          <li><svg class="lucide"><use href="#i-x"/></svg><span data-i18n="n1">결제 비밀번호·카드번호 저장이나 입력</span></li>
+          <li><svg class="lucide"><use href="#i-x"/></svg><span data-i18n="n2">보안 키패드 조작, 이상거래탐지 우회</span></li>
+          <li><svg class="lucide"><use href="#i-x"/></svg><span data-i18n="n3">로그인 정보 저장이나 입력</span></li>
+          <li><svg class="lucide"><use href="#i-x"/></svg><span data-i18n="n4">AI에게 비밀을 돌려주는 API</span></li>
         </ul>
       </div>
     </div>
   </section>
 
-  <section id="modes">
-    <h2>결제 경로별 사람 개입</h2>
-    <p class="sub">국내 결제수단은 자동 승인을 막도록 설계되어 있어, 경로마다 사람이 하는 일이 다릅니다.</p>
-    <div class="tablewrap">
+  <section id="modes" class="reveal">
+    <div class="shead">
+      <p class="eyebrow" data-i18n="modes.eyebrow">결제 경로</p>
+      <h2 data-i18n="modes.title">경로마다 사람이 하는 일이 다릅니다.</h2>
+      <p class="lead" data-i18n="modes.lead">국내 결제수단은 자동 승인을 막도록 설계되어 있습니다. 그 단계는 결제사의 보안 장치라 없애지 않습니다.</p>
+    </div>
+    <div class="table">
       <table>
-        <thead><tr><th>경로</th><th>사람이 하는 일</th><th>상태</th></tr></thead>
+        <thead><tr><th data-i18n="th.route">경로</th><th data-i18n="th.human">사람이 하는 일</th><th data-i18n="th.status">상태</th></tr></thead>
         <tbody>
-          <tr><td>쿠팡 원터치 (쿠페이)</td><td>평소엔 없음. 쿠팡이 비밀번호를 재요구하면 결제 탭에서 직접 입력</td><td>지원</td></tr>
-          <tr><td>카카오페이 · 토스페이</td><td>폰 앱에서 지문/PIN 승인 (원격에서도 가능)</td><td>준비 중</td></tr>
-          <tr><td>빌링키 (구독)</td><td>최초 1회 인증 후 무인</td><td>후순위 · 가맹점 계약 필요</td></tr>
+          <tr>
+            <td data-label="경로" data-i18n="r1.a">쿠팡 원터치 (쿠페이)</td>
+            <td data-label="사람이 하는 일" data-i18n="r1.b">평소엔 없음. 쿠팡이 비밀번호를 재요구하면 결제 탭에서 직접 입력</td>
+            <td data-label="상태"><span class="badge ok"><span class="dot"></span><span data-i18n="st.ok">지원</span></span></td>
+          </tr>
+          <tr>
+            <td data-label="경로" data-i18n="r2.a">카카오페이 · 토스페이</td>
+            <td data-label="사람이 하는 일" data-i18n="r2.b">폰 앱에서 지문이나 PIN으로 승인 (원격에서도 가능)</td>
+            <td data-label="상태"><span class="badge warn"><span class="dot"></span><span data-i18n="st.wip">준비 중</span></span></td>
+          </tr>
+          <tr>
+            <td data-label="경로" data-i18n="r3.a">빌링키 (구독)</td>
+            <td data-label="사람이 하는 일" data-i18n="r3.b">최초 1회 인증 후 무인</td>
+            <td data-label="상태"><span class="badge"><span class="dot"></span><span data-i18n="st.later">후순위 · 가맹점 계약 필요</span></span></td>
+          </tr>
         </tbody>
       </table>
     </div>
   </section>
 
-  <section id="faq">
-    <h2>FAQ</h2>
-    <details>
-      <summary>결제 중에 비밀번호 입력창이 떴어요.</summary>
-      <p>원터치가 켜져 있어도 쿠팡이 위험도를 판단해 비밀번호를 다시 요구할 수 있습니다(쿠팡의 보안 기능). AutoPay가 알림을 보내면 그 결제 탭에서 본인이 직접 입력하세요. 약 3분 안에 입력하면 결제가 완료되고 기록됩니다.</p>
-    </details>
-    <details>
-      <summary>비밀번호를 설정에 넣어 두면 자동으로 입력해 줄 수 있나요?</summary>
-      <p>아니요. 비밀번호를 저장하는 순간 "AI가 훔칠 비밀이 없다"는 전제가 깨지고, 보안 키패드를 대신 누르는 것은 결제사의 보안 통제를 우회하는 일입니다. 텔레그램 같은 원격 채널로 전달하는 것도 같은 이유로 지원하지 않습니다. 원격 승인이 필요하면 폰 승인 결제수단(카카오·토스)이 그 역할을 합니다.</p>
-    </details>
-    <details>
-      <summary>결제가 모두 "거절"돼요.</summary>
-      <p>설치 직후 한도가 0원(전부 거절)이기 때문입니다. 옵션의 "결제 한도"에서 건당·일·월 한도와 일 횟수를 정하고 저장하세요.</p>
-    </details>
-    <details>
-      <summary>"브리지 연결 안 됨"이라고 나와요.</summary>
-      <p>옵션의 MCP 브리지에 토큰이 등록되어 있는지, Claude Code가 저장소 폴더에서 실행 중인지 확인하세요. 토큰이 기억나지 않으면 <code>pnpm bootstrap</code>을 다시 실행하면 클립보드에 복사됩니다. 익스텐션을 다시 빌드했다면 <code>chrome://extensions</code>에서 새로고침하세요.</p>
-    </details>
-    <details>
-      <summary>패스프레이즈 잠금 해제는 꼭 해야 하나요?</summary>
-      <p>쿠팡만 쓴다면 필요 없습니다. 카카오·토스 결제에 쓰는 본인 식별 정보(휴대폰·생년월일)를 암호화하는 키입니다.</p>
-    </details>
-    <details>
-      <summary>다른 AI 브라우저 익스텐션과 같이 써도 되나요?</summary>
-      <p>AutoPay는 다른 익스텐션의 권한을 제한할 수 없습니다. 쿠키·사이트 접근 권한이 있는 AI 익스텐션은 로그인 세션을 읽을 수 있으니, 자동 쇼핑용 브라우저 프로필을 따로 쓰는 것을 권장합니다.</p>
-    </details>
+  <section id="faq" class="reveal">
+    <div class="shead">
+      <p class="eyebrow">FAQ</p>
+      <h2 data-i18n="faq.title">자주 묻는 질문</h2>
+    </div>
+    <details><summary><svg class="lucide"><use href="#i-chev"/></svg><span data-i18n="q1">결제 중에 비밀번호 입력창이 떴어요.</span></summary>
+      <p data-i18n="a1">원터치가 켜져 있어도 쿠팡이 위험도를 판단해 비밀번호를 다시 요구할 수 있습니다. AutoPay가 알림을 보내면 그 결제 탭에서 본인이 직접 입력하세요. 약 3분 안에 입력하면 결제가 완료되고 기록됩니다.</p></details>
+    <details><summary><svg class="lucide"><use href="#i-chev"/></svg><span data-i18n="q2">비밀번호를 설정에 넣어 두면 대신 입력해 줄 수 있나요?</span></summary>
+      <p data-i18n="a2">아니요. 비밀번호를 저장하는 순간 "AI가 훔칠 비밀이 없다"는 전제가 깨지고, 보안 키패드를 대신 누르는 것은 결제사의 보안 통제를 우회하는 일입니다. 텔레그램 같은 원격 채널로 전달하는 것도 같은 이유로 지원하지 않습니다. 원격 승인이 필요하면 폰 승인 결제수단이 그 역할을 합니다.</p></details>
+    <details><summary><svg class="lucide"><use href="#i-chev"/></svg><span data-i18n="q3">결제가 모두 거절돼요.</span></summary>
+      <p data-i18n="a3">설치 직후 한도가 0원이기 때문입니다. 옵션의 결제 한도에서 건당·일·월 한도와 일 횟수를 정하고 저장하세요.</p></details>
+    <details><summary><svg class="lucide"><use href="#i-chev"/></svg><span data-i18n="q4">브리지가 연결되지 않아요.</span></summary>
+      <p data-i18n="a4">옵션의 MCP 브리지에 토큰이 등록되어 있는지, Claude Code가 저장소 폴더에서 실행 중인지 확인하세요. pnpm bootstrap을 다시 실행하면 토큰이 클립보드에 복사됩니다. 익스텐션을 다시 빌드했다면 chrome://extensions에서 새로고침하세요.</p></details>
+    <details><summary><svg class="lucide"><use href="#i-chev"/></svg><span data-i18n="q5">패스프레이즈 잠금 해제는 꼭 해야 하나요?</span></summary>
+      <p data-i18n="a5">쿠팡만 쓴다면 필요 없습니다. 카카오·토스 결제에 쓰는 본인 식별 정보를 암호화하는 키입니다.</p></details>
+    <details><summary><svg class="lucide"><use href="#i-chev"/></svg><span data-i18n="q6">다른 AI 브라우저 익스텐션과 같이 써도 되나요?</span></summary>
+      <p data-i18n="a6">AutoPay는 다른 익스텐션의 권한을 제한할 수 없습니다. 쿠키·사이트 접근 권한이 있는 AI 익스텐션은 로그인 세션을 읽을 수 있으니, 자동 쇼핑용 브라우저 프로필을 따로 쓰는 것을 권장합니다.</p></details>
   </section>
+</main>
 
-  <footer>
-    AutoPay는 개발 중인 프로토타입입니다. 실제 결제 전 정책 한도를 반드시 확인하세요.
-    자세한 설계: <code>AGENTS.md</code> · <code>docs/spec/</code>
-  </footer>
-</div>
+<footer>
+  <div class="wrap" data-i18n="footer">AutoPay는 개발 중인 프로토타입입니다. 실제 결제 전 정책 한도를 반드시 확인하세요. 폰트: Wanted Sans, JetBrains Mono (SIL OFL 1.1).</div>
+</footer>
+
 <script>
-  (function () {
-    var root = document.documentElement;
-    try {
-      var saved = localStorage.getItem("autopay-site-theme");
-      if (saved) root.setAttribute("data-theme", saved);
-    } catch (e) {}
-    document.getElementById("theme").addEventListener("click", function () {
-      var cur = root.getAttribute("data-theme");
-      var dark = cur ? cur === "dark" : matchMedia("(prefers-color-scheme: dark)").matches;
-      var next = dark ? "light" : "dark";
-      root.setAttribute("data-theme", next);
-      try { localStorage.setItem("autopay-site-theme", next); } catch (e) {}
+(function () {
+  var root = document.documentElement;
+
+  // ── i18n: 한국어는 마크업이 원본, 영어는 사전 ──
+  var EN = {
+    "nav.how": "How it works", "nav.start": "Get started", "nav.safety": "Safety",
+    "hero.badge": "Prototype · Coupang (Coupay) first",
+    "hero.t1": "AI does the buying.", "hero.t2": "You keep control.",
+    "hero.lead": "Claude searches, compares and reaches checkout. AutoPay allows a payment only within the limits you set, records every attempt and tells you at once. The AI never touches a payment secret.",
+    "hero.cta": "Get started",
+    "trace.title": "Real tool calls · Coupang ₩8,900", "trace.replay": "Replay",
+    "node.you": "You", "node.shop": "Coupang",
+    "log.ask": "\"Order a black iPad Air 2 case\"", "log.verify": "final amount",
+    "log.pay": "[Pay] → password asked again", "log.you": "types it in the checkout tab",
+    "how.eyebrow": "How it works", "how.title": "The AI prepares. AutoPay and you hold the gate.",
+    "how.1t": "Ask", "how.1p": "Tell Claude Code what to buy.",
+    "how.2t": "Prepare", "how.2p": "It searches Coupang, compares, reaches checkout, and only requests the payment.",
+    "how.3t": "Verify", "how.3p": "AutoPay reads the real amount on screen and checks limits, counts, merchants and payment methods.",
+    "how.4t": "Record", "how.4p": "It confirms the order independently, notifies you and writes the audit log.",
+    "start.eyebrow": "Get started", "start.title": "One command, four checks.",
+    "start.lead": "You need Node 20+, pnpm 9, Chrome and Claude Code.",
+    "s1.t": "Install and build", "s1.p": "Installs dependencies, builds everything and prepares the pairing token. The token is copied to the clipboard, never printed.",
+    "s2.t": "Load the extension in Chrome", "s2.p": "In developer mode, choose \"Load unpacked\" and pick this folder. After a rebuild, just press reload.",
+    "s3.t": "Pair and set limits", "s3.p": "Paste the token into MCP Bridge in the options page and save your payment limits. The default is ₩0, so every payment is refused until you do. The Getting started card lists what's left.",
+    "s4.t": "Prepare Coupang", "s4.p": "Log in to Coupang yourself and turn on one-touch payment in the Coupang app. AutoPay never handles login details.",
+    "s5.t": "Ask in Claude Code", "s5.p": "Run Claude Code in the repository folder and ask.", "s5.c": "Order a black iPad Air 2 case from Coupang",
+    "copy": "Copy",
+    "safe.eyebrow": "Safety", "safe.title": "Instead of fencing the AI in, there is nothing for it to steal.",
+    "safe.yes": "What AutoPay does", "y1": "Per-payment, daily and monthly limits, plus a daily count", "y2": "Allowed merchants and payment methods",
+    "y3": "Reads the real amount on screen and compares", "y4": "Stops if the item or amount changes after approval",
+    "y5": "Locks the AI out of the page while a payment runs", "y6": "Records every attempt and notifies at once",
+    "safe.no": "What AutoPay and the AI never do", "n1": "Store or type payment passwords or card numbers",
+    "n2": "Operate secure keypads or evade fraud detection", "n3": "Store or type login details", "n4": "Offer any API that returns a secret",
+    "modes.eyebrow": "Payment routes", "modes.title": "Each route asks something different of you.",
+    "modes.lead": "Korean payment methods are built to stop automated approval. That step is the provider's safeguard, and it stays.",
+    "th.route": "Route", "th.human": "What you do", "th.status": "Status",
+    "r1.a": "Coupang one-touch (Coupay)", "r1.b": "Usually nothing. If Coupang asks for the password again, type it in the checkout tab",
+    "r2.a": "KakaoPay · Toss Pay", "r2.b": "Approve with fingerprint or PIN in the phone app (works remotely)",
+    "r3.a": "Billing key (subscriptions)", "r3.b": "Verify once, then unattended",
+    "st.ok": "Supported", "st.wip": "In progress", "st.later": "Later · merchant contract needed",
+    "faq.title": "Questions",
+    "q1": "A password prompt appeared during payment.", "a1": "Even with one-touch on, Coupang may ask for the password again based on risk. When AutoPay notifies you, type it yourself in that checkout tab. Within about three minutes the payment completes and is recorded.",
+    "q2": "Could AutoPay type the password if I store it in settings?", "a2": "No. Storing it breaks the premise that there is no secret for the AI to steal, and pressing a secure keypad on your behalf bypasses the provider's controls. Relaying it through a remote channel such as Telegram is out for the same reason. For remote approval, phone-approved payment methods fill that role.",
+    "q3": "Every payment is refused.", "a3": "Limits start at ₩0. Set per-payment, daily and monthly limits and a daily count in the options page, then save.",
+    "q4": "The bridge won't connect.", "a4": "Check that the token is registered under MCP Bridge and that Claude Code is running in the repository folder. Running pnpm bootstrap again copies the token to the clipboard. After a rebuild, reload the extension at chrome://extensions.",
+    "q5": "Do I have to unlock with a passphrase?", "a5": "Not if you only use Coupang. It is the key that encrypts the identity details used for KakaoPay and Toss Pay.",
+    "q6": "Can I use it alongside other AI browser extensions?", "a6": "AutoPay cannot limit another extension's permissions. An AI extension with cookie or site access can read your logged-in sessions, so use a separate browser profile for automated shopping.",
+    "footer": "AutoPay is a prototype in development. Check your policy limits before any real payment. Fonts: Wanted Sans, JetBrains Mono (SIL OFL 1.1)."
+  };
+  var KO = {};
+  document.querySelectorAll("[data-i18n]").forEach(function (el) {
+    var k = el.getAttribute("data-i18n");
+    if (!(k in KO)) KO[k] = el.textContent;
+  });
+  var labels = { ko: ["경로", "사람이 하는 일", "상태"], en: ["Route", "What you do", "Status"] };
+  function setLang(lang) {
+    var dict = lang === "en" ? EN : KO;
+    document.querySelectorAll("[data-i18n]").forEach(function (el) {
+      var v = dict[el.getAttribute("data-i18n")];
+      if (v != null) el.textContent = v;
     });
-  })();
+    document.querySelectorAll("tbody tr").forEach(function (tr) {
+      tr.querySelectorAll("td").forEach(function (td, i) { td.setAttribute("data-label", labels[lang][i]); });
+    });
+    root.setAttribute("lang", lang);
+    document.title = lang === "en" ? "AutoPay — Getting started" : "AutoPay 시작 가이드";
+    document.querySelectorAll("[data-lang]").forEach(function (b) {
+      b.setAttribute("aria-pressed", String(b.getAttribute("data-lang") === lang));
+    });
+    try { localStorage.setItem("autopay-site-lang", lang); } catch (e) {}
+  }
+  document.querySelectorAll("[data-lang]").forEach(function (b) {
+    b.addEventListener("click", function () { setLang(b.getAttribute("data-lang")); });
+  });
+  setLang(root.getAttribute("lang") === "en" ? "en" : "ko");
+
+  // ── Theme: light / dark / system ──
+  var mq = matchMedia("(prefers-color-scheme: dark)");
+  function applyTheme(pref) {
+    var dark = pref === "dark" || (pref === "system" && mq.matches);
+    root.setAttribute("data-theme", dark ? "dark" : "light");
+    root.setAttribute("data-theme-pref", pref);
+    document.querySelectorAll("[data-theme-set]").forEach(function (b) {
+      b.setAttribute("aria-pressed", String(b.getAttribute("data-theme-set") === pref));
+    });
+  }
+  document.querySelectorAll("[data-theme-set]").forEach(function (b) {
+    b.addEventListener("click", function () {
+      var pref = b.getAttribute("data-theme-set");
+      try { localStorage.setItem("autopay-site-theme", pref); } catch (e) {}
+      applyTheme(pref);
+    });
+  });
+  mq.addEventListener("change", function () {
+    if (root.getAttribute("data-theme-pref") === "system") applyTheme("system");
+  });
+  applyTheme(root.getAttribute("data-theme-pref") || "system");
+
+  // ── Copy fields ──
+  document.querySelectorAll("[data-copy]").forEach(function (b) {
+    b.addEventListener("click", function () {
+      var label = b.querySelector("span");
+      var prev = label.textContent;
+      (navigator.clipboard ? navigator.clipboard.writeText(b.getAttribute("data-copy")) : Promise.reject())
+        .then(function () { label.textContent = root.lang === "en" ? "Copied" : "복사됨"; })
+        .catch(function () {})
+        .then(function () { setTimeout(function () { label.textContent = prev; }, 1400); });
+    });
+  });
+
+  // ── Protocol trace: 완성된 교환을 먼저 보여주고(4.6s 유지), 비운 뒤 0.5s 후
+  //    1.3s 간격으로 한 줄씩 재생. 숨은 탭·JS 실패 시에도 완성 상태가 보인다. ──
+  var reduce = matchMedia("(prefers-reduced-motion: reduce)").matches;
+  var lines = Array.prototype.slice.call(document.querySelectorAll("#log .ln"));
+  var nodes = Array.prototype.slice.call(document.querySelectorAll("#nodes .node"));
+  var nodesBox = document.getElementById("nodes");
+  var pos = ["12.5%", "37.5%", "62.5%", "87.5%"];
+  var C = { req: "var(--ui-accent)", wrn: "var(--ui-warn)", ok: "var(--ui-ok)" };
+  // 로그 줄마다 [보낸 노드, 받는 노드, 색] — 요청 accent, 사람 개입 warn, 완료 ok
+  var hops = [[0, 1, C.req], [1, 2, C.req], [2, 3, C.req], null, [2, 1, C.req], [2, 3, C.req], [2, 0, C.wrn], [0, 3, C.wrn], [2, 1, C.ok]];
+  var timers = [];
+  function later(fn, ms) { timers.push(setTimeout(fn, ms)); }
+  function hop(h) {
+    if (!h) return;
+    var p = document.createElement("span");
+    p.className = "packet";
+    p.style.setProperty("--from", pos[h[0]]);
+    p.style.setProperty("--to", pos[h[1]]);
+    p.style.setProperty("--c", h[2]);
+    nodesBox.appendChild(p);
+    later(function () {
+      p.remove();
+      var n = nodes[h[1]];
+      n.style.setProperty("--lit", h[2]);
+      n.classList.add("lit");
+      later(function () { n.classList.remove("lit"); }, 500);
+    }, 950);
+  }
+  function play() {
+    timers.forEach(clearTimeout); timers = [];
+    nodesBox.querySelectorAll(".packet").forEach(function (p) { p.remove(); });
+    lines.forEach(function (l) { l.classList.add("hidden"); l.classList.remove("new"); });
+    later(function () {
+      lines.forEach(function (l, i) {
+        later(function () { l.classList.remove("hidden"); l.classList.add("new"); hop(hops[i]); }, i * 1300);
+      });
+      later(function () { later(play, 4600); }, lines.length * 1300);
+    }, 500);
+  }
+  document.getElementById("replay").addEventListener("click", play);
+  if (!reduce) later(play, 4600);
+})();
 </script>
 </body>
 </html>
