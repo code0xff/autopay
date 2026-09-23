@@ -53,10 +53,12 @@ export function App() {
         />
       )}
 
-      {state?.locked && (
+      {/* locked는 "메모리에 PII 복호화 키가 없다"는 뜻일 뿐이라 워커 재시작마다 true다 —
+          키가 실제로 필요한 순간(카카오·토스 승인 대기)에만 해제 카드를 띄운다. */}
+      {state?.locked && state.pending.some((p) => p.method !== "coupay") && (
         <div className="body">
           <div className="muted" style={{ fontSize: 12, marginBottom: 6 }}>
-            카카오·토스 결제 시에만 필요
+            카카오·토스 결제를 진행하려면 본인 식별 정보 잠금을 해제하세요
           </div>
           <Unlock locked={state.locked} onDone={refresh} />
         </div>
