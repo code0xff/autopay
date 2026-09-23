@@ -413,3 +413,7 @@ tbody tr:hover {
   opacity: 0.45;
   cursor: not-allowed;
 }
+.badge.neutral {
+  background: var(--subtle);
+  color: var(--ink-soft);
+}

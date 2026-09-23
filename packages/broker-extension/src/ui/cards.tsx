@@ -227,7 +227,7 @@ const OUTCOME: Record<AuditRecord["outcome"], { label: string; tone: string }> =
   approved: { label: "완료", tone: "ok" },
   rejected: { label: "거절", tone: "danger" },
   failed: { label: "실패", tone: "danger" },
-  canceled: { label: "취소", tone: "" },
+  canceled: { label: "취소", tone: "neutral" },
   timeout: { label: "시간 초과", tone: "warn" },
   confirm_required: { label: "승인 대기", tone: "info" },
 };
