@@ -93,3 +93,9 @@ accounts for development or testing.
 M0 (skeleton), M1 (extension) and M2 (MCP bridge core) are complete and
 verified. M3 (live selectors for real payments) and M4 (billing keys) still need
 live integration. See [docs/status.md](docs/status.md).
+
+## License
+
+[Apache License 2.0](LICENSE). The self-hosted fonts under `docs/site/fonts/` (Wanted Sans,
+JetBrains Mono) are distributed under the SIL Open Font License 1.1; their licence files sit
+beside them.
