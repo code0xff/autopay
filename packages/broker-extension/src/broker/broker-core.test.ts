@@ -106,6 +106,7 @@ describe("BrokerCore", () => {
   it("1. 스키마 위반 → failed(invalid_request), 결제 시도 아님", async () => {
     const { broker } = setup({});
     const { requestId } = await broker.requestPayment({ bogus: true });
+    await broker.idle(); // 실행은 백그라운드 — 완료 대기
     expect(await broker.getPaymentResult(requestId)).toEqual({
       status: "failed",
       error: "invalid_request",
@@ -124,6 +125,7 @@ describe("BrokerCore", () => {
       }),
     });
     const { requestId } = await broker.requestPayment(validReq);
+    await broker.idle(); // 실행은 백그라운드 — 완료 대기
     expect(await broker.getPaymentResult(requestId)).toEqual({
       status: "rejected",
       violation: "over_per_transaction",
@@ -140,8 +142,10 @@ describe("BrokerCore", () => {
       }),
     });
     const { requestId } = await broker.requestPayment(validReq);
+    await broker.idle(); // 실행은 백그라운드 — 완료 대기
     expect((await broker.getPaymentResult(requestId)).status).toBe("pending_user_confirmation");
     await broker.resolveConfirmation(requestId, true);
+    await broker.idle(); // 실행은 백그라운드 — 완료 대기
     expect((await broker.getPaymentResult(requestId)).status).toBe("approved");
     expect((await audit.usageFor(NOW)).spentToday).toBe(20_000);
   });
@@ -155,6 +159,7 @@ describe("BrokerCore", () => {
       }),
     });
     const { requestId } = await broker.requestPayment(validReq);
+    await broker.idle(); // 실행은 백그라운드 — 완료 대기
     expect((await broker.getPaymentResult(requestId)).status).toBe("approved");
     expect((await audit.usageFor(NOW)).spentToday).toBe(20_000);
   });
@@ -166,7 +171,9 @@ describe("BrokerCore", () => {
       }),
     });
     const { requestId } = await broker.requestPayment(validReq);
+    await broker.idle(); // 실행은 백그라운드 — 완료 대기
     await broker.resolveConfirmation(requestId, false);
+    await broker.idle(); // 실행은 백그라운드 — 완료 대기
     expect(await broker.getPaymentResult(requestId)).toEqual({
       status: "canceled",
       reason: "user_declined",
@@ -184,6 +191,7 @@ describe("BrokerCore", () => {
       },
     });
     const { requestId } = await broker.requestPayment(validReq);
+    await broker.idle(); // 실행은 백그라운드 — 완료 대기
     expect(await broker.getPaymentResult(requestId)).toEqual({
       status: "rejected",
       violation: "merchant_not_allowed",
@@ -196,6 +204,7 @@ describe("BrokerCore", () => {
       identity: { phone: "01012345678", birth: "19900101" },
     });
     const { requestId } = await broker.requestPayment({ ...validReq, method: "kakaopay" });
+    await broker.idle(); // 실행은 백그라운드 — 완료 대기
     expect((await broker.getPaymentResult(requestId)).status).toBe("approved");
     const bodies = chrome.mock.calls.map((c) => c[0].body).join(" ");
     expect(bodies).toContain("폰에서");
@@ -204,6 +213,7 @@ describe("BrokerCore", () => {
   it("7. 패턴 B 프로필 없음 → failed(no_profile)", async () => {
     const { broker } = setup({ adapters: kakaoAdapters(), identity: null });
     const { requestId } = await broker.requestPayment({ ...validReq, method: "kakaopay" });
+    await broker.idle(); // 실행은 백그라운드 — 완료 대기
     expect(await broker.getPaymentResult(requestId)).toEqual({
       status: "failed",
       error: "no_profile",
@@ -216,6 +226,7 @@ describe("BrokerCore", () => {
       identity: { phone: "01012345678", birth: "19900101" },
     });
     const { requestId } = await broker.requestPayment({ ...validReq, method: "kakaopay" });
+    await broker.idle(); // 실행은 백그라운드 — 완료 대기
     expect(await broker.getPaymentResult(requestId)).toEqual({
       status: "failed",
       error: "timeout",
@@ -228,6 +239,7 @@ describe("BrokerCore", () => {
       identity: { phone: "01012345678", birth: "19900101" },
     });
     const { requestId } = await broker.requestPayment({ ...validReq, method: "kakaopay" });
+    await broker.idle(); // 실행은 백그라운드 — 완료 대기
     expect(await broker.getPaymentResult(requestId)).toEqual({
       status: "canceled",
       reason: "phone_declined",
@@ -240,6 +252,7 @@ describe("BrokerCore", () => {
       identity: { phone: "01012345678", birth: "19900101" },
     });
     const { requestId } = await broker.requestPayment({ ...validReq, method: "kakaopay" });
+    await broker.idle(); // 실행은 백그라운드 — 완료 대기
     expect(await broker.getPaymentResult(requestId)).toEqual({
       status: "canceled",
       reason: "content_changed",
@@ -261,10 +274,12 @@ describe("BrokerCore", () => {
       }),
     });
     const { requestId } = await broker.requestPayment(validReq);
+    await broker.idle(); // 실행은 백그라운드 — 완료 대기
     const pending = await broker.listPending();
     expect(pending).toHaveLength(1);
     expect(pending[0]).toMatchObject({ requestId, merchant: "쿠팡", amount: 20_000 });
     await broker.resolveConfirmation(requestId, true);
+    await broker.idle(); // 실행은 백그라운드 — 완료 대기
     expect(await broker.listPending()).toHaveLength(0);
   });
 
@@ -275,6 +290,7 @@ describe("BrokerCore", () => {
       }),
     });
     const { requestId } = await broker.requestPayment(validReq);
+    await broker.idle(); // 실행은 백그라운드 — 완료 대기
     expect((await broker.getPaymentResult(requestId)).status).toBe("pending_user_confirmation");
     await broker.expireStaleConfirmations(0); // ttl 0 → 즉시 만료
     expect(await broker.getPaymentResult(requestId)).toEqual({
@@ -297,6 +313,7 @@ describe("BrokerCore", () => {
       }),
     });
     const { requestId } = await broker.requestPayment(validReq); // 20,000 → confirm(pending)
+    await broker.idle(); // 실행은 백그라운드 — 완료 대기
     expect((await broker.getPaymentResult(requestId)).status).toBe("pending_user_confirmation");
     // confirm 대기 사이 다른 결제로 오늘 사용액이 20,000 소진됨
     await audit.append({
@@ -309,6 +326,7 @@ describe("BrokerCore", () => {
       outcome: "approved",
     });
     await broker.resolveConfirmation(requestId, true); // 20k+20k=40k > daily 30k
+    await broker.idle(); // 실행은 백그라운드 — 완료 대기
     expect(await broker.getPaymentResult(requestId)).toEqual({
       status: "rejected",
       violation: "over_daily",
@@ -360,13 +378,16 @@ describe("BrokerCore", () => {
     const worker2 = mk(pay2);
 
     const { requestId } = await worker1.requestPayment(validReq); // coupay → confirm(pending)
+    await worker1.idle(); // 실행은 백그라운드 — 완료 대기
     const p1 = worker1.resolveConfirmation(requestId, true); // executing=true 저장 후 pay1(hang)
     await new Promise((r) => setTimeout(r, 0)); // executing 저장 완료 대기
     await worker2.resolveConfirmation(requestId, true); // 재시작된 워커가 재실행 시도
+    await worker2.idle(); // 실행은 백그라운드 — 완료 대기
 
     expect(pay2).not.toHaveBeenCalled(); // 두 번째 결제는 일어나지 않음
     release();
     await p1;
+    await worker1.idle();
     expect(pay1).toHaveBeenCalledTimes(1);
   });
 
@@ -409,6 +430,7 @@ describe("BrokerCore", () => {
       });
     const worker1 = mkAt(NOW);
     const { requestId } = await worker1.requestPayment(validReq); // confirm(pending)
+    await worker1.idle(); // 실행은 백그라운드 — 완료 대기
     void worker1.resolveConfirmation(requestId, true); // executing=true 저장 후 pay(hang) — 워커1 "사망"
     await new Promise((r) => setTimeout(r, 0)); // executing 저장 완료 대기
 
@@ -460,6 +482,7 @@ describe("BrokerCore", () => {
       });
     const worker1 = mkAt(NOW);
     const { requestId } = await worker1.requestPayment(validReq);
+    await worker1.idle(); // 실행은 백그라운드 — 완료 대기
     void worker1.resolveConfirmation(requestId, true);
     await new Promise((r) => setTimeout(r, 0));
 
@@ -482,11 +505,32 @@ describe("BrokerCore", () => {
       return { status: "approved", orderId: "#9001", amount: 20_000 };
     });
     const { requestId } = await broker.requestPayment(validReq);
+    await broker.idle(); // 실행은 백그라운드 — 완료 대기
     expect(await broker.getPaymentResult(requestId)).toMatchObject({ status: "approved" });
     expect(lockedDuringHandoff).toBe(true);
     expect(await broker.hasActiveExecution()).toBe(false); // 종료 후 잠금 해제
     const kinds = chrome.mock.calls.map((c) => c[1].kind);
     expect(kinds).toEqual(["enter_password_on_page", "completed"]);
+  });
+
+  // 셀프 리뷰(2026-09-23): 실행을 기다리면 MCP 허브 30s 타임아웃에 걸려 에이전트가
+  // requestId를 잃는다(비번 핸드오프는 사람 입력만큼 걸림) — 즉시 반환해야 한다.
+  it("20. allow 경로도 결제 완료를 기다리지 않고 requestId를 즉시 반환(pending 폴링)", async () => {
+    let release!: () => void;
+    const hang = new Promise<void>((r) => {
+      release = r;
+    });
+    const adapter = fakeAdapter({ method: "coupay", hasExternalApproval: false });
+    adapter.pay = vi.fn(async (): Promise<PayOutcome> => {
+      await hang; // 사용자가 비번을 입력하는 중
+      return { status: "approved", orderId: "#7", amount: 20_000 };
+    });
+    const { broker } = setup({ adapters: { coupay: adapter } });
+    const { requestId } = await broker.requestPayment(validReq); // hang 중에도 반환돼야 함
+    expect((await broker.getPaymentResult(requestId)).status).toBe("pending_user_confirmation");
+    release();
+    await broker.idle();
+    expect((await broker.getPaymentResult(requestId)).status).toBe("approved");
   });
 
   it("13. notifyOnRejection=false → 거절 알림 미발송", async () => {
@@ -502,6 +546,7 @@ describe("BrokerCore", () => {
       }),
     });
     await broker.requestPayment(validReq);
+    await broker.idle(); // 실행은 백그라운드 — 완료 대기
     expect(chrome).not.toHaveBeenCalled();
   });
 });

@@ -29,6 +29,9 @@ import { z } from "zod";
 import { PaymentRequest, PaymentResult, PaymentMethod } from "shared";
 
 // requestPayment: 결제 실행 "요청"만. 비밀 접근 아님.
+//   결제 실행(폰 승인·비번 핸드오프 대기 포함)은 백그라운드로 돌고 requestId는
+//   정책 판정 직후 즉시 반환된다 — 결과는 getPaymentResult로 폴링(MCP 허브 호출
+//   타임아웃 30s보다 실행이 길 수 있으므로 기다리지 않는다, 2026-09-23).
 export const RequestPaymentReq = PaymentRequest;
 export const RequestPaymentRes = z.object({ requestId: z.string() });
 

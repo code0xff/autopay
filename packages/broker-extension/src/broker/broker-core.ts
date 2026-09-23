@@ -72,6 +72,7 @@ export class BrokerCore {
   private readonly idgen: () => string;
   private readonly payTimeoutMs: number;
   private readonly inFlight = new Set<string>(); // 같은 워커 내 중복 실행 방지
+  private readonly running = new Set<Promise<void>>(); // 백그라운드 실행(idle() 대기용)
 
   constructor(private readonly deps: BrokerDeps) {
     this.now = deps.now ?? (() => new Date());
@@ -162,8 +163,24 @@ export class BrokerCore {
     }
 
     await this.saveState(requestId, state);
-    await this.execute(requestId);
+    this.startExecution(requestId);
     return { requestId };
+  }
+
+  /** 결제 실행을 백그라운드로 시작한다 — 호출부(requestPayment/resolveConfirmation)는
+   *  실행 완료를 기다리지 않는다. 실행은 폰 승인·비번 핸드오프(executor.md §3.2)로
+   *  payTimeoutMs(기본 180s)까지 걸릴 수 있는데, 기다리면 MCP 허브 호출
+   *  타임아웃(30s)에 걸려 에이전트가 requestId를 잃고, UI RPC 직렬 큐가 그동안
+   *  막힌다. 결과는 getPaymentResult 폴링으로 확인한다. execute는 자체적으로
+   *  모든 예외를 종단 상태로 수렴시킨다. */
+  private startExecution(requestId: string): void {
+    const run = this.execute(requestId).finally(() => this.running.delete(run));
+    this.running.add(run);
+  }
+
+  /** 백그라운드 실행이 모두 끝날 때까지 대기(테스트·종료 처리용). */
+  async idle(): Promise<void> {
+    while (this.running.size > 0) await Promise.allSettled([...this.running]);
   }
 
   private async reject(
@@ -193,7 +210,7 @@ export class BrokerCore {
       await this.setResult(requestId, state, { status: "canceled", reason: "user_declined" });
       return; // 사용자가 직접 거절 — 별도 알림 불필요
     }
-    await this.execute(requestId);
+    this.startExecution(requestId);
   }
 
   async getPaymentResult(requestId: string): Promise<PaymentResult> {
