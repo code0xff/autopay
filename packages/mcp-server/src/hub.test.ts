@@ -34,8 +34,14 @@ function once(ws: WebSocket, event: "message"): Promise<unknown> {
   });
 }
 
-async function startHub(): Promise<{ hub: Hub; port: number }> {
-  const h = new Hub({ token: TOKEN, port: 0, authTimeoutMs: 200, callTimeoutMs: 300 });
+async function startHub(idleTimeoutMs?: number): Promise<{ hub: Hub; port: number }> {
+  const h = new Hub({
+    token: TOKEN,
+    port: 0,
+    authTimeoutMs: 200,
+    callTimeoutMs: 300,
+    idleTimeoutMs,
+  });
   await h.start();
   hub = h;
   // ws는 port:0으로 os가 실제 포트를 배정 — wss 내부 서버 주소에서 읽는다.
@@ -148,5 +154,50 @@ describe("Hub", () => {
     client.send(JSON.stringify({ type: "auth", token: TOKEN, extra: "x" })); // strict 위반
     await new Promise((r) => setTimeout(r, 50));
     expect(h.connected).toBe(false);
+  });
+
+  it("10. 인증된 연결의 ping에는 pong으로 응답(spec §4.1)", async () => {
+    const { port } = await startHub();
+    const ws = await connect(port);
+    ws.send(JSON.stringify({ type: "auth", token: TOKEN }));
+    await once(ws, "message");
+    ws.send(JSON.stringify({ type: "ping" }));
+    expect(await once(ws, "message")).toEqual({ type: "pong" });
+  });
+
+  it("11. 인증 전 ping에는 응답하지 않는다(미인증 연결 부수효과 없음, §10)", async () => {
+    const { port } = await startHub();
+    const ws = await connect(port);
+    const got: unknown[] = [];
+    ws.on("message", (d: Buffer) => got.push(JSON.parse(d.toString())));
+    ws.send(JSON.stringify({ type: "ping" }));
+    await new Promise((r) => setTimeout(r, 100));
+    expect(got).toEqual([]);
+  });
+
+  it("12. 유휴 연결은 강제 종료되고 슬롯이 비어 새 연결이 인증된다(half-open 방지)", async () => {
+    const { hub: h, port } = await startHub(150);
+    const stale = await connect(port);
+    stale.send(JSON.stringify({ type: "auth", token: TOKEN }));
+    await once(stale, "message");
+    expect(h.connected).toBe(true);
+    await new Promise<void>((r) => stale.once("close", () => r()));
+    await new Promise((r) => setTimeout(r, 20)); // 서버 측 close 이벤트가 뒤따라 처리될 시간
+    expect(h.connected).toBe(false);
+    const fresh = await connect(port);
+    fresh.send(JSON.stringify({ type: "auth", token: TOKEN }));
+    expect(await once(fresh, "message")).toEqual({ type: "auth_result", ok: true });
+  });
+
+  it("13. ping이 계속 오면 유휴 종료되지 않는다", async () => {
+    const { hub: h, port } = await startHub(150);
+    const ws = await connect(port);
+    ws.send(JSON.stringify({ type: "auth", token: TOKEN }));
+    await once(ws, "message");
+    for (let i = 0; i < 4; i++) {
+      await new Promise((r) => setTimeout(r, 80));
+      ws.send(JSON.stringify({ type: "ping" }));
+    }
+    expect(h.connected).toBe(true);
   });
 });

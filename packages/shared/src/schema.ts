@@ -289,5 +289,10 @@ export const BridgeFrame = z.discriminatedUnion("type", [
   z.object({ type: z.literal("auth_result"), ok: z.boolean() }).strict(),
   z.object({ type: z.literal("call"), call: BridgeToolCall }).strict(),
   z.object({ type: z.literal("result"), result: BridgeToolResult }).strict(),
+  // 생존 확인(spec §4.1): 익스텐션이 ping, 허브가 pong.
+  z
+    .object({ type: z.literal("ping") })
+    .strict(),
+  z.object({ type: z.literal("pong") }).strict(),
 ]);
 export type BridgeFrame = z.infer<typeof BridgeFrame>;

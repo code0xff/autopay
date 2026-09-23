@@ -140,6 +140,12 @@ describe("bridge protocol schemas", () => {
     expect(BridgeFrame.safeParse({ type: "auth", token: "a".repeat(32) }).success).toBe(true);
   });
 
+  it("8b. BridgeFrame — ping/pong 프레임 허용, 미지 필드는 거절(spec §4.1)", () => {
+    expect(BridgeFrame.safeParse({ type: "ping" }).success).toBe(true);
+    expect(BridgeFrame.safeParse({ type: "pong" }).success).toBe(true);
+    expect(BridgeFrame.safeParse({ type: "ping", extra: 1 }).success).toBe(false);
+  });
+
   it("9. BridgeFrame — call 프레임은 내부 BridgeToolCall도 검증", () => {
     const frame = {
       type: "call",

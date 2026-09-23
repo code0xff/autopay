@@ -1,8 +1,8 @@
 import type { BridgeToolCall, BridgeToolResult } from "@autopay/shared";
-import { describe, expect, it, vi } from "vitest";
+import { afterEach, describe, expect, it, vi } from "vitest";
 import { BridgeClient, type WebSocketLike } from "./ws-client.js";
 
-// docs/spec/mcp-integration.md §5·§10 테스트 케이스
+// docs/spec/mcp-integration.md §4.1·§5·§10 테스트 케이스
 
 class FakeSocket implements WebSocketLike {
   sent: string[] = [];
@@ -145,5 +145,133 @@ describe("BridgeClient", () => {
     sock?.close();
     expect(client.connected).toBe(false);
     expect(onStatusChange).toHaveBeenCalledWith(false);
+  });
+});
+
+// 생존 확인·자동 재접속(spec §4.1) — 가짜 타이머로 주기·백오프를 결정적으로 검증.
+describe("BridgeClient heartbeat & reconnect", () => {
+  afterEach(() => {
+    vi.useRealTimers();
+  });
+
+  function setup() {
+    vi.useFakeTimers();
+    const socks: FakeSocket[] = [];
+    const onStatusChange = vi.fn();
+    const client = new BridgeClient({
+      url: "ws://x",
+      token: "a".repeat(32),
+      onCall: vi.fn(),
+      onStatusChange,
+      pingIntervalMs: 20_000,
+      pongTimeoutMs: 10_000,
+      reconnectBaseMs: 1_000,
+      reconnectMaxMs: 30_000,
+      wsFactory: () => {
+        const s = new FakeSocket();
+        socks.push(s);
+        return s;
+      },
+    });
+    const last = () => socks[socks.length - 1] as FakeSocket;
+    const authOk = () => last().receive({ type: "auth_result", ok: true });
+    return { client, socks, last, authOk, onStatusChange };
+  }
+
+  const pings = (s: FakeSocket) => s.sent.filter((d) => d === JSON.stringify({ type: "ping" }));
+
+  it("7. 인증 후 주기마다 ping 전송, 인증 전엔 보내지 않음", () => {
+    const { client, last, authOk } = setup();
+    client.connect();
+    vi.advanceTimersByTime(60_000);
+    expect(pings(last())).toHaveLength(0);
+    authOk();
+    vi.advanceTimersByTime(20_000);
+    expect(pings(last())).toHaveLength(1);
+    last().receive({ type: "pong" });
+    vi.advanceTimersByTime(20_000);
+    expect(pings(last())).toHaveLength(2);
+    client.disconnect();
+  });
+
+  it("8. pong이 제때 오면 연결 유지", () => {
+    const { client, socks, last, authOk } = setup();
+    client.connect();
+    authOk();
+    for (let i = 0; i < 5; i++) {
+      vi.advanceTimersByTime(20_000);
+      last().receive({ type: "pong" });
+    }
+    expect(client.connected).toBe(true);
+    expect(socks).toHaveLength(1);
+    client.disconnect();
+  });
+
+  it("9. pong 미수신 → 소켓 종료·connected=false → 백오프 후 새 소켓으로 재접속", () => {
+    const { client, socks, last, authOk, onStatusChange } = setup();
+    client.connect();
+    authOk();
+    vi.advanceTimersByTime(20_000 + 10_000); // ping 후 응답 없음
+    expect(socks[0]?.closed).toBe(true);
+    expect(client.connected).toBe(false);
+    expect(onStatusChange).toHaveBeenLastCalledWith(false);
+    vi.advanceTimersByTime(1_000);
+    expect(socks).toHaveLength(2);
+    last().onopen?.();
+    expect(last().sent[0]).toBe(JSON.stringify({ type: "auth", token: "a".repeat(32) }));
+    authOk();
+    expect(client.connected).toBe(true);
+    client.disconnect();
+  });
+
+  it("10. 허브 측 종료(close) → 자동 재접속, 실패가 이어지면 지수 백오프(상한 30s)", () => {
+    const { client, socks, last } = setup();
+    client.connect();
+    const delays = [1_000, 2_000, 4_000, 8_000, 16_000, 30_000, 30_000];
+    for (const d of delays) {
+      const before = socks.length;
+      last().close(); // 접속 실패/끊김
+      vi.advanceTimersByTime(d - 1);
+      expect(socks.length).toBe(before);
+      vi.advanceTimersByTime(1);
+      expect(socks.length).toBe(before + 1);
+    }
+    client.disconnect();
+  });
+
+  it("11. 인증 성공 시 백오프 초기화", () => {
+    const { client, socks, last, authOk } = setup();
+    client.connect();
+    last().close();
+    vi.advanceTimersByTime(1_000);
+    last().close();
+    vi.advanceTimersByTime(2_000);
+    authOk();
+    last().close();
+    const before = socks.length;
+    vi.advanceTimersByTime(1_000);
+    expect(socks.length).toBe(before + 1);
+    client.disconnect();
+  });
+
+  it("12. 의도적 disconnect()는 재접속하지 않는다", () => {
+    const { client, socks, authOk } = setup();
+    client.connect();
+    authOk();
+    client.disconnect();
+    vi.advanceTimersByTime(120_000);
+    expect(socks).toHaveLength(1);
+    expect(pings(socks[0] as FakeSocket)).toHaveLength(0);
+  });
+
+  it("13. 재접속 대기 중 connect()를 다시 부르면 중복 소켓 없이 즉시 1개만 연다", () => {
+    const { client, socks, last } = setup();
+    client.connect();
+    last().close();
+    client.connect(); // 예: 토큰 재등록
+    expect(socks).toHaveLength(2);
+    vi.advanceTimersByTime(60_000);
+    expect(socks).toHaveLength(2);
+    client.disconnect();
   });
 });
