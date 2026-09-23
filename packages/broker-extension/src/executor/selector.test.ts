@@ -137,6 +137,15 @@ describe("resolveIn — label 스킴(금액)", () => {
       "16,300원",
     );
   });
+
+  it("[2026-09-23 회귀] 라벨이 강조 태그로 한 겹 더 감싸여도(direct text가 아니어도) 잡는다", () => {
+    // amount_parse_failed 재현: 라벨이 <b>총 결제 금액</b>처럼 감싸여 있으면
+    // 예전 구현(정확한 direct text만 매치)은 아예 못 찾고 null을 반환했다.
+    const wrapped = `
+      <div><b>총 결제 금액</b></div>
+      <span>16,300원</span>`;
+    expect(resolveIn(doc(wrapped), "label:총 결제 금액")?.textContent).toBe("16,300원");
+  });
 });
 
 describe("resolveIn — after 스킴(비금액)", () => {

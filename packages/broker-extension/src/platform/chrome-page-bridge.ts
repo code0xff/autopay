@@ -79,9 +79,44 @@ export function pageOp(
     const amountOnly = sel.startsWith("label:");
     const lit = xpLiteral(sel.slice(6));
     const cond = amountOnly ? '[contains(text(),"원")]' : '[normalize-space(text())!=""]';
-    el = xp(`//*[normalize-space(text())=${lit}]/following::*${cond}[1]`);
-    // 라이브 함정: "총 결제 금액" 뒤에 숫자 없는 빈 "원" 노드가 온다 → 금액성 검증.
-    if (el && amountOnly && !/[\d,]{2,}\s*원/.test((el.textContent ?? "").trim())) el = null;
+    // 2026-09-23: 라벨을 정확한 direct text(normalize-space(text())=)로만 찾다가
+    // 실제 쿠팡 DOM에서 라벨이 강조 태그로 한 겹 더 감싸여 있어(direct text
+    // child가 아니게 됨) 통째로 못 찾고 amount_parse_failed로 이어진 실사용
+    // 버그가 있었다. contains(normalize-space(.),…) + 가장 안쪽 + 화면에 보이는
+    // 요소로 라벨을 앵커해 selector.ts findAfterLabel과 동일하게 맞춘다.
+    let labelEl: Element | null = null;
+    try {
+      const r = document.evaluate(
+        `//*[contains(normalize-space(.),${lit})][not(.//*[contains(normalize-space(.),${lit})])]`,
+        document,
+        null,
+        7,
+        null,
+      );
+      for (let i = 0; i < r.snapshotLength && !labelEl; i++) {
+        const cand = r.snapshotItem(i) as Element;
+        if (cand.checkVisibility({ visibilityProperty: true, opacityProperty: true }))
+          labelEl = cand;
+      }
+    } catch {
+      labelEl = null;
+    }
+    if (labelEl) {
+      try {
+        el =
+          (document.evaluate(`following::*${cond}[1]`, labelEl, null, 9, null)
+            .singleNodeValue as Element) ?? null;
+      } catch {
+        el = null;
+      }
+    }
+    // 라이브 함정: 라벨 뒤에 숫자 없는 빈 "원" 노드가 올 수 있다 → 금액성 검증.
+    if (
+      el &&
+      (!el.checkVisibility({ visibilityProperty: true, opacityProperty: true }) ||
+        (amountOnly && !/[\d,]{2,}\s*원/.test((el.textContent ?? "").trim())))
+    )
+      el = null;
   } else {
     const css = sel.startsWith("css:") ? sel.slice(4) : sel;
     try {

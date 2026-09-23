@@ -94,17 +94,35 @@ function isVisible(el: Element): boolean {
 }
 
 /** 라벨 뒤 문서순 첫 요소. amountOnly면 "…원"인 것만.
- *  (label:최종 결제 금액 → "3,650원" / after:주문번호 → "8842-1179") */
+ *  (label:총 결제 금액 → "16,300원" / after:주문번호 → "8842-1179")
+ *  ⚠️ 2026-09-23: 라벨 자체를 예전엔 정확한 direct text(`normalize-space(text())=`)로만
+ *  찾았는데, 실제 쿠팡 DOM에서 라벨이 강조 태그·아이콘 등으로 한 겹 더 감싸여
+ *  있으면(direct text child가 아니게 되면) 이 매칭이 조용히 실패해 amount_parse_failed로
+ *  이어졌다(실사용 중 발견). findByContains와 같은 전략(부분 포함 + 가장 안쪽 +
+ *  화면에 보이는 요소)으로 라벨을 앵커해 더 안정적으로 만든다. */
 function findAfterLabel(doc: Document, label: string, amountOnly: boolean): Element | null {
   const lit = xpLiteral(label);
   const cond = amountOnly ? '[contains(text(),"원")]' : '[normalize-space(text())!=""]';
-  const xp = tryXPath(doc, `//*[normalize-space(text())=${lit}]/following::*${cond}[1]`);
-  // 라이브 함정: 쿠팡은 "총 결제 금액" 뒤에 숫자 없는 빈 "원" 노드가 온다.
-  // XPath contains()는 그걸 잡으므로 금액성 검증을 통과할 때만 채택한다.
-  if (xp && (!amountOnly || AMOUNT_RE.test((xp.textContent ?? "").trim()))) return xp;
-  // 폴백: 전체 순회에서 라벨 위치를 찾고 그 이후 첫 리프.
+  const labelSnap = trySnapshot(
+    doc,
+    `//*[contains(normalize-space(.),${lit})][not(.//*[contains(normalize-space(.),${lit})])]`,
+  );
+  const labelEl = (labelSnap ?? []).find(isVisible) ?? null;
+  if (labelEl) {
+    const xp = tryXPath(labelEl, `following::*${cond}[1]`);
+    // 라이브 함정: 쿠팡은 라벨 뒤에 숫자 없는 빈 "원" 노드가 올 수 있다.
+    // XPath contains()는 그걸 잡으므로 금액성 검증을 통과할 때만 채택한다.
+    if (xp && isVisible(xp) && (!amountOnly || AMOUNT_RE.test((xp.textContent ?? "").trim())))
+      return xp;
+  }
+  // 폴백(XPath 미지원 또는 위에서 못 찾음): 전체 순회에서 라벨(부분 포함, 가장
+  // 안쪽) 위치를 찾고 그 이후 첫 리프.
   const all = Array.from(doc.querySelectorAll("*"));
-  const idx = all.findIndex((el) => (el.textContent ?? "").trim() === label);
+  const idx = all.findIndex(
+    (el) =>
+      (el.textContent ?? "").includes(label) &&
+      !Array.from(el.children).some((c) => (c.textContent ?? "").includes(label)),
+  );
   if (idx < 0) return null;
   for (let i = idx + 1; i < all.length; i++) {
     const el = all[i];
@@ -117,11 +135,15 @@ function findAfterLabel(doc: Document, label: string, amountOnly: boolean): Elem
   return null;
 }
 
-function tryXPath(doc: Document, query: string): Element | null {
-  const evaluate = (doc as { evaluate?: Document["evaluate"] }).evaluate;
-  if (typeof evaluate !== "function") return null; // linkedom 등 XPath 미지원
+/** context가 Document면 그 문서 전체(절대경로 //)에, Element면 그 요소 기준
+ *  상대경로(예: following::*)에 평가한다 — 라벨 요소를 찾은 뒤 "그 요소부터
+ *  이후" 같은 상대 탐색을 하기 위함. */
+function tryXPath(context: Node, query: string): Element | null {
+  const doc = (context.nodeType === 9 ? context : context.ownerDocument) as Document | null;
+  const evaluate = (doc as { evaluate?: Document["evaluate"] } | null)?.evaluate;
+  if (typeof evaluate !== "function" || !doc) return null; // linkedom 등 XPath 미지원
   try {
-    const r = evaluate.call(doc, query, doc, null, 9 /* FIRST_ORDERED_NODE_TYPE */, null);
+    const r = evaluate.call(doc, query, context, null, 9 /* FIRST_ORDERED_NODE_TYPE */, null);
     return (r.singleNodeValue as Element | null) ?? null;
   } catch {
     return null;
