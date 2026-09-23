@@ -35,6 +35,8 @@ docs/                         설계·스펙·규범 (spec/ 12종)
 
 ## 빠른 시작
 
+> 사용자용 가이드 페이지: [`docs/site/index.html`](docs/site/index.html) (브라우저로 열기, 정적 단일 파일)
+
 요구: Node 20+, pnpm 9, Chrome, Claude Code.
 
 ```bash
