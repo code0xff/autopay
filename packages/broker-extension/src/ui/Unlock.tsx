@@ -6,14 +6,9 @@ import { unlock } from "./rpc-client.js";
 export function Unlock({ locked, onDone }: { locked: boolean; onDone: () => void }) {
   const [pass, setPass] = useState("");
   const [err, setErr] = useState("");
-  if (!locked)
-    return (
-      <div className="card badge ok" style={{ marginBottom: 14 }}>
-        잠금 해제됨
-      </div>
-    );
+  if (!locked) return <div className="card badge ok">잠금 해제됨</div>;
   return (
-    <div className="card" style={{ marginBottom: 14 }}>
+    <div className="card">
       <div className="label" style={{ marginBottom: 8 }}>
         잠금 해제 (PII 암호화 키)
       </div>

@@ -153,26 +153,54 @@ label[for] {
   flex: 1;
 }
 .tabs {
+  /* Slate Segmented — 알약 안의 알약, 선택된 탭은 반전(primary 바탕) */
   display: flex;
-  gap: 4px;
-  padding: 8px 12px 0;
-  border-bottom: 1px solid var(--line);
+  gap: 2px;
+  margin: 12px 16px 0;
+  padding: 3px;
+  border: 1px solid var(--line-strong);
+  border-radius: 999px;
+  background: var(--surface);
 }
 .tabs button {
+  flex: 1;
   font: inherit;
   font-size: 13px;
   font-weight: 500;
   border: 0;
   background: transparent;
   color: var(--ink-soft);
-  padding: 8px 10px;
-  border-bottom: 2px solid transparent;
-  margin-bottom: -1px;
-  transition: color 180ms var(--ease-soft), border-color 180ms var(--ease-soft);
+  height: 32px;
+  border-radius: 999px;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  gap: 6px;
+  transition: background-color 180ms var(--ease-soft), color 180ms var(--ease-soft);
+}
+.tabs button:hover {
+  color: var(--ink);
 }
 .tabs button[aria-selected="true"] {
-  color: var(--ink);
-  border-bottom-color: var(--accent);
+  background: var(--primary);
+  color: var(--on-primary);
+}
+.tabs .count {
+  min-width: 18px;
+  height: 18px;
+  padding: 0 5px;
+  border-radius: 999px;
+  background: var(--warn);
+  color: var(--surface);
+  font-size: 11px;
+  font-weight: 600;
+  display: inline-grid;
+  place-items: center;
+  font-variant-numeric: tabular-nums;
+}
+.shell.wide {
+  max-width: 680px;
+  margin: 0 auto;
 }
 .body {
   padding: 16px;

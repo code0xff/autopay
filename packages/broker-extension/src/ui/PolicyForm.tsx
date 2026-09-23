@@ -29,7 +29,7 @@ export function PolicyForm({ policy, onSaved }: { policy: PaymentPolicy; onSaved
   }, [JSON.stringify(policy)]);
 
   return (
-    <div className="card" style={{ marginBottom: 14 }}>
+    <div className="card">
       <div className="label" style={{ marginBottom: 10 }}>
         결제 한도
       </div>
