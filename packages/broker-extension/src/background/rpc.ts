@@ -4,10 +4,6 @@ import { z } from "zod";
 // UI(Side Panel/Options) ↔ background 내부 RPC. 같은 익스텐션이라도 인바운드를
 // zod 검증(fail-closed). 비밀은 반환하지 않는다(hasProfile 같은 상태만).
 
-export const IdentityInput = z
-  .object({ phone: z.string().min(1), birth: z.string().min(1) })
-  .strict();
-
 export const RpcRequest = z.discriminatedUnion("type", [
   z.object({ type: z.literal("getState") }).strict(),
   z.object({ type: z.literal("setPolicy"), policy: PaymentPolicy }).strict(),
@@ -21,7 +17,6 @@ export const RpcRequest = z.discriminatedUnion("type", [
       limit: z.number().int().min(1).max(50),
     })
     .strict(),
-  z.object({ type: z.literal("setProfile"), identity: IdentityInput }).strict(),
   z
     .object({
       type: z.literal("resolveConfirmation"),

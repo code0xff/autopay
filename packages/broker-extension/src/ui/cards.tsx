@@ -1,7 +1,7 @@
 import type { AuditRecord } from "@autopay/shared";
 import { useEffect, useState } from "react";
 import type { UiState } from "../background/compose.js";
-import { getAudit, setBridgeToken, setProfile } from "./rpc-client.js";
+import { getAudit, setBridgeToken } from "./rpc-client.js";
 
 // 탭 앱(AppShell)의 카드들 — 홈·기록·설정 탭에서 쓴다.
 
@@ -94,67 +94,6 @@ export function SiteAccessNotice() {
       >
         확인함
       </button>
-    </div>
-  );
-}
-
-export function ProfileForm({
-  hasProfile,
-  locked,
-  onSaved,
-}: {
-  hasProfile: boolean;
-  locked: boolean;
-  onSaved: () => void;
-}) {
-  const [phone, setPhone] = useState("");
-  const [birth, setBirth] = useState("");
-  return (
-    <div className="card">
-      <div className="label" style={{ marginBottom: 4 }}>
-        본인 식별 정보 (패턴 B)
-      </div>
-      <div className="muted" style={{ fontSize: 12, marginBottom: 10 }}>
-        암호화 저장, 로그에 남기지 않음. {hasProfile ? "· 저장됨" : ""}
-      </div>
-      {locked ? (
-        <div className="badge warn">먼저 잠금 해제하세요</div>
-      ) : (
-        <>
-          <div className="grid2">
-            <label className="field">
-              <span>휴대폰</span>
-              <input
-                className="input mono"
-                type="password"
-                value={phone}
-                onChange={(e) => setPhone(e.target.value)}
-              />
-            </label>
-            <label className="field">
-              <span>생년월일</span>
-              <input
-                className="input mono"
-                type="password"
-                value={birth}
-                onChange={(e) => setBirth(e.target.value)}
-              />
-            </label>
-          </div>
-          <button
-            type="button"
-            className="btn btn-primary btn-block"
-            onClick={async () => {
-              await setProfile({ phone, birth });
-              setPhone("");
-              setBirth("");
-              onSaved();
-            }}
-          >
-            저장
-          </button>
-        </>
-      )}
     </div>
   );
 }

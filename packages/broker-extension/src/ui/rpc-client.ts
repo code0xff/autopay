@@ -16,8 +16,6 @@ export const unlock = (passphrase: string) => rpc({ type: "unlock", passphrase }
 export const lock = () => rpc({ type: "lock" });
 export const getAudit = (offset: number, limit: number) =>
   rpc<{ records: AuditRecord[]; total: number }>({ type: "getAudit", offset, limit });
-export const setProfile = (identity: { phone: string; birth: string }) =>
-  rpc({ type: "setProfile", identity });
 export const resolveConfirmation = (requestId: string, approved: boolean) =>
   rpc({ type: "resolveConfirmation", requestId, approved });
 export const setBridgeToken = (token: string) => rpc({ type: "setBridgeToken", token });

@@ -3,7 +3,7 @@ import type { UiState } from "../background/compose.js";
 import { PolicyForm } from "./PolicyForm.js";
 import { ThemeToggle } from "./ThemeToggle.js";
 import { LockButton, LockScreen } from "./Unlock.js";
-import { AuditTable, BridgeCard, GettingStarted, ProfileForm, SiteAccessNotice } from "./cards.js";
+import { AuditTable, BridgeCard, GettingStarted, SiteAccessNotice } from "./cards.js";
 import { getState, resolveConfirmation } from "./rpc-client.js";
 
 // 사이드패널과 옵션 페이지가 같은 탭 앱을 띄운다 — 화면이 겹치거나 한쪽에만
@@ -96,11 +96,6 @@ export function AppShell({ wide = false }: { wide?: boolean }) {
                   <BridgeCard
                     connected={state.bridgeConnected}
                     hasToken={state.hasBridgeToken}
-                    onSaved={refresh}
-                  />
-                  <ProfileForm
-                    hasProfile={state.hasProfile}
-                    locked={state.locked}
                     onSaved={refresh}
                   />
                   <SiteAccessNotice />

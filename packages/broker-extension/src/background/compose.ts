@@ -177,9 +177,6 @@ export class Background {
         return { ok: true };
       case "getAudit":
         return this.audit.page({ offset: req.offset, limit: req.limit });
-      case "setProfile":
-        await this.refstore.setProfile(req.identity);
-        return { ok: true };
       case "resolveConfirmation":
         await this.broker.resolveConfirmation(req.requestId, req.approved);
         return { ok: true };
