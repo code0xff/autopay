@@ -190,8 +190,19 @@ export class Background {
     } catch {
       return { ok: false, error: "bad_tab_url" };
     }
+    // 익스텐션이 읽을 수 없는 탭(쿠팡 외 페이지, chrome:// 등)이면 executeScript가
+    // 예외를 던진다 — 미리 거르고, 그래도 실패하면 구체 코드로 돌려준다.
+    const readable = await chrome.permissions
+      .contains({ origins: [`${origin}/*`] })
+      .catch(() => false);
+    if (!readable) return { ok: false, error: "no_host_permission" };
     // 탭에서 실제 금액을 먼저 파싱(요청 totalAmount 구성용). 실패 시 중단.
-    const verified = await this.deps_adapter(method).verify(tab.id);
+    let verified: Awaited<ReturnType<SimplePayAdapter["verify"]>>;
+    try {
+      verified = await this.deps_adapter(method).verify(tab.id);
+    } catch {
+      return { ok: false, error: "page_unreadable" };
+    }
     if (!Number.isFinite(verified.amount)) return { ok: false, error: "amount_parse_failed" };
     const { requestId } = await this.broker.requestPayment({
       merchant: { origin, name: verified.merchantName || origin },
@@ -201,7 +212,12 @@ export class Background {
       method,
       checkoutTabId: tab.id,
     });
-    return { ok: true, requestId };
+    // 실행은 백그라운드라 여기선 판정 직후 상태(rejected/failed/pending)만 알 수 있다.
+    const result = await this.broker.getPaymentResult(requestId);
+    const awaitingConfirm = (await this.broker.listPending()).some(
+      (p) => p.requestId === requestId,
+    );
+    return { ok: true, requestId, result, awaitingConfirm };
   }
 
   private async state(): Promise<UiState> {

@@ -1,3 +1,4 @@
+import type { PaymentResult } from "@autopay/shared";
 import { useEffect, useState } from "react";
 import type { UiState } from "../../src/background/compose.js";
 import { ThemeToggle } from "../../src/ui/ThemeToggle.js";
@@ -67,6 +68,47 @@ export function App() {
   );
 }
 
+// 현재 탭 결제의 실패 코드 → 사용자가 바로 할 수 있는 조치 중심 문구.
+const PAY_ERRORS: Record<string, string> = {
+  no_active_tab: "활성 탭을 찾지 못했습니다. 쿠팡 주문/결제 탭을 연 뒤 다시 눌러주세요.",
+  bad_tab_url: "이 탭의 주소를 읽을 수 없습니다. 쿠팡 주문/결제 탭에서 눌러주세요.",
+  no_host_permission:
+    "AutoPay가 읽을 수 있는 쿠팡 페이지가 아닙니다. 쿠팡 주문/결제 탭(checkout.coupang.com)을 연 상태에서 눌러주세요.",
+  page_unreadable: "이 탭의 내용을 읽지 못했습니다. 페이지를 새로고침한 뒤 다시 눌러주세요.",
+  amount_parse_failed:
+    "결제 금액을 찾지 못했습니다. 상품 페이지가 아니라 쿠팡 '주문/결제' 화면에서 눌러주세요.",
+  internal_error: "예기치 못한 오류입니다. 확장 프로그램의 서비스 워커 콘솔을 확인해주세요.",
+};
+
+const VIOLATIONS: Record<string, string> = {
+  over_per_transaction: "건당 한도 초과",
+  over_daily: "일 한도 초과",
+  over_monthly: "월 한도 초과",
+  over_count: "오늘 결제 횟수 초과",
+  merchant_not_allowed: "허용되지 않은 쇼핑몰",
+  method_not_allowed: "허용되지 않은 결제수단",
+  category_not_allowed: "허용되지 않은 카테고리",
+  amount_mismatch: "요청 금액과 화면 금액 불일치",
+};
+
+function describePayResult(result: PaymentResult | undefined, awaitingConfirm: boolean): string {
+  if (!result) return "결제 요청을 만들었습니다.";
+  switch (result.status) {
+    case "rejected":
+      return `정책에 의해 거절됨: ${VIOLATIONS[result.violation] ?? result.violation}`;
+    case "failed":
+      return `실패: ${PAY_ERRORS[result.error] ?? result.error}`;
+    case "pending_user_confirmation":
+      return awaitingConfirm
+        ? "승인이 필요합니다 — 아래에서 승인하세요."
+        : "결제를 진행 중입니다 — 결과는 알림으로 알려드립니다.";
+    case "approved":
+      return "결제가 완료되었습니다.";
+    case "canceled":
+      return "결제가 취소되었습니다.";
+  }
+}
+
 function Approval({
   state,
   onResolve,
@@ -93,11 +135,12 @@ function Approval({
           onClick={async () => {
             setPayMsg("");
             try {
-              await payActiveTab("coupay");
-              setPayMsg("결제 요청 생성됨 — 아래에서 승인하세요");
+              const res = await payActiveTab("coupay");
+              setPayMsg(describePayResult(res.result, res.awaitingConfirm === true));
               onRefresh();
             } catch (e) {
-              setPayMsg(`실패: ${e instanceof Error ? e.message : "오류"}`);
+              const code = e instanceof Error ? e.message : "internal_error";
+              setPayMsg(PAY_ERRORS[code] ?? `실패: ${code}`);
             }
           }}
         >

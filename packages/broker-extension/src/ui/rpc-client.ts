@@ -1,4 +1,4 @@
-import type { PaymentPolicy } from "@autopay/shared";
+import type { PaymentPolicy, PaymentResult } from "@autopay/shared";
 import type { UiState } from "../background/compose.js";
 
 // UI → background RPC 헬퍼. background가 zod로 재검증한다(rpc.ts).
@@ -18,7 +18,10 @@ export const setProfile = (identity: { phone: string; birth: string }) =>
 export const resolveConfirmation = (requestId: string, approved: boolean) =>
   rpc({ type: "resolveConfirmation", requestId, approved });
 export const payActiveTab = (method: "kakaopay" | "tosspay" | "coupay") =>
-  rpc<{ ok: boolean; requestId?: string; error?: string }>({ type: "payActiveTab", method });
+  rpc<{ ok: boolean; requestId?: string; result?: PaymentResult; awaitingConfirm?: boolean }>({
+    type: "payActiveTab",
+    method,
+  });
 export const setBridgeToken = (token: string) => rpc({ type: "setBridgeToken", token });
 
 export function applyTheme(): void {
