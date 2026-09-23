@@ -287,7 +287,6 @@
     .wordmark { font-size: 14px; }
     .seq .label, .seq .note { font-size: 10px; }
     .seq .actor b { font-size: 11px; padding: 3px 7px; }
-    .pick .lang-label { display: none; }
   }
   @media (prefers-reduced-motion: reduce) {
     *, *::before, *::after { transition: none !important; }
@@ -324,7 +323,7 @@
     <span class="spacer"></span>
     <div class="picker">
       <button class="pick" type="button" id="lang-btn" aria-haspopup="menu" aria-expanded="false" aria-controls="lang-menu" aria-label="Language" title="Language">
-        <svg class="lucide"><use href="#i-globe"/></svg><span class="lang-label" id="lang-label">한국어</span><svg class="lucide chev"><use href="#i-down"/></svg>
+        <svg class="lucide"><use href="#i-globe"/></svg><span class="lang-label" id="lang-label">KO</span><svg class="lucide chev"><use href="#i-down"/></svg>
       </button>
       <div class="menu" id="lang-menu" role="menu" hidden>
         <button type="button" role="menuitemradio" data-lang="ko" aria-checked="false">한국어<svg class="lucide tick"><use href="#i-check"/></svg></button>
@@ -608,7 +607,7 @@
     document.querySelectorAll("[data-lang]").forEach(function (b) {
       b.setAttribute("aria-checked", String(b.getAttribute("data-lang") === lang));
     });
-    document.getElementById("lang-label").textContent = lang === "en" ? "EN" : "한국어";
+    document.getElementById("lang-label").textContent = lang === "en" ? "EN" : "KO";
     try { localStorage.setItem("autopay-site-lang", lang); } catch (e) {}
   }
   document.querySelectorAll("[data-lang]").forEach(function (b) {
