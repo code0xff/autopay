@@ -59,8 +59,10 @@
 - **기능 완결 시 Codex 리뷰.** 기능이 완결되는 지점(≈커밋/마일스톤)마다
   Codex 리뷰를 돌려 2차 검토를 받는다(코드 품질·버그·격리 원칙 위반 점검).
   리뷰 지적 반영 후 커밋한다.
-- 커밋 메시지는 Conventional Commits (`feat:`, `fix:`, `docs:`, `test:`,
-  `refactor:`).
+- 커밋 메시지는 **영문**, `type: message` 형식(Conventional Commits 타입:
+  `feat`, `fix`, `docs`, `test`, `refactor`, `chore`, `ci`). 스코프 괄호는 쓰지
+  않는다. 제목·본문은 **무엇이 바뀌었는지만** 적는다 — 배경 설명, 의사결정 경위
+  (ADR), 구현 과정 서술은 넣지 않는다(그건 스펙·PR 설명의 몫).
 - 큰 단위는 feature 브랜치 → `dev`로 PR, 관련 스펙 문서 링크 + DoD 체크리스트.
 - CI(typecheck+lint+test) 통과가 머지 조건.
 
