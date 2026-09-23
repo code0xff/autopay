@@ -4,8 +4,11 @@ import { resolveIn } from "./selector.js";
 
 // 셀렉터 스킴 리졸버. 케이스는 라이브 캡처(2026-09-22 checkout.coupang.com)
 // 구조를 그대로 옮겼다 — Tailwind 클래스뿐이라 CSS로 못 잡는 상황.
-// 주의: linkedom엔 document.evaluate가 없어 여기선 **순회 폴백 경로**를 검증한다
-//       (실 DOM의 XPath 경로는 chrome-page-bridge.pageOp가 같은 규칙을 쓴다).
+// 주의: 라벨류(contains:/label:/after:)는 실 DOM에서도 XPath를 쓰지 않는 순수 JS
+//       경로라 여기 테스트가 실제 동작과 같은 코드를 검증한다. text: 스킴만
+//       linkedom에 document.evaluate가 없어 순회 폴백을 타며, 그 경로의 실 DOM
+//       대응물은 chrome-page-bridge.pageOp의 인라인 복제본이다(자동 동등성
+//       테스트 없음 — 한쪽만 고치면 라이브에서 조용히 깨진다).
 
 const doc = (html: string) => parseHTML(`<body>${html}</body>`).document as unknown as Document;
 
@@ -148,13 +151,34 @@ describe("resolveIn — label 스킴(금액)", () => {
   });
 
   it("[2026-09-23 회귀] 라벨 단어 사이에 NBSP(줄바꿈 방지용)가 있어도 잡는다", () => {
-    // 실제 원인으로 의심되는 케이스: 한국어 사이트는 여러 단어 라벨이 줄바꿈되지
+    // (라이브 DOM 검사 결과 쿠팡 amount 버그의 원인은 이게 아니었다 — 아래
+    // '별개 형제 리프' 케이스가 진짜 원인. 이 정규화는 다른 사이트를 위한
+    // 방어 코드로 유지한다.) 한국어 사이트는 여러 단어 라벨이 줄바꿈되지
     // 않도록 단어 사이에 일반 스페이스 대신 NBSP( )를 쓰는 경우가 흔하다.
     // 소스 코드의 라벨 리터럴은 일반 스페이스라서, 정규화 없이는 절대 안 맞는다.
     const nbsp = `
       <span>총 결제 금액</span>
       <span>16,300원</span>`;
     expect(resolveIn(doc(nbsp), "label:총 결제 금액")?.textContent).toBe("16,300원");
+  });
+
+  // 2026-09-23 실사용 3차 버그(진짜 최종 원인): 실 쿠팡 DOM은 라이브 브라우저
+  // 검사(claude-in-chrome)로 확인한 결과 숫자와 "원" 단위가 **서로 다른 형제
+  // 리프**다 — 하나의 리프 안에 "16,300원"처럼 합쳐져 있지 않다. 이전 구현은
+  // 리프 하나만 보고 AMOUNT_RE(숫자+원 동시 포함)를 검사했기 때문에 "16,300"
+  // (원 없음)도 "원"(숫자 없음)도 탈락해 건너뛰고, 그 뒤 우연히 숫자+원이 같이
+  // 있는 무관한 적립 배지("163원 적립")를 잘못 집어 amount_mismatch를 냈다.
+  it("[2026-09-23 회귀] 금액 숫자와 '원' 단위가 별개 형제 리프로 쪼개져 있어도 숫자 리프를 잡는다", () => {
+    const split = `
+      <span><span>총 결제 금액</span><span>16,300</span><span>원</span></span>
+      <div><span>163원 적립</span></div>`;
+    expect(resolveIn(doc(split), "label:총 결제 금액")?.textContent).toBe("16,300");
+  });
+
+  it("[2026-09-23 회귀] 쪼개진 숫자 리프 뒤에 '원'이 안 오면(무관한 숫자) 건너뛰고 진짜 금액을 찾는다", () => {
+    const split = `
+      <span><span>총 결제 금액</span><span>12</span><span>개</span><span>16,300</span><span>원</span></span>`;
+    expect(resolveIn(doc(split), "label:총 결제 금액")?.textContent).toBe("16,300");
   });
 });
 

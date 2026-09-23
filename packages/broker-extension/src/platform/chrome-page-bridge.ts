@@ -86,6 +86,21 @@ export function pageOp(
   } else if (sel.startsWith("label:") || sel.startsWith("after:")) {
     const amountOnly = sel.startsWith("label:");
     const labelEl = findInnermostVisible(sel.slice(6));
+    // 2026-09-23 실사용 3차 버그: 쿠팡은 금액 숫자와 "원" 단위를 서로 다른
+    // 형제 리프로 쪼갠다("16,300"과 "원"이 별개 span). 리프 하나만 보고
+    // AMOUNT_RE를 검사하면 둘 다 탈락해 스킵되고, 우연히 숫자+원이 한 리프에
+    // 같이 있는 엉뚱한 값("163원 적립" 적립 배지)을 잘못 집는다. selector.ts의
+    // nextLeafStartsWithWon과 동일 로직 — 같이 고칠 것.
+    const nextLeafStartsWithWon = (all: Element[], i: number): boolean => {
+      for (let j = i + 1; j < Math.min(i + 4, all.length); j++) {
+        const cand = all[j];
+        if (!cand || cand.children.length > 0) continue;
+        const t = elText(cand);
+        if (t === "") continue;
+        return t.startsWith("원");
+      }
+      return false;
+    };
     if (labelEl) {
       const all = Array.from(document.querySelectorAll("*"));
       const idx = all.indexOf(labelEl);
@@ -94,8 +109,12 @@ export function pageOp(
         if (!cand || cand.children.length > 0) continue; // 리프만
         const t = elText(cand);
         if (t === "") continue;
-        // 라이브 함정: 라벨 뒤에 숫자 없는 빈 "원" 노드가 올 수 있다 → 금액성 검증.
-        if (amountOnly && !/[\d,]{2,}\s*원/.test(t)) continue;
+        if (amountOnly) {
+          const combined = /[\d,]{2,}\s*원/.test(t);
+          const splitNumber = /^[\d,]{2,}$/.test(t) && nextLeafStartsWithWon(all, i);
+          // 라이브 함정: 라벨 뒤에 숫자 없는 빈 "원" 노드가 올 수 있다 → 금액성 검증.
+          if (!combined && !splitNumber) continue;
+        }
         if (!cand.checkVisibility({ visibilityProperty: true, opacityProperty: true })) continue;
         el = cand;
         break;

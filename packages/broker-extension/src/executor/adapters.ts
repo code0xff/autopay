@@ -88,6 +88,10 @@ export const COUPAY: AdapterConfig = {
     // 사고는 아니었음 — 브로커의 독립 검증이 의도대로 작동한 것). "총 결제
     // 금액"의 "빈 원 노드 함정"(주석 아래 findAfterLabel 참조)은 이미
     // 금액성 검증으로 방어돼 있어 이 앵커가 더 안전하다.
+    // ⚠️ 이 앵커로 바꾼 뒤에도 실패가 이어졌는데, 라이브 DOM을 직접 검사해
+    // 찾은 최종 원인은 **금액 숫자와 "원" 단위가 별개 형제 리프로 쪼개져
+    // 있다는 것**이었다(selector.ts findAfterLabel 주석 — 라이브 함정 ②).
+    // 즉 이 셀렉터 문자열이 아니라 리졸버 쪽 버그였다.
     amount: "label:총 결제 금액",
     // 결제창에 가맹점명 노드가 없다 → null 반환 시 merchantName("쿠팡")으로 폴백.
     merchant: "css:[data-autopay-merchant]",

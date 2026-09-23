@@ -20,14 +20,16 @@
 
 const AMOUNT_RE = /[\d,]{2,}\s*원/;
 
-// 2026-09-23: 라벨 매칭이 실제 쿠팡 DOM에서 계속 실패해 amount_parse_failed로
-// 이어진 진짜 원인 — 한국어 사이트는 여러 단어짜리 라벨(예: "총 결제 금액")이
-// 줄바꿈 없이 붙어 보이도록 단어 사이에 **NBSP(U+00A0)** 를 흔히 쓴다. XPath의
-// normalize-space()는 ASCII 공백(스페이스/탭/개행)만 처리하고 NBSP는 그대로
-// 남기기 때문에, 소스에 일반 스페이스로 적은 라벨 문자열과 절대 안 같아진다
-// (짧은 단일 단어 버튼명 "결제하기" 등은 NBSP를 안 쓰니 이 문제가 없었다 —
-// 그래서 그동안 다른 셀렉터는 멀쩡했다). 그래서 라벨류 매칭은 XPath가 아니라
-// 직접 정규화한 JS 문자열 비교로 한다.
+// 라벨류 매칭(`contains:`/`label:`/`after:`)은 XPath가 아니라 이 정규화 + JS
+// 문자열 비교로 한다. 이유: 한국어 사이트는 여러 단어짜리 라벨(예: "총 결제
+// 금액")이 줄바꿈 없이 붙어 보이도록 단어 사이에 NBSP(U+00A0)를 쓰는 경우가
+// 흔한데, XPath의 normalize-space()는 ASCII 공백만 처리하고 NBSP는 그대로
+// 남겨서 소스에 일반 스페이스로 적은 라벨 리터럴과 절대 안 맞는다.
+// ⚠️ 이력 정정(2026-09-23): 이 정규화를 "쿠팡 amount 파싱 실패의 진짜 원인"으로
+//    단정하고 커밋한 적이 있는데 **틀렸다**. 라이브 DOM을 직접 검사해 보니 그
+//    라벨은 일반 스페이스(0x20)였고, 실제 원인은 숫자와 "원"이 별개 리프로
+//    쪼개져 있던 것(findAfterLabel 주석 참조)이었다. 이 정규화는 여전히 유효한
+//    방어 코드지만, 그 버그의 원인은 아니었다.
 function normText(s: string): string {
   return s
     .replace(/[   -​  　]/g, " ")
@@ -109,7 +111,15 @@ function isVisible(el: Element): boolean {
  *  (label:총 결제 금액 → "16,300원" / after:주문번호 → "8842-1179")
  *  라벨 자체는 findByContains와 같은 전략(부분 포함 + 가장 안쪽 + 화면에
  *  보이는 요소 + normText)으로 앵커한다 — 강조 태그로 감싸여 있어도, 단어
- *  사이에 NBSP가 있어도 안정적으로 잡는다(둘 다 실사용 중 발견한 실패 원인). */
+ *  사이에 NBSP가 있어도 안정적으로 잡는다(둘 다 실사용 중 발견한 실패 원인).
+ *
+ *  2026-09-23 실사용 3차 버그: 쿠팡은 금액 숫자와 "원" 단위를 **서로 다른
+ *  형제 리프**로 쪼개 렌더링한다("16,300"과 "원"이 별개 span — 하나의 리프
+ *  안에 "16,300원"처럼 같이 있지 않다). 리프 하나만 보고 AMOUNT_RE를 검사하면
+ *  "16,300"(원 없음)도 "원"(숫자 없음)도 둘 다 탈락해 스킵되고, 계속 진행하다
+ *  우연히 숫자+원이 한 리프에 같이 있는 엉뚱한 값("163원 적립" 같은 적립 배지)을
+ *  잘못 집는다. 그래서 숫자만 있는 리프(`[\d,]{2,}`)를 만나면 바로 다음
+ *  비어있지 않은 리프가 "원"으로 시작하는지 확인해 결합 판정한다. */
 function findAfterLabel(doc: Document, label: string, amountOnly: boolean): Element | null {
   const all = Array.from(doc.querySelectorAll("*"));
   const target = normText(label);
@@ -125,11 +135,28 @@ function findAfterLabel(doc: Document, label: string, amountOnly: boolean): Elem
     if (!el || el.children.length > 0) continue; // 리프만
     const t = elementText(el);
     if (t === "") continue;
-    if (amountOnly && !AMOUNT_RE.test(t)) continue; // 라이브 함정: 빈 "원" 노드 건너뜀
+    if (amountOnly) {
+      const combined = AMOUNT_RE.test(t);
+      const splitNumber = /^[\d,]{2,}$/.test(t) && nextLeafStartsWithWon(all, i);
+      if (!combined && !splitNumber) continue; // 라이브 함정: 빈 "원" 노드 건너뜀
+    }
     if (!isVisible(el)) continue;
     return el;
   }
   return null;
+}
+
+/** i 다음 문서순 리프들을 몇 개 훑어 첫 비어있지 않은 텍스트가 "원"으로
+ *  시작하는지 본다 — 숫자만 있는 리프와 "원" 리프가 분리된 케이스 판정용. */
+function nextLeafStartsWithWon(all: Element[], i: number): boolean {
+  for (let j = i + 1; j < Math.min(i + 4, all.length); j++) {
+    const el = all[j];
+    if (!el || el.children.length > 0) continue;
+    const t = elementText(el);
+    if (t === "") continue;
+    return t.startsWith("원");
+  }
+  return false;
 }
 
 function tryXPath(doc: Document, query: string): Element | null {
