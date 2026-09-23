@@ -80,6 +80,9 @@ Claude Code용 스킬(`SKILL.md` + 도구 사용 규칙):
 
 ## 7. 설치/등록 (Claude Code)
 
+> 사용자용 원커맨드: `pnpm bootstrap`(설치·빌드·토큰 준비·클립보드 복사, README
+> "빠른 시작"). 아래는 개별 단계.
+
 1. `pnpm --filter @autopay/mcp-server build`
 2. Claude Code에 MCP 서버 등록: `claude mcp add autopay -- node <경로>/mcp-server/dist/index.js`
    (또는 `.mcp.json`에 stdio 커맨드 추가)
