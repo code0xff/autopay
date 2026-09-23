@@ -73,5 +73,5 @@ description: 사용자가 "○○ 사줘 / 구매해줘 / 최저가로 주문해
 `docs/spec/mcp-integration.md §7` 참조. 요약:
 1. `pnpm --filter @autopay/mcp-server build`
 2. `.mcp.json`에 `autopay` 서버 등록(이 저장소는 이미 등록돼 있음)
-3. 브로커 익스텐션 로드 → 옵션 → mcp-server가 출력한 브리지 토큰을 등록
+3. 브로커 익스텐션 로드 → 사이드패널 "설정" 탭 → 브리지 토큰 등록(`pnpm bootstrap`이 클립보드에 복사)
 4. 이 스킬이 자동으로 트리거된다("○○ 사줘" 등)

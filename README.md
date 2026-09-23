@@ -54,13 +54,16 @@ Then, once by hand:
 
 1. `chrome://extensions` → Developer mode → "Load unpacked" →
    `packages/broker-extension/.output/chrome-mv3` (after a rebuild, just press reload ⟳)
-2. AutoPay options → paste the token into **MCP Bridge** (it is on your
-   clipboard) → save **payment limits** (the default is ₩0, which refuses everything)
+2. Click the AutoPay toolbar icon to open the side panel → **Settings** tab: paste the
+   token into **MCP Bridge** (it is on your clipboard) → **Policy** tab: save payment
+   limits (the default is ₩0, which refuses everything)
 3. Log in to Coupang yourself and turn on one-touch payment in the Coupang app
 4. Run Claude Code in this folder (the `autopay` server is already registered in
    `.mcp.json`) → "Buy this laptop stand if it's under ₩30,000"
 
-The **Getting started** card at the top of the options page shows what is left.
+The side panel has four tabs: Home (approvals and remaining limits), Policy, History
+(audit log) and Settings. The options page shows the same app. The **Getting started**
+card on the Home tab shows what is left.
 Unlocking with a passphrase is only needed for the identity details used by
 KakaoPay and Toss Pay (pattern B); skip it if you only use Coupang. If Coupang
 asks for the payment password again during checkout, you get a notification and
