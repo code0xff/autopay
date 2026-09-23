@@ -54,7 +54,8 @@ Then, once by hand:
 
 1. `chrome://extensions` → Developer mode → "Load unpacked" →
    `packages/broker-extension/.output/chrome-mv3` (after a rebuild, just press reload ⟳)
-2. Click the AutoPay toolbar icon to open the side panel → **Settings** tab: paste the
+2. Click the AutoPay toolbar icon to open the side panel → set a passphrase (first run;
+   afterwards you unlock with it) → **Settings** tab: paste the
    token into **MCP Bridge** (it is on your clipboard) → **Policy** tab: check the payment
    limits (defaults: ₩20,000 per payment, ₩50,000/day, ₩100,000/month, 3/day, approval above ₩10,000)
 3. Log in to Coupang yourself and turn on one-touch payment in the Coupang app
@@ -63,9 +64,11 @@ Then, once by hand:
 
 The side panel has four tabs: Home (approvals and remaining limits), Policy, History
 (audit log) and Settings. The options page shows the same app. The **Getting started**
-card on the Home tab shows what is left.
-Unlocking with a passphrase is only needed for the identity details used by
-KakaoPay and Toss Pay (pattern B); skip it if you only use Coupang. If Coupang
+card on the Home tab shows what is left. The History tab pages through the audit log.
+
+AutoPay is inactive until you unlock it with your passphrase: while locked, only the lock
+screen is shown and every agent tool call is refused. Once unlocked it stays unlocked
+until you close the browser or press the lock button in the header. If Coupang
 asks for the payment password again during checkout, you get a notification and
 **type it yourself in the checkout tab**. AutoPay and the agent never handle the
 password.
