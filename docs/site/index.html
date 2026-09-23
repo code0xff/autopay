@@ -166,8 +166,8 @@
   .trace-head { display: flex; align-items: center; justify-content: space-between; gap: 10px; margin-bottom: 14px; }
   .trace-head .eyebrow { margin: 0; }
   .replay { border: 1px solid var(--ui-line-strong); background: var(--ui-surface); color: var(--ui-ink-soft);
-    height: 28px; padding: 0 12px; border-radius: 999px; font: 500 12.5px var(--font-sans);
-    display: inline-flex; align-items: center; gap: 6px; flex: none; }
+    width: 28px; height: 28px; padding: 0; border-radius: 999px;
+    display: inline-grid; place-items: center; flex: none; }
   .replay:hover { background: var(--ui-subtle); color: var(--ui-ink); }
 
   .seq { --head: 58px; --row: 30px; position: relative; font-family: var(--font-mono); }
@@ -357,7 +357,7 @@
       <div class="trace">
         <div class="trace-head">
           <p class="eyebrow" data-i18n="trace.title">결제 한 건의 메시지 흐름</p>
-          <button class="replay" type="button" id="replay"><svg class="lucide"><use href="#i-replay"/></svg><span data-i18n="trace.replay">다시 보기</span></button>
+          <button class="replay" type="button" id="replay" aria-label="다시 보기" title="다시 보기"><svg class="lucide"><use href="#i-replay"/></svg></button>
         </div>
         <div class="seq" id="seq" role="img" aria-label="Sequence: User prompts Claude Code; Claude Code calls request_payment on AutoPay; AutoPay verifies the amount on Coupang and applies policy; Coupang asks for a password; AutoPay notifies the user and locks Claude Code's page tools; the user enters the password directly on Coupang; Coupang completes the order; Claude Code reads approved.">
           <span class="life" style="left:12.5%"></span><span class="life" style="left:37.5%"></span>
@@ -551,7 +551,7 @@
     "hero.t1": "AI does the buying.", "hero.t2": "You keep control.",
     "hero.lead": "Claude searches, compares and reaches checkout. AutoPay allows a payment only within the limits you set, records every attempt and tells you at once. The AI never touches a payment secret.",
     "hero.cta": "Get started",
-    "trace.title": "One payment, message by message", "trace.replay": "Replay",
+    "trace.title": "One payment, message by message", 
     "how.eyebrow": "How it works", "how.title": "The AI prepares. AutoPay and you hold the gate.",
     "how.1t": "Ask", "how.1p": "Tell Claude Code what to buy.",
     "how.2t": "Prepare", "how.2p": "It searches Coupang, compares, reaches checkout, and only requests the payment.",
@@ -604,6 +604,8 @@
     });
     root.setAttribute("lang", lang);
     document.title = lang === "en" ? "AutoPay — Getting started" : "AutoPay 시작 가이드";
+    var rp = document.getElementById("replay");
+    if (rp) { var t = lang === "en" ? "Replay" : "다시 보기"; rp.setAttribute("aria-label", t); rp.setAttribute("title", t); }
     document.querySelectorAll("[data-lang]").forEach(function (b) {
       b.setAttribute("aria-checked", String(b.getAttribute("data-lang") === lang));
     });
