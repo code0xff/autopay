@@ -97,12 +97,28 @@
   nav.links a { color: var(--ui-ink-soft); font-size: 14px; padding: 6px 12px; border-radius: var(--radius-md); }
   nav.links a:hover { background: var(--ui-subtle); color: var(--ui-ink); text-decoration: none; }
   .spacer { flex: 1; }
-  .seg { display: inline-flex; padding: 3px; gap: 2px; border: 1px solid var(--ui-line-strong);
-    border-radius: 999px; background: var(--ui-surface); }
-  .seg button { border: 0; background: transparent; color: var(--ui-ink-soft); font: 500 12.5px var(--font-sans);
-    height: 26px; padding: 0 10px; border-radius: 999px; display: inline-flex; align-items: center; gap: 5px;
+  /* 언어·테마 피커: 단독 컨트롤은 pill(Slate §Surfaces), 메뉴는 떠 있는 레이어(shadow-pop) */
+  .picker { position: relative; }
+  .pick { display: inline-flex; align-items: center; justify-content: center; gap: 6px; height: 36px;
+    padding: 0 12px; border: 1px solid var(--ui-line-strong); border-radius: 999px; background: var(--ui-surface);
+    color: var(--ui-ink-soft); font: 500 13px var(--font-sans);
     transition: background 220ms var(--ease-soft), color 220ms var(--ease-soft); }
-  .seg button[aria-pressed="true"] { background: var(--ui-primary); color: var(--ui-on-primary); }
+  .pick:hover, .pick[aria-expanded="true"] { background: var(--ui-subtle); color: var(--ui-ink); }
+  .pick.icon { width: 36px; padding: 0; }
+  .pick.icon svg.lucide { width: 16px; height: 16px; }
+  .pick .chev { width: 12px; height: 12px; color: var(--ui-ink-faint); transition: transform 220ms var(--ease-soft); }
+  .pick[aria-expanded="true"] .chev { transform: rotate(180deg); }
+  .menu { position: absolute; right: 0; top: calc(100% + 8px); min-width: 164px; padding: 6px; z-index: 20;
+    background: var(--ui-raised); border: 1px solid var(--ui-line); border-radius: var(--radius-lg);
+    box-shadow: var(--shadow-pop); }
+  .menu[hidden] { display: none; }
+  .menu button { width: 100%; display: flex; align-items: center; gap: 10px; height: 36px; padding: 0 10px;
+    border: 0; background: transparent; border-radius: var(--radius-md); color: var(--ui-ink-soft);
+    font: 500 13.5px var(--font-sans); text-align: left; }
+  .menu button:hover, .menu button:focus-visible { background: var(--ui-subtle); color: var(--ui-ink); outline: none; }
+  .menu button[aria-checked="true"] { color: var(--ui-ink); }
+  .menu .tick { margin-left: auto; color: var(--ui-accent); visibility: hidden; }
+  .menu button[aria-checked="true"] .tick { visibility: visible; }
 
   /* ── Type ───────────────────────────────────── */
   .eyebrow { font-size: 11px; font-weight: 500; text-transform: uppercase; letter-spacing: .14em;
@@ -248,7 +264,7 @@
     nav.links { display: none; }
     .wordmark { font-size: 14px; }
     .nodes .node { padding: 4px 7px; font-size: 11px; }
-    .seg button { padding: 0 8px; }
+    .pick .lang-label { display: none; }
   }
   @media (prefers-reduced-motion: reduce) {
     *, *::before, *::after { transition: none !important; }
@@ -268,6 +284,8 @@
   <symbol id="i-sun" viewBox="0 0 24 24"><circle cx="12" cy="12" r="4"/><path d="M12 2v2M12 20v2M4.9 4.9l1.4 1.4M17.7 17.7l1.4 1.4M2 12h2M20 12h2M4.9 19.1l1.4-1.4M17.7 6.3l1.4-1.4"/></symbol>
   <symbol id="i-moon" viewBox="0 0 24 24"><path d="M12 3a6 6 0 0 0 9 9 9 9 0 1 1-9-9Z"/></symbol>
   <symbol id="i-monitor" viewBox="0 0 24 24"><rect x="2" y="3" width="20" height="14" rx="2"/><path d="M8 21h8M12 17v4"/></symbol>
+  <symbol id="i-globe" viewBox="0 0 24 24"><circle cx="12" cy="12" r="10"/><path d="M2 12h20M12 2a15.3 15.3 0 0 1 4 10 15.3 15.3 0 0 1-4 10 15.3 15.3 0 0 1-4-10 15.3 15.3 0 0 1 4-10z"/></symbol>
+  <symbol id="i-down" viewBox="0 0 24 24"><path d="m6 9 6 6 6-6"/></symbol>
   <symbol id="i-arrow" viewBox="0 0 24 24"><path d="M5 12h14M12 5l7 7-7 7"/></symbol>
 </svg>
 
@@ -281,14 +299,24 @@
       <a href="#faq">FAQ</a>
     </nav>
     <span class="spacer"></span>
-    <div class="seg" role="group" aria-label="Language">
-      <button type="button" data-lang="ko">한국어</button>
-      <button type="button" data-lang="en">EN</button>
+    <div class="picker">
+      <button class="pick" type="button" id="lang-btn" aria-haspopup="menu" aria-expanded="false" aria-controls="lang-menu" aria-label="Language" title="Language">
+        <svg class="lucide"><use href="#i-globe"/></svg><span class="lang-label" id="lang-label">한국어</span><svg class="lucide chev"><use href="#i-down"/></svg>
+      </button>
+      <div class="menu" id="lang-menu" role="menu" hidden>
+        <button type="button" role="menuitemradio" data-lang="ko" aria-checked="false">한국어<svg class="lucide tick"><use href="#i-check"/></svg></button>
+        <button type="button" role="menuitemradio" data-lang="en" aria-checked="false">English<svg class="lucide tick"><use href="#i-check"/></svg></button>
+      </div>
     </div>
-    <div class="seg" role="group" aria-label="Theme">
-      <button type="button" data-theme-set="light" aria-label="Light" title="Light"><svg class="lucide"><use href="#i-sun"/></svg></button>
-      <button type="button" data-theme-set="dark" aria-label="Dark" title="Dark"><svg class="lucide"><use href="#i-moon"/></svg></button>
-      <button type="button" data-theme-set="system" aria-label="System" title="System"><svg class="lucide"><use href="#i-monitor"/></svg></button>
+    <div class="picker">
+      <button class="pick icon" type="button" id="theme-btn" aria-haspopup="menu" aria-expanded="false" aria-controls="theme-menu" aria-label="Theme" title="Theme">
+        <svg class="lucide" id="theme-icon"><use href="#i-monitor"/></svg>
+      </button>
+      <div class="menu" id="theme-menu" role="menu" hidden>
+        <button type="button" role="menuitemradio" data-theme-set="light" aria-checked="false"><svg class="lucide"><use href="#i-sun"/></svg><span data-i18n="theme.light">라이트</span><svg class="lucide tick"><use href="#i-check"/></svg></button>
+        <button type="button" role="menuitemradio" data-theme-set="dark" aria-checked="false"><svg class="lucide"><use href="#i-moon"/></svg><span data-i18n="theme.dark">다크</span><svg class="lucide tick"><use href="#i-check"/></svg></button>
+        <button type="button" role="menuitemradio" data-theme-set="system" aria-checked="false"><svg class="lucide"><use href="#i-monitor"/></svg><span data-i18n="theme.system">시스템</span><svg class="lucide tick"><use href="#i-check"/></svg></button>
+      </div>
     </div>
   </div>
 </header>
@@ -468,8 +496,44 @@
 (function () {
   var root = document.documentElement;
 
+  // ── 피커 메뉴: 트리거 클릭으로 열고, 바깥 클릭·Escape·선택 시 닫는다 ──
+  var pickers = [["lang-btn", "lang-menu"], ["theme-btn", "theme-menu"]];
+  function closeMenus() {
+    pickers.forEach(function (p) {
+      document.getElementById(p[0]).setAttribute("aria-expanded", "false");
+      document.getElementById(p[1]).hidden = true;
+    });
+  }
+  pickers.forEach(function (p) {
+    var btn = document.getElementById(p[0]);
+    var menu = document.getElementById(p[1]);
+    btn.addEventListener("click", function (e) {
+      e.stopPropagation();
+      var open = menu.hidden;
+      closeMenus();
+      if (open) {
+        menu.hidden = false;
+        btn.setAttribute("aria-expanded", "true");
+        var cur = menu.querySelector('[aria-checked="true"]') || menu.querySelector("button");
+        if (cur) cur.focus();
+      }
+    });
+    menu.addEventListener("keydown", function (e) {
+      var items = Array.prototype.slice.call(menu.querySelectorAll("button"));
+      var i = items.indexOf(document.activeElement);
+      if (e.key === "ArrowDown") { e.preventDefault(); items[(i + 1) % items.length].focus(); }
+      if (e.key === "ArrowUp") { e.preventDefault(); items[(i - 1 + items.length) % items.length].focus(); }
+      if (e.key === "Escape") { closeMenus(); btn.focus(); }
+    });
+  });
+  document.addEventListener("click", function (e) {
+    if (!e.target.closest || !e.target.closest(".picker")) closeMenus();
+  });
+  document.addEventListener("keydown", function (e) { if (e.key === "Escape") closeMenus(); });
+
   // ── i18n: 한국어는 마크업이 원본, 영어는 사전 ──
   var EN = {
+    "theme.light": "Light", "theme.dark": "Dark", "theme.system": "System",
     "nav.how": "How it works", "nav.start": "Get started", "nav.safety": "Safety",
     "hero.badge": "Prototype · Coupang (Coupay) first",
     "hero.t1": "AI does the buying.", "hero.t2": "You keep control.",
@@ -532,12 +596,13 @@
     root.setAttribute("lang", lang);
     document.title = lang === "en" ? "AutoPay — Getting started" : "AutoPay 시작 가이드";
     document.querySelectorAll("[data-lang]").forEach(function (b) {
-      b.setAttribute("aria-pressed", String(b.getAttribute("data-lang") === lang));
+      b.setAttribute("aria-checked", String(b.getAttribute("data-lang") === lang));
     });
+    document.getElementById("lang-label").textContent = lang === "en" ? "EN" : "한국어";
     try { localStorage.setItem("autopay-site-lang", lang); } catch (e) {}
   }
   document.querySelectorAll("[data-lang]").forEach(function (b) {
-    b.addEventListener("click", function () { setLang(b.getAttribute("data-lang")); });
+    b.addEventListener("click", function () { setLang(b.getAttribute("data-lang")); closeMenus(); });
   });
   setLang(root.getAttribute("lang") === "en" ? "en" : "ko");
 
@@ -548,14 +613,21 @@
     root.setAttribute("data-theme", dark ? "dark" : "light");
     root.setAttribute("data-theme-pref", pref);
     document.querySelectorAll("[data-theme-set]").forEach(function (b) {
-      b.setAttribute("aria-pressed", String(b.getAttribute("data-theme-set") === pref));
+      b.setAttribute("aria-checked", String(b.getAttribute("data-theme-set") === pref));
     });
+    var icon = { light: "#i-sun", dark: "#i-moon", system: "#i-monitor" }[pref] || "#i-monitor";
+    document.querySelector("#theme-icon use").setAttribute("href", icon);
+    var name = { light: "Light", dark: "Dark", system: "System" }[pref] || "System";
+    var btn = document.getElementById("theme-btn");
+    btn.setAttribute("aria-label", "Theme: " + name);
+    btn.setAttribute("title", "Theme: " + name);
   }
   document.querySelectorAll("[data-theme-set]").forEach(function (b) {
     b.addEventListener("click", function () {
       var pref = b.getAttribute("data-theme-set");
       try { localStorage.setItem("autopay-site-theme", pref); } catch (e) {}
       applyTheme(pref);
+      closeMenus();
     });
   });
   mq.addEventListener("change", function () {
