@@ -332,14 +332,9 @@
       </div>
     </div>
     <div class="picker">
-      <button class="pick icon" type="button" id="theme-btn" aria-haspopup="menu" aria-expanded="false" aria-controls="theme-menu" aria-label="Theme" title="Theme">
+      <button class="pick icon" type="button" id="theme-btn" aria-label="Theme" title="Theme">
         <svg class="lucide" id="theme-icon"><use href="#i-monitor"/></svg>
       </button>
-      <div class="menu" id="theme-menu" role="menu" hidden>
-        <button type="button" role="menuitemradio" data-theme-set="light" aria-checked="false"><svg class="lucide"><use href="#i-sun"/></svg><span data-i18n="theme.light">라이트</span><svg class="lucide tick"><use href="#i-check"/></svg></button>
-        <button type="button" role="menuitemradio" data-theme-set="dark" aria-checked="false"><svg class="lucide"><use href="#i-moon"/></svg><span data-i18n="theme.dark">다크</span><svg class="lucide tick"><use href="#i-check"/></svg></button>
-        <button type="button" role="menuitemradio" data-theme-set="system" aria-checked="false"><svg class="lucide"><use href="#i-monitor"/></svg><span data-i18n="theme.system">시스템</span><svg class="lucide tick"><use href="#i-check"/></svg></button>
-      </div>
     </div>
   </div>
 </header>
@@ -516,7 +511,7 @@
   var root = document.documentElement;
 
   // ── 피커 메뉴: 트리거 클릭으로 열고, 바깥 클릭·Escape·선택 시 닫는다 ──
-  var pickers = [["lang-btn", "lang-menu"], ["theme-btn", "theme-menu"]];
+  var pickers = [["lang-btn", "lang-menu"]];
   function closeMenus() {
     pickers.forEach(function (p) {
       document.getElementById(p[0]).setAttribute("aria-expanded", "false");
@@ -552,7 +547,6 @@
 
   // ── i18n: 한국어는 마크업이 원본, 영어는 사전 ──
   var EN = {
-    "theme.light": "Light", "theme.dark": "Dark", "theme.system": "System",
     "nav.how": "How it works", "nav.start": "Get started", "nav.safety": "Safety",
     "hero.badge": "Prototype · Coupang (Coupay) first",
     "hero.t1": "AI does the buying.", "hero.t2": "You keep control.",
@@ -628,23 +622,21 @@
     var dark = pref === "dark" || (pref === "system" && mq.matches);
     root.setAttribute("data-theme", dark ? "dark" : "light");
     root.setAttribute("data-theme-pref", pref);
-    document.querySelectorAll("[data-theme-set]").forEach(function (b) {
-      b.setAttribute("aria-checked", String(b.getAttribute("data-theme-set") === pref));
-    });
     var icon = { light: "#i-sun", dark: "#i-moon", system: "#i-monitor" }[pref] || "#i-monitor";
     document.querySelector("#theme-icon use").setAttribute("href", icon);
     var name = { light: "Light", dark: "Dark", system: "System" }[pref] || "System";
     var btn = document.getElementById("theme-btn");
-    btn.setAttribute("aria-label", "Theme: " + name);
-    btn.setAttribute("title", "Theme: " + name);
+    var next = { light: "Dark", dark: "System", system: "Light" }[pref] || "Light";
+    btn.setAttribute("aria-label", "Theme: " + name + " (switch to " + next + ")");
+    btn.setAttribute("title", "Theme: " + name + " → " + next);
   }
-  document.querySelectorAll("[data-theme-set]").forEach(function (b) {
-    b.addEventListener("click", function () {
-      var pref = b.getAttribute("data-theme-set");
-      try { localStorage.setItem("autopay-site-theme", pref); } catch (e) {}
-      applyTheme(pref);
-      closeMenus();
-    });
+  // 누를 때마다 라이트 → 다크 → 시스템 순환
+  var ORDER = ["light", "dark", "system"];
+  document.getElementById("theme-btn").addEventListener("click", function () {
+    var cur = root.getAttribute("data-theme-pref") || "system";
+    var pref = ORDER[(ORDER.indexOf(cur) + 1) % ORDER.length];
+    try { localStorage.setItem("autopay-site-theme", pref); } catch (e) {}
+    applyTheme(pref);
   });
   mq.addEventListener("change", function () {
     if (root.getAttribute("data-theme-pref") === "system") applyTheme("system");
