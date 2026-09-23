@@ -5,7 +5,7 @@ import type { GenericPageBridge, PageSnapshot } from "./page-bridge.js";
 
 // docs/spec/mcp-integration.md §3·§10 테스트 케이스
 
-function makeDeps(overrides: { tabId?: number | null } = {}) {
+function makeDeps(overrides: { tabId?: number | null; executing?: boolean } = {}) {
   let bridgeTabId: number | null = overrides.tabId ?? null;
   const pageBridge: GenericPageBridge = {
     openOrReuse: vi.fn(async () => 7),
@@ -35,6 +35,7 @@ function makeDeps(overrides: { tabId?: number | null } = {}) {
       allowedMethods: ["coupay" as const],
       confirmation: { alwaysConfirm: false, requireUserConfirmationAbove: 1000 },
     })),
+    hasActiveExecution: vi.fn(async () => overrides.executing ?? false),
   };
   return {
     pageBridge,
@@ -140,5 +141,41 @@ describe("BridgeTools", () => {
     const tools = new BridgeTools(deps);
     const res = await tools.handle({ id: "c1", tool: "click", args: { selector: "#buy" } });
     expect(res).toEqual({ id: "c1", ok: false, error: "boom" });
+  });
+
+  // executor.md §3.2 — 결제 실행 중(비번 핸드오프 포함) 페이지 도구 잠금
+  it("8. 결제 실행 중에는 open/read_page/click/fill 거부, 페이지에 손대지 않음", async () => {
+    const deps = makeDeps({ tabId: 7, executing: true });
+    const tools = new BridgeTools(deps);
+    const calls: BridgeToolCall[] = [
+      { id: "a", tool: "open", args: { url: "https://shop.example" } },
+      { id: "b", tool: "read_page", args: {} },
+      { id: "c", tool: "click", args: { selector: "#key-1" } },
+      { id: "d", tool: "fill", args: { selector: "#pw", value: "x" } },
+    ];
+    for (const call of calls) {
+      expect(await tools.handle(call)).toEqual({
+        id: call.id,
+        ok: false,
+        error: "page_locked_during_payment",
+      });
+    }
+    expect(deps.pageBridge.openOrReuse).not.toHaveBeenCalled();
+    expect(deps.pageBridge.readPage).not.toHaveBeenCalled();
+    expect(deps.pageBridge.click).not.toHaveBeenCalled();
+    expect(deps.pageBridge.fill).not.toHaveBeenCalled();
+  });
+
+  it("9. 결제 실행 중에도 상태 조회(get_payment_result/get_policy_summary)는 허용", async () => {
+    const deps = makeDeps({ tabId: 7, executing: true });
+    const tools = new BridgeTools(deps);
+    const r1 = await tools.handle({
+      id: "a",
+      tool: "get_payment_result",
+      args: { requestId: "r1" },
+    });
+    const r2 = await tools.handle({ id: "b", tool: "get_policy_summary", args: {} });
+    expect(r1.ok).toBe(true);
+    expect(r2.ok).toBe(true);
   });
 });

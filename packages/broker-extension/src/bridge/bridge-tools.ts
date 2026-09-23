@@ -11,6 +11,8 @@ export interface BridgeBroker {
   requestPayment(input: unknown): Promise<{ requestId: string }>;
   getPaymentResult(requestId: string): Promise<PaymentResult>;
   getPolicySummary(): Promise<PolicySummary>;
+  /** 결제 실행 중이면 true — 페이지 도구 잠금(executor.md §3.2). */
+  hasActiveExecution(): Promise<boolean>;
 }
 
 export interface BridgeToolsDeps {
@@ -19,6 +21,8 @@ export interface BridgeToolsDeps {
   getBridgeTabId: () => Promise<number | null>;
   setBridgeTabId: (tabId: number) => Promise<void>;
 }
+
+const PAGE_TOOLS = new Set<BridgeToolCall["tool"]>(["open", "read_page", "click", "fill"]);
 
 export class BridgeTools {
   constructor(private readonly deps: BridgeToolsDeps) {}
@@ -34,6 +38,11 @@ export class BridgeTools {
   }
 
   private async dispatch(call: BridgeToolCall): Promise<unknown> {
+    // 결제 실행 중(사용자가 비번을 직접 입력하는 핸드오프 포함)에는 페이지를 읽거나
+    // 조작하는 도구를 거부한다 — 입력 중인 값 읽기·키패드 클릭·이탈을 원천 차단.
+    if (PAGE_TOOLS.has(call.tool) && (await this.deps.broker.hasActiveExecution())) {
+      throw new Error("page_locked_during_payment");
+    }
     switch (call.tool) {
       case "open": {
         const existing = await this.deps.getBridgeTabId();

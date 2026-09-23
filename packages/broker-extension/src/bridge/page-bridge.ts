@@ -57,7 +57,12 @@ export function serializePage(maxElements: number, maxText: number): PageSnapsho
     const role = el.getAttribute("role") ?? undefined;
     let text = (el.textContent ?? "").trim();
     if (tag === "input" || tag === "textarea" || tag === "select") {
-      text = (el as HTMLInputElement).value || el.getAttribute("placeholder") || "";
+      // 비번 입력칸의 값은 절대 반환하지 않는다(사용자가 직접 입력한 비번이
+      // 에이전트에게 새지 않게 — executor.md §3.2, mcp-integration §10).
+      const isPassword = (el as HTMLInputElement).type === "password";
+      text = isPassword
+        ? el.getAttribute("placeholder") || ""
+        : (el as HTMLInputElement).value || el.getAttribute("placeholder") || "";
     }
     text = text.slice(0, maxText);
     const href = tag === "a" ? (el as HTMLAnchorElement).href : undefined;

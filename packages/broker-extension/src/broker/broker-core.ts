@@ -320,6 +320,14 @@ export class BrokerCore {
         identity,
         timeoutMs: this.payTimeoutMs,
         approvedSnapshot: state.snapshot,
+        // 비번 UI 등장 시 사용자에게 넘긴다(executor.md §3.2). 브로커는 입력하지
+        // 않고 알리기만 한다 — 결과는 계속 pending, 완료는 독립 파싱으로 확정.
+        onPasswordHandoff: () =>
+          this.emit(policy, {
+            kind: "enter_password_on_page",
+            merchant: state.merchantName,
+            amount: state.verifiedAmount,
+          }),
       });
 
       if (outcome.status === "approved") {
@@ -381,6 +389,14 @@ export class BrokerCore {
         await this.removeExecutingIndex(requestId).catch(() => {}); // 색인 정리 실패는 무시(스윕이 나중에 정리)
       }
     }
+  }
+
+  /** 결제 실행 중(비번 핸드오프 포함)인 요청이 있는가 — 브리지가 에이전트의
+   *  페이지 도구를 잠그는 기준(executor.md §3.2). 영속 색인 기준이라 워커가
+   *  죽어 남은 항목은 recoverStaleExecutions가 정리할 때까지 잠금이 유지된다
+   *  (fail-closed). */
+  async hasActiveExecution(): Promise<boolean> {
+    return (await this.listExecutingIndex()).length > 0;
   }
 
   /** MV3 워커가 실행 도중(폰 승인 대기 등) 종료·재시작되면 in-memory 가드는

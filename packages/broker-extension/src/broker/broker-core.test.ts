@@ -471,6 +471,24 @@ describe("BrokerCore", () => {
     }); // 아직 손대지 않음
   });
 
+  // executor.md §3.2 — 비번 핸드오프: 통지만 하고 결제는 pending 유지, 실행 중 잠금
+  it("19. 비번 핸드오프 → enter_password_on_page 통지 + 실행 중 hasActiveExecution=true → approved", async () => {
+    let lockedDuringHandoff: boolean | undefined;
+    const adapter = fakeAdapter({ method: "coupay", hasExternalApproval: false });
+    const { broker, chrome } = setup({ adapters: { coupay: adapter } });
+    adapter.pay = vi.fn(async (input): Promise<PayOutcome> => {
+      await input.onPasswordHandoff?.();
+      lockedDuringHandoff = await broker.hasActiveExecution();
+      return { status: "approved", orderId: "#9001", amount: 20_000 };
+    });
+    const { requestId } = await broker.requestPayment(validReq);
+    expect(await broker.getPaymentResult(requestId)).toMatchObject({ status: "approved" });
+    expect(lockedDuringHandoff).toBe(true);
+    expect(await broker.hasActiveExecution()).toBe(false); // 종료 후 잠금 해제
+    const kinds = chrome.mock.calls.map((c) => c[1].kind);
+    expect(kinds).toEqual(["enter_password_on_page", "completed"]);
+  });
+
   it("13. notifyOnRejection=false → 거절 알림 미발송", async () => {
     const { broker, chrome } = setup({
       policy: basePolicy({

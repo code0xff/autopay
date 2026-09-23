@@ -13,7 +13,10 @@ export interface PageBridge {
   fill(tabId: number, selector: string, value: string): Promise<void>;
   click(tabId: number, selector: string): Promise<void>;
   /** 완료/취소/타임아웃/비번UI 등장을 관찰해 결과로 반환(대기는 브리지가 소유).
-   *  expectedOrigin과 완료 시점 탭 origin이 다르면 승인으로 인정하지 않는다. */
+   *  expectedOrigin과 완료 시점 탭 origin이 다르면 승인으로 인정하지 않는다.
+   *  비번UI 등장 시 onPasswordRequired가 있으면 1회 호출하고 사용자 직접 입력을
+   *  계속 기다린다(핸드오프, executor.md §3.2 — 비번칸·키패드는 절대 건드리지
+   *  않음). 없으면 failed(password_required). */
   waitForOutcome(
     tabId: number,
     cfg: {
@@ -22,6 +25,7 @@ export interface PageBridge {
       passwordUiSel?: string;
       timeoutMs: number;
       expectedOrigin: string;
+      onPasswordRequired?: () => Promise<void>;
     },
   ): Promise<CompletionResult>;
 }
@@ -40,7 +44,7 @@ interface AdapterConfig {
     birth?: string;
     success: string;
     orderId: string;
-    passwordUi?: string; // 등장 시 failed(비번 미입력) — 패턴 C 안전장치
+    passwordUi?: string; // 등장 시 사용자 핸드오프(executor.md §3.2) — 브로커는 비번 미입력
   };
   merchantName: string;
 }
@@ -88,7 +92,7 @@ export const COUPAY: AdapterConfig = {
     success: "text:주문이 완료되었습니다",
     orderId: "after:주문번호",
     // 등장 = 원터치 아님(또는 쿠팡 FDS의 리스크 기반 비번 재요구, AGENTS §2.5) →
-    // failed(password_required). ⚠️ 2026-09-23 실사용 중 발견: 이전 CSS
+    // 사용자 핸드오프(executor.md §3.2 — 통지 후 직접 입력 대기). ⚠️ 2026-09-23 실사용 중 발견: 이전 CSS
     // 클래스 추측(`[class*=password]`)은 실제 화면에서 매치되지 않아 비번
     // 모달이 감지되지 않고 3분 타임아웃까지 그냥 대기하는 버그가 있었다
     // (쿠팡은 Tailwind 자동생성 클래스뿐이라 "password"라는 문자열이 클래스에
@@ -150,6 +154,7 @@ class DomCheckoutDriver implements CheckoutDriver {
     tabId: number,
     timeoutMs: number,
     expectedOrigin: string,
+    onPasswordRequired?: () => Promise<void>,
   ): Promise<CompletionResult> {
     const s = this.cfg.selectors;
     return this.bridge.waitForOutcome(tabId, {
@@ -158,6 +163,7 @@ class DomCheckoutDriver implements CheckoutDriver {
       passwordUiSel: s.passwordUi,
       timeoutMs,
       expectedOrigin,
+      onPasswordRequired,
     });
   }
 }

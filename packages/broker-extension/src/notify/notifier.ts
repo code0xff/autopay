@@ -6,6 +6,7 @@ export type NotifyChannel = "chrome" | "telegram" | "email" | "webhook";
 export type NotifyEvent =
   | { kind: "confirm_required"; merchant: string; amount: number; requestId: string }
   | { kind: "approve_on_phone"; merchant: string; amount: number; method: "kakaopay" | "tosspay" }
+  | { kind: "enter_password_on_page"; merchant: string; amount: number }
   | { kind: "completed"; merchant: string; amount: number; orderId: string }
   | { kind: "rejected"; merchant: string; amount: number; violation: string }
   | { kind: "failed"; merchant: string; amount: number; error: string };
@@ -53,6 +54,11 @@ export function format(event: NotifyEvent): NotifyMessage {
       return {
         title: "폰에서 승인",
         body: `${event.merchant} ${won(event.amount)} — 폰에서 ${event.method} 승인하세요`,
+      };
+    case "enter_password_on_page":
+      return {
+        title: "비밀번호 입력 필요",
+        body: `${event.merchant} ${won(event.amount)} — 결제 탭에서 비밀번호를 직접 입력하세요`,
       };
     case "completed":
       return {

@@ -15,6 +15,9 @@ export interface PayInput {
   identity?: Identity; // 패턴 B만 필요(refstore). 패턴 C 미사용.
   timeoutMs: number;
   approvedSnapshot: string; // 승인 시점 스냅샷 — 실행 직전 재검증
+  /** 비번 UI 등장 시 1회 호출(사용자 핸드오프 통지, executor.md §3.2). 미주입이면
+   *  비번 UI 등장 = failed(password_required). */
+  onPasswordHandoff?: () => Promise<void>;
 }
 
 export type PayOutcome =
@@ -57,5 +60,6 @@ export interface CheckoutDriver {
     tabId: number,
     timeoutMs: number,
     expectedOrigin: string,
+    onPasswordRequired?: () => Promise<void>,
   ): Promise<CompletionResult>;
 }

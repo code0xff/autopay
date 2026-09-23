@@ -128,16 +128,48 @@ verify(tabId):
   - 쿠팡 인-페이지 체크아웃에서 결제 예정 금액 DOM 파싱 → amount
 pay(input):
   1. (원터치 결제 ON 전제) [결제하기] 클릭  ← 식별정보·폰 승인 없음
-     ※ 원터치 OFF라 6자리 비번을 요구하면 즉시 failed로 중단(비번 입력 금지)
-  2. 인-페이지 완료 상태(주문완료 화면/주문번호) 독립 파싱
+  2. 6자리 비번 UI가 (보이는 상태로) 나타나면 → **§3.2 비밀번호 핸드오프**
+     (브로커는 키패드에 손대지 않고 사용자 직접 입력을 기다린다)
+  3. 인-페이지 완료 상태(주문완료 화면/주문번호) 독립 파싱
      - 성공 → approved(orderId, amount)
-     - 비번 요구/차단 → failed  / 그 외 → failed
+     - timeoutMs 내 미완료 → timeout / 그 외 → failed
 ```
+
+## 3.2 비밀번호 핸드오프 (패턴 C, 2026-09-23)
+
+원터치가 켜져 있어도 쿠팡 FDS가 리스크 판단으로 6자리 비번을 재요구할 수 있다
+(쿠팡의 의도된 보안 동작 — 우회 대상 아님, AGENTS §2.5). 이전엔 즉시
+`failed(password_required)`로 끝냈으나, 그러면 사람이 직접 입력해 결제를 마쳐도
+감사·통지 흐름 밖으로 빠진다. 그래서 **사람에게 넘기고(handoff) 결과만 독립
+파싱**한다 — 패턴 B의 "폰 승인 대기"와 같은 구조를 브라우저 안에서 한다.
+
+```
+awaitCompletion 폴링 중 passwordUi(보이는 요소) 최초 감지:
+  1. onPasswordRequired() 1회 호출 → 브로커가 notify("enter_password_on_page")
+     "○○원 — 결제 탭에서 비밀번호를 직접 입력하세요"
+  2. 계속 폴링(키패드·입력칸에 어떤 조작도 하지 않음). 남은 timeoutMs 안에
+     - 완료 신호+주문번호 파싱(동일 origin) → approved
+     - 경과 → timeout (사용자가 입력 안 함/취소)
+  3. onPasswordRequired 미주입(구 호출부) → 기존대로 failed(password_required)
+```
+
+**불변식 (핸드오프 중)**
+- 브로커는 비번 값을 읽거나(`readText`로 입력칸 값 조회 없음), 채우거나, 키패드를
+  클릭하지 않는다. 감지는 "비밀번호" 문구가 **보이는지**만 본다(§2.2 `contains:`).
+- **에이전트 페이지 도구 잠금**: 결제 실행 중(executing 색인 비어있지 않음)에는
+  브리지의 `open`/`read_page`/`click`/`fill`을 `page_locked_during_payment`로
+  거부한다(§2.1 "손 소유 시 추가 방어"의 구현). 사용자가 입력하는 동안 에이전트가
+  페이지를 읽거나 키패드를 누를 수 없다. `get_payment_result`/
+  `get_policy_summary`는 허용(상태만 반환, 비밀 없음).
+- **read_page는 `input[type=password]` 값을 절대 반환하지 않는다**(잠금과 무관한
+  상시 방어 — 잠금이 풀린 뒤에도 값이 남아있을 수 있으므로).
+- 에이전트向 결과는 핸드오프 중에도 `pending_user_confirmation` 그대로(새 상태
+  없음 — broker-api 표면 불변).
 
 - **외부 게이트가 없으므로** background가 confirm 게이트를 담당한다
   (정책 임계값·비지정 구매는 사용자 확인 필수). 완료 후 즉시 통지 필수.
-- **비밀번호 경로 진입 금지**: 결제 과정에서 6자리 비번 입력 UI가 나타나면
-  진행하지 않고 failed 반환(§2.5 금지). 원터치가 전제 조건.
+- **비밀번호를 브로커가 입력하지 않는다**: 6자리 비번 입력 UI가 나타나면 브로커는
+  멈추고 사용자에게 넘긴다(§3.2 핸드오프). 입력은 100% 사용자(§2.5 금지).
 
 ## 4. 불변식
 
@@ -149,8 +181,11 @@ pay(input):
   (§2.1 TOCTOU 방어). "승인한 것 ≠ 결제되는 것"을 원천 차단.
 - `identity`(PII)는 로그·에러·audit에 원문으로 남기지 않는다.
 - 패턴 B의 최종 결제 승인은 폰에서 사용자가 수행(대행 불가).
-- 패턴 C(쿠팡): 결제 비밀번호를 입력하지 않는다. 비번 UI 등장 시 failed로
-  중단. 외부 게이트가 없으므로 confirm 게이트·즉시 통지로 사용자 인지 보장.
+- 패턴 C(쿠팡): 결제 비밀번호를 입력하지 않는다. 비번 UI 등장 시 사용자
+  핸드오프(§3.2) — 통지 후 사용자 직접 입력을 기다리고 완료만 독립 파싱. 외부
+  게이트가 없으므로 confirm 게이트·즉시 통지로 사용자 인지 보장.
+- 결제 실행 중 에이전트의 페이지 도구는 잠긴다(§3.2). read_page는 비번 입력칸
+  값을 반환하지 않는다.
 
 ## 5. 수용 기준
 
@@ -182,5 +217,9 @@ B. 변경 없음 → 스냅샷 일치 → 정상 결제
 ### 쿠팡(패턴 C) 전용
 9. `CoupayAdapter.hasExternalApproval === false`
 10. 원터치 ON: [결제하기] 클릭 → 주문완료 파싱 → `approved`
-11. 결제 중 6자리 비번 UI 등장 → `failed`(비번 미입력), 진행 중단
+11. 결제 중 6자리 비번 UI 등장 → 핸드오프 통지 1회 → 사용자 입력 후 완료 파싱
+    → `approved` / 미입력 → `timeout`. 브로커는 비번 입력칸을 fill·click하지 않음
+11b. onPasswordRequired 미주입 → 기존대로 `failed(password_required)`
+11c. 결제 실행 중 브리지 `read_page`/`click`/`fill`/`open` → `page_locked_during_payment`
+11d. `read_page`가 `input[type=password]` 값을 반환하지 않음
 12. `hasExternalApproval:false` → background가 confirm 게이트 적용(통합 테스트)

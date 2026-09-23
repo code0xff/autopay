@@ -147,16 +147,26 @@ export class ChromePageBridge implements PageBridge {
       passwordUiSel?: string;
       timeoutMs: number;
       expectedOrigin: string;
+      onPasswordRequired?: () => Promise<void>;
     },
   ): Promise<CompletionResult> {
     const deadline = Date.now() + cfg.timeoutMs;
     const poll = 500;
+    let handedOff = false;
     while (Date.now() < deadline) {
       // 완료 판정은 승인 시점과 동일 origin에서만(허위 완료 페이지 차단).
       const originNow = await this.origin(tabId);
       if (originNow === cfg.expectedOrigin) {
-        if (cfg.passwordUiSel && (await this.readText(tabId, cfg.passwordUiSel)) !== null) {
-          return { status: "failed", error: "password_required" };
+        // 비번 UI: 핸드오프 훅이 있으면 1회 통지 후 사용자 직접 입력을 계속 기다린다
+        // (비번칸·키패드는 읽지도 누르지도 않는다 — executor.md §3.2).
+        if (
+          !handedOff &&
+          cfg.passwordUiSel &&
+          (await this.readText(tabId, cfg.passwordUiSel)) !== null
+        ) {
+          if (!cfg.onPasswordRequired) return { status: "failed", error: "password_required" };
+          handedOff = true;
+          await cfg.onPasswordRequired().catch(() => {}); // 통지 실패가 결제 대기를 깨지 않게
         }
         const ok = await this.readText(tabId, cfg.successSel);
         const orderId = (await this.readText(tabId, cfg.orderIdSel))?.trim() ?? "";

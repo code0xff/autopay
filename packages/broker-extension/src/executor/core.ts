@@ -41,7 +41,12 @@ export class SimplePayCore implements SimplePayAdapter {
 
     await this.driver.startPayment(input.tabId, { identity: input.identity });
     // 완료 판정은 승인 시점과 동일 origin에서만 인정(허위 완료 페이지 차단).
-    const result = await this.driver.awaitCompletion(input.tabId, input.timeoutMs, current.origin);
+    const result = await this.driver.awaitCompletion(
+      input.tabId,
+      input.timeoutMs,
+      current.origin,
+      input.onPasswordHandoff,
+    );
     if (result.status === "approved") {
       return { status: "approved", orderId: result.orderId.slice(0, 64), amount: current.amount };
     }

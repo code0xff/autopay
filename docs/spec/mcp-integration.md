@@ -110,4 +110,7 @@ Claude Code용 스킬(`SKILL.md` + 도구 사용 규칙):
 - 에이전트(스킬)는 §3 도구 밖으로 브로커·페이지에 접근하지 못한다.
 - 토큰 미검증 연결은 어떤 부수효과도 만들지 않는다.
 - `request_payment`는 항상 정책 게이트를 거치고, 최종 승인은 out-of-band.
-- 도구 응답에 비밀·PII·빌링키·세션이 없다.
+- 도구 응답에 비밀·PII·빌링키·세션이 없다. `read_page`는 `input[type=password]`
+  값을 반환하지 않는다.
+- 결제 실행 중(비번 핸드오프 포함)에는 `open`/`read_page`/`click`/`fill`이
+  `page_locked_during_payment`로 거부된다(`executor.md §3.2`).

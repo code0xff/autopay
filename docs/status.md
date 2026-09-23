@@ -104,6 +104,14 @@
     해서 `passwordUi: "contains:비밀번호"`로 교체 — 정확한 문구를 몰라도 즉시
     감지해 `failed(password_required)`로 빠르게 수렴한다. 실제 비번 모달
     DOM은 여전히 못 봤으니(다음에 마주치면) 재검증 필요.
+  - **2026-09-23 후속**: (a) `contains:`가 숨김 요소에도 걸려 원터치 정상 결제를
+    오판할 수 있어 **보이는 요소만** 매칭하도록 수정(`checkVisibility`). (b)
+    비번 UI 등장 시 즉시 failed 대신 **사용자 핸드오프**(`executor.md §3.2`):
+    `enter_password_on_page` 통지 → 사용자가 직접 입력 → 완료 독립 파싱 →
+    approved/timeout. (c) 결제 실행 중 브리지 페이지 도구 잠금
+    (`page_locked_during_payment`) + `read_page`가 `input[type=password]` 값을
+    반환하지 않도록 수정(핸드오프 중 입력값 유출 경로 차단). 핸드오프 라이브
+    검증은 아직 — 전체 대기 상한은 기존 payTimeoutMs(180s).
 - **M4 — 빌링키(패턴 A)**: refstore에 빌링키 저장 계약만 존재. PG 가맹점 계약
   전제. **2026-09-22 문서 조사 완료**(`docs/payment-flows.md` "빌링키 가맹점
   요건 조사") — 토스·카카오 모두 PG 계약 필수, 사업자 등록 사실상 전제,

@@ -17,6 +17,9 @@ class FixtureBridge implements PageBridge {
   private doc: ReturnType<typeof parseHTML>["document"];
   readonly filled: Record<string, string> = {};
   readonly clicked: string[] = [];
+  handoffs = 0; // onPasswordRequired 호출 횟수
+  /** 핸드오프 후 "사람이 직접 비번을 입력해" 도달하는 페이지. 없으면 사람이 입력 안 함. */
+  afterUserPasswordHtml?: string;
 
   constructor(
     checkoutHtml: string,
@@ -65,13 +68,19 @@ class FixtureBridge implements PageBridge {
       passwordUiSel?: string;
       timeoutMs: number;
       expectedOrigin: string;
+      onPasswordRequired?: () => Promise<void>;
     },
   ): Promise<CompletionResult> {
     // 완료 판정은 승인 시점 origin과 일치할 때만(허위 완료 페이지 차단).
     if ((this.completeOrigin ?? this.originStr) !== cfg.expectedOrigin)
       return { status: "timeout" };
     if (cfg.passwordUiSel && this.find(cfg.passwordUiSel)) {
-      return { status: "failed", error: "password_required" };
+      if (!cfg.onPasswordRequired) return { status: "failed", error: "password_required" };
+      // 핸드오프: 통지 1회 후 사람의 직접 입력을 기다린다(브리지는 비번칸에 손대지 않음).
+      this.handoffs++;
+      await cfg.onPasswordRequired();
+      if (!this.afterUserPasswordHtml) return { status: "timeout" }; // 사람이 입력 안 함
+      this.doc = parseHTML(this.afterUserPasswordHtml).document;
     }
     const ok = this.find(cfg.successSel);
     const orderId = this.find(cfg.orderIdSel)?.textContent?.trim() ?? "";
@@ -159,7 +168,53 @@ describe("결제 흐름 E2E (픽스처)", () => {
     expect(bridge.clicked).not.toContain(COUPAY_PAY_SEL);
   });
 
-  it("쿠팡: 비밀번호 UI 등장(원터치 아님) → failed(password_required)", async () => {
+  it("쿠팡: 비밀번호 UI 등장 + 핸드오프 훅 → 통지 1회 → 사람이 입력 → approved", async () => {
+    const bridge = new FixtureBridge(
+      COUPANG_CHECKOUT,
+      COUPANG_PASSWORD,
+      "https://checkout.coupang.com",
+      COUPAY_PAY_SEL,
+    );
+    bridge.afterUserPasswordHtml = COUPANG_COMPLETE;
+    const adapter = createAdapter("coupay", bridge);
+    const v = await adapter.verify(0);
+    let notified = 0;
+    const out = await adapter.pay({
+      tabId: 0,
+      timeoutMs: 1000,
+      approvedSnapshot: v.snapshot,
+      onPasswordHandoff: async () => {
+        notified++;
+      },
+    });
+    expect(out).toEqual({ status: "approved", orderId: "8842-1179", amount: 3_650 });
+    expect(notified).toBe(1);
+    // 브로커는 비번칸을 채우거나 키패드를 누르지 않는다 — [결제하기] 한 번뿐.
+    expect(bridge.filled).toEqual({});
+    expect(bridge.clicked).toEqual([COUPAY_PAY_SEL]);
+  });
+
+  it("쿠팡: 핸드오프 후 사람이 입력하지 않으면 → timeout(결제 없음)", async () => {
+    const bridge = new FixtureBridge(
+      COUPANG_CHECKOUT,
+      COUPANG_PASSWORD,
+      "https://checkout.coupang.com",
+      COUPAY_PAY_SEL,
+    );
+    const adapter = createAdapter("coupay", bridge);
+    const v = await adapter.verify(0);
+    const out = await adapter.pay({
+      tabId: 0,
+      timeoutMs: 1000,
+      approvedSnapshot: v.snapshot,
+      onPasswordHandoff: async () => {},
+    });
+    expect(out).toEqual({ status: "timeout" });
+    expect(bridge.handoffs).toBe(1);
+    expect(bridge.filled).toEqual({});
+  });
+
+  it("쿠팡: 비밀번호 UI 등장 + 핸드오프 훅 없음(구 호출부) → failed(password_required)", async () => {
     const bridge = new FixtureBridge(
       COUPANG_CHECKOUT,
       COUPANG_PASSWORD,
