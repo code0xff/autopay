@@ -163,11 +163,13 @@ export class ChromePageBridge implements PageBridge {
     sel: string,
     action: "text" | "click" | "fill" | "clickable",
     val: string | null = null,
+    world?: "MAIN",
   ): Promise<string | null> {
     const [res] = await chrome.scripting.executeScript({
       target: { tabId },
       args: [sel, action, val],
       func: pageOp,
+      ...(world ? { world } : {}),
     });
     return (res?.result as string | null) ?? null;
   }
@@ -192,13 +194,34 @@ export class ChromePageBridge implements PageBridge {
     await this.op(tabId, selector, "click");
   }
 
+  /** ⚠️ 이 검사만 **MAIN 월드**에서 돌린다. executeScript는 기본이 격리 월드인데,
+   *  React가 DOM 노드에 얹는 `__reactProps$*`나 페이지가 설정한 `onclick` 같은
+   *  expando는 **페이지 월드의 것이라 격리 월드에서는 보이지 않는다** — 격리
+   *  월드에서 검사했더니 항상 false가 나와 결제가 pay_button_not_ready로 실패했다
+   *  (2026-09-26). 반대로 `.click()`은 DOM 이벤트라 월드를 넘어 전달되므로
+   *  클릭은 기존대로 격리 월드에서 한다(페이지 스크립트와 섞이지 않게).
+   *  MAIN 월드 주입이 거부되는 환경(구버전 등)에서는 결제를 막지 않고, 대신
+   *  `readyState=complete` + 여유 시간으로 대신 판단한다. */
   async waitClickable(tabId: number, selector: string, timeoutMs: number): Promise<boolean> {
     const deadline = Date.now() + timeoutMs;
+    let probeFailed = false;
     while (Date.now() < deadline) {
-      if ((await this.op(tabId, selector, "clickable")) === "1") return true;
+      try {
+        if ((await this.op(tabId, selector, "clickable", null, "MAIN")) === "1") return true;
+      } catch {
+        probeFailed = true;
+        break;
+      }
       await delay(200);
     }
-    return false;
+    if (!probeFailed) return false;
+    // 폴백: 핸들러를 확인할 수 없으니 로딩 완료 + 짧은 정착 시간으로 대신한다.
+    const [res] = await chrome.scripting.executeScript({
+      target: { tabId },
+      func: () => document.readyState,
+    });
+    await delay(1500);
+    return res?.result === "complete";
   }
 
   async waitForOutcome(
