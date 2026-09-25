@@ -20,9 +20,11 @@
 | **비동기 결제 실행** (2026-09-23) | ✅ | `requestPayment`가 `requestId` 즉시 반환, 실행은 백그라운드(허브 30s 타임아웃에 requestId를 잃던 High 수정). 회귀 테스트 #20 |
 | **설치 단순화** (2026-09-23) | ✅ | `pnpm bootstrap`(설치·빌드·토큰 준비·클립보드), 옵션 "시작하기" 체크리스트, 잠금은 패턴 B PII에만(정책·브리지·쿠팡 승인 상시 노출, 사이드패널 해제 카드는 패턴 B 대기 시에만). 로컬 실행 검증 |
 | **사용자 가이드 사이트** (2026-09-23) | ✅ | `docs/site` → GitHub Pages(`https://code0xff.github.io/autopay/`, `.github/workflows/pages.yml`). Slate 디자인, KO/EN |
+| **핸드오프 대기 상한 분리** (2026-09-25) | ✅ | 실사용에서 비번 입력 중 180s 타임아웃으로 `failed(timeout)`이 남 → 핸드오프 감지 시 상한을 `handoffTimeoutMs`(기본 10분)로 재설정. stale 스윕 기준도 최대 대기로 보정. 회귀 테스트 #21·#22. `executor.md §3.2` |
+| **승인 카드 오안내 제거** (2026-09-25) | ✅ | "폰 승인이 없어 이 확인이 유일한 게이트"를 삭제 — FDS 비번 재요구가 흔해 사실이 아니고, "승인하면 결제 완료"로 기대를 거꾸로 설정했다. 비번 필요 시점의 통지가 대체. `ui.md` |
 | Codex 리뷰 | ✅×4 | M0·M1코어·M1익스텐션·최종, High/Medium 반영 |
 
-**테스트 총계**: 179 (shared 18 + broker-extension 139 + mcp-server 22). typecheck·biome 클린.
+**테스트 총계**: 181 (shared 18 + broker-extension 141 + mcp-server 22). typecheck·biome 클린.
 
 ### Codex 최종 리뷰 High 3건 — 반영 + 회귀 테스트로 검증
 - confirm 후 실행 직전 정책·사용량 재평가(한도 소진 시 차단) — `broker-core.test.ts` #15

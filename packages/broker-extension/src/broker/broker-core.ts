@@ -50,6 +50,8 @@ export interface BrokerDeps {
   now?: () => Date;
   idgen?: () => string;
   payTimeoutMs?: number;
+  /** 비번 핸드오프 시작 후의 대기 상한(사람 입력 시간). 기본 10분. */
+  handoffTimeoutMs?: number;
 }
 
 type Terminal = "approved" | "rejected" | "failed" | "canceled" | "timeout";
@@ -71,6 +73,7 @@ export class BrokerCore {
   private readonly now: () => Date;
   private readonly idgen: () => string;
   private readonly payTimeoutMs: number;
+  private readonly handoffTimeoutMs: number;
   private readonly inFlight = new Set<string>(); // 같은 워커 내 중복 실행 방지
   private readonly running = new Set<Promise<void>>(); // 백그라운드 실행(idle() 대기용)
 
@@ -78,11 +81,15 @@ export class BrokerCore {
     this.now = deps.now ?? (() => new Date());
     this.idgen = deps.idgen ?? (() => crypto.randomUUID());
     this.payTimeoutMs = deps.payTimeoutMs ?? 180_000;
+    this.handoffTimeoutMs = deps.handoffTimeoutMs ?? 600_000;
   }
 
-  /** recoverStaleExecutions의 staleAfterMs 산정 기준(호출부에서 여유를 더함). */
+  /** recoverStaleExecutions의 staleAfterMs 산정 기준(호출부에서 여유를 더함).
+   *  ⚠️ 실제로 한 건이 대기할 수 있는 **최대** 시간이어야 한다 — 비번 핸드오프에
+   *  들어가면 payTimeoutMs가 아니라 handoffTimeoutMs까지 기다리므로, 이 값이
+   *  더 작으면 스윕이 정상 대기 중인 결제를 failed(interrupted)로 오판한다. */
   get payTimeoutMsValue(): number {
-    return this.payTimeoutMs;
+    return Math.max(this.payTimeoutMs, this.handoffTimeoutMs);
   }
 
   async requestPayment(input: unknown): Promise<{ requestId: string }> {
@@ -336,6 +343,7 @@ export class BrokerCore {
         tabId: state.req.checkoutTabId,
         identity,
         timeoutMs: this.payTimeoutMs,
+        handoffTimeoutMs: this.handoffTimeoutMs,
         approvedSnapshot: state.snapshot,
         // 비번 UI 등장 시 사용자에게 넘긴다(executor.md §3.2). 브로커는 입력하지
         // 않고 알리기만 한다 — 결과는 계속 pending, 완료는 독립 파싱으로 확정.

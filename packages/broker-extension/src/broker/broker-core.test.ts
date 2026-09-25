@@ -533,6 +533,26 @@ describe("BrokerCore", () => {
     expect((await broker.getPaymentResult(requestId)).status).toBe("approved");
   });
 
+  // 2026-09-25 실사용 버그: 비번 핸드오프 중 payTimeoutMs(180s)가 만료돼
+  // failed(timeout)이 됐다. 사람이 알림을 보고 탭을 찾아 6자리를 입력하기엔
+  // 너무 짧다 — 핸드오프 시작 후엔 더 긴 상한을 쓴다(브리지가 deadline 재설정).
+  it("21. 비번 핸드오프용 별도 대기 상한(handoffTimeoutMs)을 어댑터에 전달한다", async () => {
+    const adapter = fakeAdapter({ method: "coupay", hasExternalApproval: false });
+    const { broker } = setup({ adapters: { coupay: adapter } });
+    await broker.requestPayment(validReq);
+    await broker.idle();
+    expect(adapter.pay).toHaveBeenCalledWith(
+      expect.objectContaining({ timeoutMs: 1000, handoffTimeoutMs: 600_000 }),
+    );
+  });
+
+  // 위 연장과 stale 스윕의 상호작용: 스윕 기준이 핸드오프 상한보다 짧으면
+  // 정상 대기 중인 결제를 failed(interrupted)로 오판한다 → 최대값이어야 한다.
+  it("22. payTimeoutMsValue는 핸드오프 상한을 포함한 최대 대기 시간이다", () => {
+    const { broker } = setup({});
+    expect(broker.payTimeoutMsValue).toBe(600_000); // payTimeoutMs(1000)가 아니라 핸드오프 상한
+  });
+
   it("13. notifyOnRejection=false → 거절 알림 미발송", async () => {
     const { broker, chrome } = setup({
       policy: basePolicy({

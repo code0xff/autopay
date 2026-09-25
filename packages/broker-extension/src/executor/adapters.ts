@@ -16,7 +16,8 @@ export interface PageBridge {
    *  expectedOrigin과 완료 시점 탭 origin이 다르면 승인으로 인정하지 않는다.
    *  비번UI 등장 시 onPasswordRequired가 있으면 1회 호출하고 사용자 직접 입력을
    *  계속 기다린다(핸드오프, executor.md §3.2 — 비번칸·키패드는 절대 건드리지
-   *  않음). 없으면 failed(password_required). */
+   *  않음). 없으면 failed(password_required). 핸드오프 시작 후에는
+   *  handoffTimeoutMs(있으면)로 대기 상한을 늘린다 — 사람 입력 시간 확보. */
   waitForOutcome(
     tabId: number,
     cfg: {
@@ -24,6 +25,7 @@ export interface PageBridge {
       orderIdSel: string;
       passwordUiSel?: string;
       timeoutMs: number;
+      handoffTimeoutMs?: number;
       expectedOrigin: string;
       onPasswordRequired?: () => Promise<void>;
     },
@@ -167,6 +169,7 @@ class DomCheckoutDriver implements CheckoutDriver {
     timeoutMs: number,
     expectedOrigin: string,
     onPasswordRequired?: () => Promise<void>,
+    handoffTimeoutMs?: number,
   ): Promise<CompletionResult> {
     const s = this.cfg.selectors;
     return this.bridge.waitForOutcome(tabId, {
@@ -174,6 +177,7 @@ class DomCheckoutDriver implements CheckoutDriver {
       orderIdSel: s.orderId,
       passwordUiSel: s.passwordUi,
       timeoutMs,
+      handoffTimeoutMs,
       expectedOrigin,
       onPasswordRequired,
     });

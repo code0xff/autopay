@@ -46,6 +46,7 @@ export class SimplePayCore implements SimplePayAdapter {
       input.timeoutMs,
       current.origin,
       input.onPasswordHandoff,
+      input.handoffTimeoutMs,
     );
     if (result.status === "approved") {
       return { status: "approved", orderId: result.orderId.slice(0, 64), amount: current.amount };

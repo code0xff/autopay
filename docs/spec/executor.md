@@ -166,7 +166,8 @@ pay(input):
 awaitCompletion 폴링 중 passwordUi(보이는 요소) 최초 감지:
   1. onPasswordRequired() 1회 호출 → 브로커가 notify("enter_password_on_page")
      "○○원 — 결제 탭에서 비밀번호를 직접 입력하세요"
-  2. 계속 폴링(키패드·입력칸에 어떤 조작도 하지 않음). 남은 timeoutMs 안에
+  2. 대기 상한을 handoffTimeoutMs(기본 10분)로 **재설정**한 뒤 계속 폴링
+     (키패드·입력칸에 어떤 조작도 하지 않음)
      - 완료 신호+주문번호 파싱(동일 origin) → approved
      - 경과 → timeout (사용자가 입력 안 함/취소)
   3. onPasswordRequired 미주입(구 호출부) → 기존대로 failed(password_required)
@@ -184,6 +185,20 @@ awaitCompletion 폴링 중 passwordUi(보이는 요소) 최초 감지:
   상시 방어 — 잠금이 풀린 뒤에도 값이 남아있을 수 있으므로).
 - 에이전트向 결과는 핸드오프 중에도 `pending_user_confirmation` 그대로(새 상태
   없음 — broker-api 표면 불변).
+
+**대기 상한 (2026-09-25 실사용 수정)**
+자동 진행용 `payTimeoutMs`(기본 180s)를 사람 입력에도 그대로 쓰면 **입력 중에
+타임아웃**이 난다(실제로 발생 — 사용자가 비번을 입력하기 전에 `failed(timeout)`).
+그러면 **쿠팡에선 결제가 되고 우리 기록은 `failed`** 인 최악의 불일치가 생길 수
+있다. 그래서 핸드오프 감지 시점에 상한을 `handoffTimeoutMs`(기본 600s)로 다시
+잡는다.
+- ⚠️ `recoverStaleExecutions`의 `staleAfterMs` 기준(`payTimeoutMsValue`)은
+  **실제 최대 대기 시간**(= `max(payTimeoutMs, handoffTimeoutMs)`)이어야 한다.
+  더 작으면 5분 틱 스윕이 정상 대기 중인 핸드오프를 `failed(interrupted)`로
+  오판한다. 회귀 테스트: `broker-core.test.ts` #21·#22.
+- 타임아웃 후 사용자가 뒤늦게 비번을 입력하면 여전히 불일치가 남는다 —
+  **미해결**(AGENTS §9 핸드오프 취소 UX). 현재는 타임아웃 시 사용자에게
+  결제창을 닫으라고 안내하는 것 외엔 방법이 없다.
 
 - **외부 게이트가 없으므로** background가 confirm 게이트를 담당한다
   (정책 임계값·비지정 구매는 사용자 확인 필수). 완료 후 즉시 통지 필수.

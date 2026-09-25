@@ -183,11 +183,6 @@ function Pending({
             <span style={{ fontWeight: 600 }}>{p.merchant}</span>
             <span className="amount mono">{won(p.amount)}</span>
           </div>
-          {p.method === "coupay" && (
-            <div className="muted" style={{ fontSize: 11, marginBottom: 10 }}>
-              쿠팡 원터치는 폰 승인이 없어, 이 확인이 유일한 게이트입니다.
-            </div>
-          )}
           <div className="row" style={{ gap: 8 }}>
             <button
               type="button"

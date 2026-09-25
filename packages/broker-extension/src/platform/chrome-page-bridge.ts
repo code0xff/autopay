@@ -184,11 +184,12 @@ export class ChromePageBridge implements PageBridge {
       orderIdSel: string;
       passwordUiSel?: string;
       timeoutMs: number;
+      handoffTimeoutMs?: number;
       expectedOrigin: string;
       onPasswordRequired?: () => Promise<void>;
     },
   ): Promise<CompletionResult> {
-    const deadline = Date.now() + cfg.timeoutMs;
+    let deadline = Date.now() + cfg.timeoutMs;
     const poll = 500;
     let handedOff = false;
     while (Date.now() < deadline) {
@@ -204,6 +205,11 @@ export class ChromePageBridge implements PageBridge {
         ) {
           if (!cfg.onPasswordRequired) return { status: "failed", error: "password_required" };
           handedOff = true;
+          // 사람이 알림을 보고 탭을 찾아 6자리를 입력하기까지는 자동 진행보다
+          // 훨씬 오래 걸린다 — 기본 timeoutMs(180s)로는 입력 중에 타임아웃이 나서
+          // "쿠팡에선 결제됐는데 우리 기록은 failed"가 될 수 있다(실사용 확인).
+          // 핸드오프 시점부터 상한을 다시 잡는다.
+          if (cfg.handoffTimeoutMs) deadline = Date.now() + cfg.handoffTimeoutMs;
           await cfg.onPasswordRequired().catch(() => {}); // 통지 실패가 결제 대기를 깨지 않게
         }
         const ok = await this.readText(tabId, cfg.successSel);
