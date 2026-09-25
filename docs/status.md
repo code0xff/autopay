@@ -23,9 +23,10 @@
 | **핸드오프 대기 상한 분리** (2026-09-25) | ✅ | 실사용에서 비번 입력 중 180s 타임아웃으로 `failed(timeout)`이 남 → 핸드오프 감지 시 상한을 `handoffTimeoutMs`(기본 10분)로 재설정. stale 스윕 기준도 최대 대기로 보정. 회귀 테스트 #21·#22. `executor.md §3.2` |
 | **비번 알림 클릭 → 결제 탭 포커스** (2026-09-25) | ✅ | 알림 `requireInteraction`(자동 소멸 금지) + 클릭 시 결제 탭 활성화. 탭 id를 알림 id에 인코딩해 SW 재시작에도 동작. 회귀 테스트 3건. 링크 출력을 택하지 않은 이유(탭 불일치·피싱 습관)는 `executor.md §3.2` |
 | **승인 카드 오안내 제거** (2026-09-25) | ✅ | "폰 승인이 없어 이 확인이 유일한 게이트"를 삭제 — FDS 비번 재요구가 흔해 사실이 아니고, "승인하면 결제 완료"로 기대를 거꾸로 설정했다. 비번 필요 시점의 통지가 대체. `ui.md` |
+| **주입 함수 격리 회귀 테스트** (2026-09-26) | ✅ | `read_page`가 실사용에서 빈 결과만 반환 — `serializePage`가 모듈 상수를 참조해 페이지 컨텍스트에서 ReferenceError, `readPage`의 빈 스냅샷 폴백 탓에 **조용히 실패**했다. 상수를 함수 안으로 옮기고, 함수 소스를 격리 스코프에서 평가해 이 버그 유형을 잡는 테스트 4건 추가(`page-bridge.test.ts`) |
 | Codex 리뷰 | ✅×4 | M0·M1코어·M1익스텐션·최종, High/Medium 반영 |
 
-**테스트 총계**: 184 (shared 18 + broker-extension 144 + mcp-server 22). typecheck·biome 클린.
+**테스트 총계**: 188 (shared 18 + broker-extension 148 + mcp-server 22). typecheck·biome 클린.
 
 ### Codex 최종 리뷰 High 3건 — 반영 + 회귀 테스트로 검증
 - confirm 후 실행 직전 정책·사용량 재평가(한도 소진 시 차단) — `broker-core.test.ts` #15

@@ -26,15 +26,20 @@ export interface GenericPageBridge {
 
 const MAX_ELEMENTS = 150;
 const MAX_TEXT = 200;
-// 결제 총액 등 KRW 금액 표시 텍스트("5,690원") 판별. 짧은 리프 텍스트에만 적용해
-// 페이지 전체 텍스트를 긁어오지 않는다(2026-09-24 read_page 개선 — 체크아웃 총액이
-// 상호작용 요소가 아니라 read_page에 보이지 않던 문제, docs/spec/mcp-integration.md §3).
-const AMOUNT_TEXT_RE = /[\d,]{2,}\s*원/;
-const MAX_AMOUNT_TEXT = 40;
 
-/** 브라우저 컨텍스트에서 실행되는 순수 함수 — chrome.scripting.executeScript로 주입. */
+/** 브라우저 컨텍스트에서 실행되는 순수 함수 — chrome.scripting.executeScript로 주입.
+ *  ⚠️ executeScript는 이 함수를 **소스로 직렬화해** 페이지에 넣는다. 모듈 스코프의
+ *  상수·함수를 참조하면 페이지 컨텍스트에선 ReferenceError가 나고, readPage의
+ *  `?? {url:"",title:"",elements:[]}` 폴백 때문에 **빈 결과로 조용히 실패**한다
+ *  (2026-09-26 실사용에서 실제로 발생 — 금액 텍스트 기능이 모듈 상수를 참조했다).
+ *  그래서 maxElements·maxText는 인자로 받고, 나머지 상수는 전부 함수 안에 둔다. */
 export function serializePage(maxElements: number, maxText: number): PageSnapshot {
   const SEL = "a,button,input,select,textarea,[role],h1,h2,h3,[data-testid]";
+  // 결제 총액 등 KRW 금액 표시 텍스트("5,690원") 판별. 짧은 리프 텍스트에만 적용해
+  // 페이지 전체 텍스트를 긁어오지 않는다(체크아웃 총액이 상호작용 요소가 아니라
+  // read_page에 보이지 않던 문제, docs/spec/mcp-integration.md §3).
+  const AMOUNT_TEXT_RE = /[\d,]{2,}\s*원/;
+  const MAX_AMOUNT_TEXT = 40;
   const nodes = Array.from(document.querySelectorAll(SEL)).filter((el) => {
     const r = el.getBoundingClientRect();
     return r.width > 0 && r.height > 0; // 화면에 실제로 보이는 요소만
