@@ -63,6 +63,11 @@ class FixtureBridge implements PageBridge {
     this.clicked.push(sel);
     if (sel === this.completeOn) this.doc = parseHTML(this.afterClickHtml).document;
   }
+  /** 픽스처엔 하이드레이션 개념이 없다 — 요소가 있으면 눌리는 것으로 본다.
+   *  실제 페이지의 하이드레이션 대기는 `adapters.test.ts`가 별도로 검증한다. */
+  async waitClickable(_t: number, sel: string): Promise<boolean> {
+    return this.find(sel) !== null;
+  }
   async waitForOutcome(
     _t: number,
     cfg: {

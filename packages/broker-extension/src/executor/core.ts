@@ -39,7 +39,13 @@ export class SimplePayCore implements SimplePayAdapter {
       return { status: "canceled", reason: "content_changed" }; // TOCTOU
     }
 
-    await this.driver.startPayment(input.tabId, { identity: input.identity });
+    try {
+      await this.driver.startPayment(input.tabId, { identity: input.identity });
+    } catch (e) {
+      // 결제 시작 자체가 불가능한 경우(예: 버튼이 끝내 눌리는 상태가 안 됨)를
+      // 그대로 드러낸다 — 여기서 삼키면 타임아웃으로만 보여 원인을 못 찾는다.
+      return { status: "failed", error: e instanceof Error ? e.message : "start_failed" };
+    }
     // 완료 판정은 승인 시점과 동일 origin에서만 인정(허위 완료 페이지 차단).
     const result = await this.driver.awaitCompletion(
       input.tabId,

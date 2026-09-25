@@ -12,6 +12,12 @@ export interface PageBridge {
   origin(tabId: number): Promise<string>; // 결제 탭의 실제 origin(location.origin)
   fill(tabId: number, selector: string, value: string): Promise<void>;
   click(tabId: number, selector: string): Promise<void>;
+  /** 요소에 이벤트 핸들러가 붙어 실제로 눌리는 상태가 될 때까지 대기(최대 timeoutMs).
+   *  쿠팡 결제창은 React 앱이라 [결제하기]가 서버 렌더된 DOM에는 먼저 존재하지만
+   *  **하이드레이션 전에는 onClick이 없어 클릭이 조용히 무시된다**(2026-09-26 실사용:
+   *  버튼을 찾고 눌렀는데 화면이 전혀 변하지 않고 타임아웃). 눌러본 뒤 재시도하면
+   *  중복 결제 위험이 있으므로, **첫 클릭 전에** 준비를 확인한다. */
+  waitClickable(tabId: number, selector: string, timeoutMs: number): Promise<boolean>;
   /** 완료/취소/타임아웃/비번UI 등장을 관찰해 결과로 반환(대기는 브리지가 소유).
    *  expectedOrigin과 완료 시점 탭 origin이 다르면 승인으로 인정하지 않는다.
    *  비번UI 등장 시 onPasswordRequired가 있으면 1회 호출하고 사용자 직접 입력을
@@ -31,6 +37,10 @@ export interface PageBridge {
     },
   ): Promise<CompletionResult>;
 }
+
+/** [결제하기]가 눌리는 상태가 될 때까지 기다리는 상한. 하이드레이션은 보통 1초
+ *  안쪽이지만 느린 회선·콜드 캐시를 감안해 넉넉히 준다(넘으면 클릭 없이 실패). */
+const PAY_BUTTON_READY_MS = 15_000;
 
 interface AdapterConfig {
   method: PaymentMethod;
@@ -151,6 +161,12 @@ class DomCheckoutDriver implements CheckoutDriver {
 
   async startPayment(tabId: number, ctx: { identity?: Identity }): Promise<void> {
     const s = this.cfg.selectors;
+    // 하이드레이션 전 클릭은 조용히 무시된다(PageBridge.waitClickable 주석) →
+    // 누르기 전에 눌리는 상태인지 확인한다. 준비가 안 되면 클릭하지 않고 실패로
+    // 끝낸다 — 무의미한 클릭 후 타임아웃까지 기다리면 원인이 안 보인다.
+    if (!(await this.bridge.waitClickable(tabId, s.payButton, PAY_BUTTON_READY_MS))) {
+      throw new Error("pay_button_not_ready");
+    }
     if (this.cfg.flow === "patternB") {
       if (ctx.identity && s.phone && s.birth) {
         await this.bridge.fill(tabId, s.phone, ctx.identity.phone);

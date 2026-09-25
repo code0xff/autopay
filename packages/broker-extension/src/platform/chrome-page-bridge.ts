@@ -21,7 +21,7 @@ import type { CompletionResult } from "../executor/types.js";
 /** 페이지 컨텍스트에서 실행되는 자족 함수 — 요소 해석 + 읽기/클릭/입력. */
 export function pageOp(
   sel: string,
-  op: "text" | "click" | "fill",
+  op: "text" | "click" | "fill" | "clickable",
   val: string | null,
 ): string | null {
   // ── location 스킴: DOM이 아니라 주소에서 읽는다 ──
@@ -131,6 +131,21 @@ export function pageOp(
 
   if (!el) return null;
   if (op === "text") return el.textContent ?? null;
+  if (op === "clickable") {
+    // 눌리는 상태인가 — DOM에 존재하는 것만으론 부족하다. 쿠팡 결제창은 React
+    // 앱이라 서버 렌더된 [결제하기]가 먼저 보이고, 하이드레이션이 끝나야 onClick이
+    // 붙는다. 그 전에 누르면 아무 일도 안 일어나고 오류도 없다(2026-09-26 실사용).
+    // React는 핸들러를 DOM 노드의 __reactProps$* 에 얹으므로 그 존재를 확인하고,
+    // 프레임워크를 안 쓰는 페이지를 위해 inline onclick도 함께 본다.
+    const disabled = (el as HTMLButtonElement).disabled === true;
+    const hasInline = typeof (el as HTMLElement).onclick === "function";
+    const hasReact = Object.keys(el).some((k) => {
+      if (!k.startsWith("__reactProps$")) return false;
+      const props = (el as unknown as Record<string, { onClick?: unknown }>)[k];
+      return typeof props?.onClick === "function";
+    });
+    return !disabled && (hasInline || hasReact) ? "1" : "0";
+  }
   if (op === "click") {
     (el as HTMLElement).click();
     return "clicked";
@@ -146,7 +161,7 @@ export class ChromePageBridge implements PageBridge {
   private async op(
     tabId: number,
     sel: string,
-    action: "text" | "click" | "fill",
+    action: "text" | "click" | "fill" | "clickable",
     val: string | null = null,
   ): Promise<string | null> {
     const [res] = await chrome.scripting.executeScript({
@@ -175,6 +190,15 @@ export class ChromePageBridge implements PageBridge {
 
   async click(tabId: number, selector: string): Promise<void> {
     await this.op(tabId, selector, "click");
+  }
+
+  async waitClickable(tabId: number, selector: string, timeoutMs: number): Promise<boolean> {
+    const deadline = Date.now() + timeoutMs;
+    while (Date.now() < deadline) {
+      if ((await this.op(tabId, selector, "clickable")) === "1") return true;
+      await delay(200);
+    }
+    return false;
   }
 
   async waitForOutcome(
