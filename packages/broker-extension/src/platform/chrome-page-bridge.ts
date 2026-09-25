@@ -178,6 +178,36 @@ export class ChromePageBridge implements PageBridge {
     return this.op(tabId, selector, "text");
   }
 
+  /** 셀렉터가 **어느 프레임에서든** 잡히는지. executeScript는 기본이 최상위
+   *  프레임이라 iframe 안은 못 본다 — 쿠팡 비번 키패드가 별도 서브도메인
+   *  iframe으로 떠서, 비번 창이 실제로 떴는데도 탐지가 실패하고 핸드오프 통지 없이
+   *  타임아웃나는 일이 있었다(2026-09-26). 존재 여부만 보고 값은 읽지 않는다. */
+  private async existsInAnyFrame(tabId: number, sel: string): Promise<boolean> {
+    try {
+      const results = await chrome.scripting.executeScript({
+        target: { tabId, allFrames: true },
+        args: [sel, "text", null],
+        func: pageOp,
+      });
+      return results.some((r) => (r?.result ?? null) !== null);
+    } catch {
+      return false; // 프레임 주입 실패가 결제 대기를 깨지 않게(탐지만 못 할 뿐)
+    }
+  }
+
+  /** 타임아웃 원인 규명용 — 어떤 프레임들이 있었는지만 남긴다(값·내용 없음). */
+  private async frameOrigins(tabId: number): Promise<string[]> {
+    try {
+      const res = await chrome.scripting.executeScript({
+        target: { tabId, allFrames: true },
+        func: () => location.origin,
+      });
+      return res.map((r) => String(r?.result ?? "?"));
+    } catch {
+      return [];
+    }
+  }
+
   async origin(tabId: number): Promise<string> {
     const [res] = await chrome.scripting.executeScript({
       target: { tabId },
@@ -245,10 +275,11 @@ export class ChromePageBridge implements PageBridge {
       if (originNow === cfg.expectedOrigin) {
         // 비번 UI: 핸드오프 훅이 있으면 1회 통지 후 사용자 직접 입력을 계속 기다린다
         // (비번칸·키패드는 읽지도 누르지도 않는다 — executor.md §3.2).
+        // 비번 키패드는 별도 서브도메인 iframe으로 뜰 수 있어 **모든 프레임**을 본다.
         if (
           !handedOff &&
           cfg.passwordUiSel &&
-          (await this.readText(tabId, cfg.passwordUiSel)) !== null
+          (await this.existsInAnyFrame(tabId, cfg.passwordUiSel))
         ) {
           if (!cfg.onPasswordRequired) return { status: "failed", error: "password_required" };
           handedOff = true;
@@ -267,6 +298,13 @@ export class ChromePageBridge implements PageBridge {
       }
       await delay(poll);
     }
+    // 타임아웃은 원인이 여러 가지인데(완료 신호 미검출 / 비번 창을 못 잡음 /
+    // 사용자가 입력 안 함) 밖에서는 구분이 안 된다 — 다음 규명을 위해 프레임
+    // 구성과 핸드오프 여부만 콘솔에 남긴다(값·내용은 남기지 않는다).
+    console.warn("[autopay] payment timeout", {
+      handedOff,
+      frames: await this.frameOrigins(tabId),
+    });
     return { status: "timeout" };
   }
 }
