@@ -26,6 +26,11 @@ export interface GenericPageBridge {
 
 const MAX_ELEMENTS = 150;
 const MAX_TEXT = 200;
+// 결제 총액 등 KRW 금액 표시 텍스트("5,690원") 판별. 짧은 리프 텍스트에만 적용해
+// 페이지 전체 텍스트를 긁어오지 않는다(2026-09-24 read_page 개선 — 체크아웃 총액이
+// 상호작용 요소가 아니라 read_page에 보이지 않던 문제, docs/spec/mcp-integration.md §3).
+const AMOUNT_TEXT_RE = /[\d,]{2,}\s*원/;
+const MAX_AMOUNT_TEXT = 40;
 
 /** 브라우저 컨텍스트에서 실행되는 순수 함수 — chrome.scripting.executeScript로 주입. */
 export function serializePage(maxElements: number, maxText: number): PageSnapshot {
@@ -33,6 +38,20 @@ export function serializePage(maxElements: number, maxText: number): PageSnapsho
   const nodes = Array.from(document.querySelectorAll(SEL)).filter((el) => {
     const r = el.getBoundingClientRect();
     return r.width > 0 && r.height > 0; // 화면에 실제로 보이는 요소만
+  });
+  const nodeSet = new Set<Element>(nodes);
+  // KRW 금액 텍스트를 담은 순수 텍스트 리프(버튼/링크 등 상호작용 요소는 위에서
+  // 이미 잡히므로 제외) — 체크아웃 총액처럼 상호작용 불가능한 정보도 노출한다.
+  // 비밀번호 입력칸 값은 이 경로로 나올 수 없다(leaf 텍스트 노드일 뿐, input이
+  // 아니므로 el.value에 접근하지 않는다 — mcp-integration.md §10 불변식 유지).
+  const amountNodes = Array.from(document.querySelectorAll("*")).filter((el) => {
+    if (el.children.length > 0) return false; // 리프만(자식 있는 컨테이너 제외)
+    if (nodeSet.has(el)) return false; // 상호작용 요소는 이미 포함됨
+    const t = (el.textContent ?? "").trim();
+    if (t.length === 0 || t.length > MAX_AMOUNT_TEXT) return false;
+    if (!AMOUNT_TEXT_RE.test(t)) return false;
+    const r = el.getBoundingClientRect();
+    return r.width > 0 && r.height > 0;
   });
 
   function cssSelector(el: Element): string {
@@ -52,7 +71,7 @@ export function serializePage(maxElements: number, maxText: number): PageSnapsho
     return parts.join(">");
   }
 
-  const elements = nodes.slice(0, maxElements).map((el) => {
+  const toElement = (el: Element): PageElement => {
     const tag = el.tagName.toLowerCase();
     const role = el.getAttribute("role") ?? undefined;
     let text = (el.textContent ?? "").trim();
@@ -67,7 +86,11 @@ export function serializePage(maxElements: number, maxText: number): PageSnapsho
     text = text.slice(0, maxText);
     const href = tag === "a" ? (el as HTMLAnchorElement).href : undefined;
     return { selector: cssSelector(el), tag, role, text, href };
-  });
+  };
+
+  // 상호작용 요소를 우선 채우고, 남는 자리에 금액 텍스트 리프를 추가한다(총액 상한
+  // 유지 — API/로그 유출 표면 확대 방지).
+  const elements = [...nodes, ...amountNodes].slice(0, maxElements).map(toElement);
 
   return { url: location.href, title: document.title, elements };
 }

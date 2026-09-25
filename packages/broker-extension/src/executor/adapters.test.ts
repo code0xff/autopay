@@ -7,7 +7,7 @@ function fakeBridge(over: Partial<PageBridge> = {}): PageBridge {
     readText:
       over.readText ??
       vi.fn(async (_t, sel) => {
-        // 쿠팡은 "label:최종 결제 금액", 카카오는 "[data-amount]" 형태.
+        // 쿠팡은 "label:총 결제 금액", 카카오는 "[data-amount]" 형태.
         if (sel.startsWith("label:") || sel.includes("price") || sel.includes("amount"))
           return "₩23,500";
         if (sel === "location:items" || sel.includes("items")) return "86091485721:1";
