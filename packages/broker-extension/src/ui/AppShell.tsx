@@ -1,4 +1,4 @@
-import { useEffect, useState } from "react";
+import { useEffect, useRef, useState } from "react";
 import type { UiState } from "../background/compose.js";
 import { PolicyForm } from "./PolicyForm.js";
 import { ThemeToggle } from "./ThemeToggle.js";
@@ -16,24 +16,24 @@ const TABS: { id: Tab; label: string }[] = [
   { id: "history", label: "기록" },
   { id: "settings", label: "설정" },
 ];
-const TAB_KEY = "autopay-tab";
-
 const won = (n: number) => `₩${n.toLocaleString("ko-KR")}`;
-
-function initialTab(): Tab {
-  try {
-    const t = localStorage.getItem(TAB_KEY);
-    if (t && TABS.some((x) => x.id === t)) return t as Tab;
-  } catch {}
-  return "home";
-}
 
 export function AppShell({ wide = false }: { wide?: boolean }) {
   const [state, setState] = useState<UiState | null>(null);
-  const [tab, setTab] = useState<Tab>(initialTab);
+  const [tab, setTab] = useState<Tab>("home");
+  // 잠금 해제 상태의 이전 값 — locked→unlocked 전환 감지용. 아직 첫 로드 전이면 null.
+  const wasLockedRef = useRef<boolean | null>(null);
   const refresh = () =>
     getState()
-      .then(setState)
+      .then((s) => {
+        setState(s);
+        const wasLocked = wasLockedRef.current;
+        if (!s.locked && (wasLocked === null || wasLocked === true)) {
+          // 최초 로드 또는 잠금 해제 직후에만 탭을 자동 선택 — 폴링 갱신으로는 건드리지 않음
+          setTab(s.hasBridgeToken ? "home" : "settings");
+        }
+        wasLockedRef.current = s.locked;
+      })
       .catch(() => undefined);
   // biome-ignore lint/correctness/useExhaustiveDependencies: refresh는 안정적이며 마운트 시 1회 폴링 시작
   useEffect(() => {
@@ -42,12 +42,7 @@ export function AppShell({ wide = false }: { wide?: boolean }) {
     return () => clearInterval(id);
   }, []);
 
-  const choose = (t: Tab) => {
-    setTab(t);
-    try {
-      localStorage.setItem(TAB_KEY, t);
-    } catch {}
-  };
+  const choose = (t: Tab) => setTab(t);
   const pendingCount = state?.pending.length ?? 0;
 
   return (
