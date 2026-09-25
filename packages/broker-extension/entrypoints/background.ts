@@ -13,6 +13,13 @@ export default defineBackground(() => {
   // 저장된 토큰이 있으면 mcp-server 브리지 허브에 접속(M2, spec/mcp-integration §7).
   bg.connectBridge().catch((e) => console.warn("[autopay] bridge connect failed", e));
 
+  // 기동 즉시 이전 워커의 잔여 실행을 회수한다. 색인에 남은 건 이 워커가 시작한
+  // 게 아니므로 실행 루프가 이미 사라진 상태 — 방치하면 리로드해도 페이지 도구가
+  // 계속 잠긴다(§9 MV3 서비스워커 수명). 알람 틱까지 기다릴 이유가 없다.
+  bg.brokerCore
+    .recoverStaleExecutions(bg.brokerCore.payTimeoutMsValue + EXECUTION_STALE_BUFFER_MS)
+    .catch((e) => console.warn("[autopay] startup execution sweep failed", e));
+
   chrome.runtime.onMessage.addListener((msg, sender, sendResponse) => {
     // 발신자 검증: 이 확장 자신의 페이지(Side Panel/Options)만 허용.
     if (sender.id !== chrome.runtime.id) {

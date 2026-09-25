@@ -442,8 +442,16 @@ export class BrokerCore {
         await this.removeExecutingIndex(requestId);
         continue;
       }
-      const lockAtMs = state.lockAt ? new Date(state.lockAt).getTime() : 0;
-      if (nowMs - lockAtMs < staleAfterMs) continue; // 아직 진행 중일 수 있음 — 손대지 않음
+      // 이 워커가 실제로 돌리고 있는 건만 시간 기준으로 봐준다. 색인에 있는데
+      // inFlight에 없다면 **죽은 워커의 잔여**다(inFlight 등록이 색인 기록보다
+      // 먼저라 경합 없음) — 그 실행 루프는 이미 사라졌으니 나이와 무관하게 즉시
+      // 회수한다. 안 그러면 익스텐션을 리로드해도 잠금(page_locked_during_payment)이
+      // staleAfterMs가 지날 때까지 풀리지 않는다(2026-09-26: 핸드오프 상한을
+      // 10분으로 늘리면서 이 대기가 11분+알람 주기까지 늘어나 실사용을 막았다).
+      if (this.inFlight.has(requestId)) {
+        const lockAtMs = state.lockAt ? new Date(state.lockAt).getTime() : 0;
+        if (nowMs - lockAtMs < staleAfterMs) continue; // 아직 진행 중 — 손대지 않음
+      }
       await this.removeExecutingIndex(requestId);
       await this.audit(requestId, state, state.decision, "failed");
       await this.setResult(requestId, state, { status: "failed", error: "interrupted" });

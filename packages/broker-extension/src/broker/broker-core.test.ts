@@ -447,7 +447,11 @@ describe("BrokerCore", () => {
     hangRelease();
   });
 
-  it("18. recoverStaleExecutions — staleAfterMs 미경과면 건드리지 않는다(정상 진행 중 오판 방지)", async () => {
+  // 2026-09-26 변경: 시간 기준은 **이 워커가 실제로 돌리는 건**에만 적용한다.
+  // 색인에 있는데 inFlight에 없으면 죽은 워커의 잔여라 실행 루프가 이미 없다 —
+  // 나이와 무관하게 즉시 회수해야 한다. 안 그러면 리로드해도 페이지 도구 잠금이
+  // staleAfterMs(핸드오프 상한 탓에 11분)+알람 주기만큼 안 풀려 실사용이 막힌다.
+  it("18. recoverStaleExecutions — 다른(죽은) 워커의 잔여는 경과 시간과 무관하게 즉시 회수", async () => {
     const kv = new MemoryKv();
     const audit = new KvAuditLog(new MemoryKv());
     const hang = new Promise<void>(() => {}); // 영원히 대기 — 아직 "진행 중"
@@ -490,8 +494,36 @@ describe("BrokerCore", () => {
     await worker2.recoverStaleExecutions(1000); // staleAfterMs=1000 > 경과 500ms
 
     expect(await worker2.getPaymentResult(requestId)).toEqual({
+      status: "failed",
+      error: "interrupted",
+    }); // 워커2가 시작한 게 아니므로 고아 — 시간과 무관하게 회수
+    expect(await worker2.hasActiveExecution()).toBe(false); // 잠금도 즉시 풀린다
+  });
+
+  it("18-b. 같은 워커가 실제로 진행 중인 건은 staleAfterMs 전엔 건드리지 않는다", async () => {
+    // 위 규칙이 "정상 진행 중인 결제를 스윕이 죽이는" 쪽으로 넘어가면 안 된다 —
+    // 이 워커의 inFlight에 있는 건은 기존대로 시간 기준으로만 판단한다.
+    let release!: () => void;
+    const hang = new Promise<void>((r) => {
+      release = r;
+    });
+    const adapter = fakeAdapter({ method: "coupay", hasExternalApproval: false });
+    adapter.pay = vi.fn(async (): Promise<PayOutcome> => {
+      await hang; // 사용자가 비번을 입력하는 중
+      return { status: "approved", orderId: "#5", amount: 20_000 };
+    });
+    const { broker } = setup({ adapters: { coupay: adapter } });
+    const { requestId } = await broker.requestPayment(validReq);
+
+    await broker.recoverStaleExecutions(60_000); // 아직 한참 남음
+    expect(await broker.getPaymentResult(requestId)).toEqual({
       status: "pending_user_confirmation",
-    }); // 아직 손대지 않음
+    });
+    expect(await broker.hasActiveExecution()).toBe(true);
+
+    release();
+    await broker.idle();
+    expect((await broker.getPaymentResult(requestId)).status).toBe("approved");
   });
 
   // executor.md §3.2 — 비번 핸드오프: 통지만 하고 결제는 pending 유지, 실행 중 잠금
