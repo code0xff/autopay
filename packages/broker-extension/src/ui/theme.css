@@ -394,9 +394,12 @@ tbody tr {
 tbody tr:hover {
   background: var(--subtle);
 }
+/* 가로 중앙 정렬·최대폭만 — 위쪽 여백은 .body의 padding으로 충분하다.
+   (예전엔 margin-top 24px가 있었는데 옵션 페이지 기준으로 넣은 값이라
+   같은 컴포넌트를 쓰는 사이드패널에선 빈 공간으로만 보였다.) */
 .lock {
   max-width: 420px;
-  margin: 24px auto 0;
+  margin: 0 auto;
   width: 100%;
 }
 .badge .dot {

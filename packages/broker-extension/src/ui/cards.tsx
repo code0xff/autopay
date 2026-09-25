@@ -1,7 +1,12 @@
 import type { AuditRecord } from "@autopay/shared";
 import { useEffect, useState } from "react";
 import type { UiState } from "../background/compose.js";
-import { getAudit, setBridgeToken } from "./rpc-client.js";
+import {
+  type NotificationDiagnosis,
+  getAudit,
+  setBridgeToken,
+  testNotification,
+} from "./rpc-client.js";
 
 // 탭 앱(AppShell)의 카드들 — 홈·기록·설정 탭에서 쓴다.
 
@@ -97,6 +102,62 @@ export function SiteAccessNotice() {
       >
         확인함
       </button>
+    </div>
+  );
+}
+
+// 알림 진단 — 결제 알림(비번 입력 요청·실패·완료)이 안 뜰 때 어디서 끊겼는지
+// 가리는 용도. 발송 실패는 sender가 삼키고 정책 channels가 비면 조용히 아무 데도
+// 안 가서, 밖에서 보면 증상이 완전한 침묵이라 이게 없으면 원인을 못 찾는다.
+export function NotificationCheck() {
+  const [res, setRes] = useState<NotificationDiagnosis | null>(null);
+  const [err, setErr] = useState("");
+  const [busy, setBusy] = useState(false);
+  const run = async () => {
+    setBusy(true);
+    setErr("");
+    setRes(null);
+    try {
+      setRes(await testNotification());
+    } catch (e) {
+      setErr(e instanceof Error ? e.message : "실패");
+    } finally {
+      setBusy(false);
+    }
+  };
+  const verdict = (r: NotificationDiagnosis): string => {
+    if (r.error) return `Chrome이 알림 생성을 거부했습니다: ${r.error}`;
+    if (r.permission === "denied")
+      return "Chrome에서 이 확장의 알림이 꺼져 있습니다 — Chrome 설정 → 알림에서 허용하세요.";
+    if (!r.chromeChannelEnabled)
+      return "정책의 알림 채널에 chrome이 없습니다 — 그래서 결제 알림이 발송되지 않습니다.";
+    return "알림을 보냈습니다. 화면에 안 뜬다면 macOS 알림 설정(집중 모드 포함)을 확인하세요.";
+  };
+  return (
+    <div className="card">
+      <div className="label" style={{ marginBottom: 6 }}>
+        알림 확인
+      </div>
+      <div className="muted" style={{ fontSize: 12, marginBottom: 12 }}>
+        비밀번호 입력 요청·결제 완료/실패 알림이 안 뜨면 여기서 경로를 점검하세요.
+      </div>
+      <button type="button" className="btn btn-outline btn-block" onClick={run} disabled={busy}>
+        테스트 알림 보내기
+      </button>
+      {res && (
+        <div className="muted" style={{ fontSize: 12, marginTop: 10 }}>
+          <div>{verdict(res)}</div>
+          <div className="mono" style={{ marginTop: 6 }}>
+            채널: {res.channels.length ? res.channels.join(", ") : "(없음)"} · 권한:{" "}
+            {res.permission ?? "알 수 없음"}
+          </div>
+        </div>
+      )}
+      {err && (
+        <div className="badge danger" style={{ marginTop: 10 }}>
+          {err}
+        </div>
+      )}
     </div>
   );
 }

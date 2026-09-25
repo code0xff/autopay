@@ -184,6 +184,8 @@ export class Background {
         await this.kv.set(BRIDGE_TOKEN_KEY, req.token);
         await this.connectBridge();
         return { ok: true };
+      case "testNotification":
+        return this.testNotification();
     }
   }
 
@@ -199,6 +201,41 @@ export class Background {
         (await this.kv.get(PROFILE_KEY)) !== undefined,
       bridgeConnected: this.bridgeConnected,
       hasBridgeToken: (await this.kv.get<string>(BRIDGE_TOKEN_KEY)) !== undefined,
+    };
+  }
+
+  /** 알림 진단 — 실사용에서 결제 실패 알림조차 안 뜨는 일이 있었는데, 발송 실패는
+   *  sender가 console.warn으로 삼키고 정책 channels가 비면 아무 데도 안 가서
+   *  **밖에서는 증상이 완전한 침묵**이라 원인을 가릴 수 없었다. 실제 발송을
+   *  그대로 시도해 보고 어디서 죽는지(권한/채널/예외) 그대로 돌려준다. */
+  private async testNotification(): Promise<unknown> {
+    const policy = await this.getPolicy();
+    const channels = policy.notifications.channels;
+    let permission: string | null = null;
+    try {
+      permission = (await chrome.notifications.getPermissionLevel?.()) ?? null;
+    } catch {
+      permission = null;
+    }
+    let createdId: string | null = null;
+    let error: string | null = null;
+    try {
+      createdId = await chrome.notifications.create({
+        type: "basic",
+        iconUrl: chrome.runtime.getURL("icon/128.png"),
+        title: "AutoPay 테스트 알림",
+        message: "이 알림이 보이면 알림 경로는 정상입니다.",
+      });
+    } catch (e) {
+      error = e instanceof Error ? e.message : String(e);
+    }
+    return {
+      ok: true,
+      channels, // 비어 있으면 결제 알림은 조용히 발송되지 않는다
+      chromeChannelEnabled: channels.includes("chrome"),
+      permission, // "granted" | "denied" — Chrome 자체의 알림 권한
+      createdId,
+      error,
     };
   }
 

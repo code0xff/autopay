@@ -29,5 +29,11 @@ export const RpcRequest = z.discriminatedUnion("type", [
   z
     .object({ type: z.literal("setBridgeToken"), token: z.string().min(16) })
     .strict(),
+  // 알림 진단 — 실사용에서 결제 실패 알림조차 안 뜨는데 원인을 밖에서 볼 방법이
+  // 없었다(발송 실패는 console.warn으로 삼켜지고, 정책 channels가 비면 조용히
+  // 아무 데도 안 간다). 실제 발송 경로를 그대로 태워보고 어디서 죽는지 돌려준다.
+  z
+    .object({ type: z.literal("testNotification") })
+    .strict(),
 ]);
 export type RpcRequest = z.infer<typeof RpcRequest>;

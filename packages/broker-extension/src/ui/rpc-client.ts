@@ -20,6 +20,16 @@ export const resolveConfirmation = (requestId: string, approved: boolean) =>
   rpc({ type: "resolveConfirmation", requestId, approved });
 export const setBridgeToken = (token: string) => rpc({ type: "setBridgeToken", token });
 
+export interface NotificationDiagnosis {
+  ok: true;
+  channels: string[];
+  chromeChannelEnabled: boolean;
+  permission: string | null;
+  createdId: string | null;
+  error: string | null;
+}
+export const testNotification = () => rpc<NotificationDiagnosis>({ type: "testNotification" });
+
 export function applyTheme(): void {
   try {
     const t = localStorage.getItem("autopay-theme");
