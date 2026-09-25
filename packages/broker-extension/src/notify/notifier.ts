@@ -6,7 +6,9 @@ export type NotifyChannel = "chrome" | "telegram" | "email" | "webhook";
 export type NotifyEvent =
   | { kind: "confirm_required"; merchant: string; amount: number; requestId: string }
   | { kind: "approve_on_phone"; merchant: string; amount: number; method: "kakaopay" | "tosspay" }
-  | { kind: "enter_password_on_page"; merchant: string; amount: number }
+  // tabId는 비밀이 아니라 라우팅 정보 — 알림 클릭 시 그 결제 탭을 포커스하는 데
+  // 쓴다(본문에는 넣지 않는다). 사용자가 탭을 찾아 헤매지 않게 하는 목적.
+  | { kind: "enter_password_on_page"; merchant: string; amount: number; tabId: number }
   | { kind: "completed"; merchant: string; amount: number; orderId: string }
   | { kind: "rejected"; merchant: string; amount: number; violation: string }
   | { kind: "failed"; merchant: string; amount: number; error: string };

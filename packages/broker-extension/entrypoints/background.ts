@@ -1,4 +1,5 @@
 import { Background } from "../src/background/compose.js";
+import { tabIdFromNotificationId } from "../src/platform/chrome-notify.js";
 
 // 배경 서비스워커: UI RPC 라우팅 + 사이드패널 동작 + 타임아웃 스케줄.
 export default defineBackground(() => {
@@ -29,6 +30,24 @@ export default defineBackground(() => {
 
   // 툴바 아이콘 클릭 시 사이드패널 열기(주 콘솔).
   chrome.sidePanel?.setPanelBehavior({ openPanelOnActionClick: true }).catch(() => {});
+
+  // 비번 핸드오프 알림 클릭 → 결제 탭으로 바로 이동(executor.md §3.2).
+  // 사용자가 탭 수십 개 중에서 결제창을 찾아 헤매다 타임아웃되는 걸 막는 목적.
+  // 탭 id는 알림 id에 인코딩돼 있어 SW가 재시작돼도 동작한다(chrome-notify.ts).
+  // 리스너는 최상위에 등록 — MV3는 SW 재기동 시 동기 등록된 리스너만 복원한다.
+  chrome.notifications?.onClicked.addListener(async (notificationId) => {
+    const tabId = tabIdFromNotificationId(notificationId);
+    if (tabId === null) return;
+    try {
+      const tab = await chrome.tabs.get(tabId); // 이미 닫힌 탭이면 여기서 throw
+      await chrome.tabs.update(tabId, { active: true });
+      if (tab.windowId !== undefined) await chrome.windows.update(tab.windowId, { focused: true });
+      await chrome.notifications.clear(notificationId);
+    } catch (e) {
+      // 탭이 이미 닫혔거나 포커스 실패 — 결제 흐름에는 영향 없다(계속 폴링).
+      console.warn("[autopay] focus payment tab failed", e);
+    }
+  });
 
   // confirm 타임아웃 + 중단된 실행 스윕(최소 간격 — payment-flows 무우회 원칙).
   chrome.alarms?.create("autopay-tick", { periodInMinutes: 5 });

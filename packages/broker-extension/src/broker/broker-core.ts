@@ -352,6 +352,7 @@ export class BrokerCore {
             kind: "enter_password_on_page",
             merchant: state.merchantName,
             amount: state.verifiedAmount,
+            tabId: state.req.checkoutTabId, // 알림 클릭 → 이 탭 포커스
           }),
       });
 
