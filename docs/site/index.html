@@ -392,7 +392,7 @@
       <li><div>
         <h3 data-i18n="s5.t">Claude Code에서 요청</h3>
         <p data-i18n="s5.p">저장소 폴더에서 Claude Code를 실행하고 말하면 됩니다.</p>
-        <div class="copy say"><span data-i18n="s5.c">아이패드 에어2 검정 케이스 쿠팡에서 주문해줘</span></div>
+        <div class="copy say"><span data-i18n="s5.c">쿠팡에서 생수 2리터 6개짜리 두 묶음, 추천 1순위 상품으로 사줘</span></div>
       </div></li>
     </ol>
   </section>
@@ -539,7 +539,7 @@
     "s2.t": "Load the extension in Chrome", "s2.p": "In developer mode, choose \"Load unpacked\" and pick this folder. After a rebuild, just press reload.",
     "s3.t": "Pair and set limits", "s3.p": "Open the side panel from the NightPay toolbar icon, paste the token into MCP Bridge on the Settings tab, then check your payment limits on the Policy tab. On first open you set a passphrase first (afterwards you unlock with it). Defaults are ₩20,000 per payment, ₩50,000 a day, ₩100,000 a month and 3 payments a day, with approval above ₩10,000. The Getting started card on the Home tab lists what's left.",
     "s4.t": "Prepare Coupang", "s4.p": "Log in to Coupang yourself and turn on one-touch payment in the Coupang app. NightPay never handles login details.",
-    "s5.t": "Ask in Claude Code", "s5.p": "Run Claude Code in the repository folder and ask.", "s5.c": "Order a black iPad Air 2 case from Coupang",
+    "s5.t": "Ask in Claude Code", "s5.p": "Run Claude Code in the repository folder and ask.", "s5.c": "Buy two 6-packs of 2L water on Coupang, the top recommended one",
     "copy": "Copy",
     "safe.eyebrow": "Safety", "safe.title": "Instead of fencing the AI in, there is nothing for it to steal.",
     "safe.yes": "What NightPay does", "y1": "Per-payment, daily and monthly limits, plus a daily count", "y2": "Allowed merchants and payment methods",
@@ -637,7 +637,7 @@
   //    숨은 탭·JS 지연에도 끝 상태가 보이도록 먼저 전부 그린다. ──
   var X = [12.5, 37.5, 62.5, 87.5]; // User, Claude Code, NightPay, Coupang
   var A = "agent", W = "human", O = "done"; // 색이 아니라 선·라벨 모양으로 구분
-  var PROMPT = { ko: '"아이패드 에어2 검정 케이스 주문해줘"', en: '"Order a black iPad Air 2 case"' };
+  var PROMPT = { ko: '"생수 2리터 6개짜리 두 묶음 사줘"', en: '"Buy two 6-packs of 2L water"' };
   // [from, to, colour, label, readout] — to가 null이면 from 레인의 노트
   var STEPS = [
     [0, 1, A, "prompt", function () { return '<span class="k">User → Claude Code</span>  ' + PROMPT[root.lang === "en" ? "en" : "ko"]; }],
