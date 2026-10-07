@@ -1,4 +1,4 @@
-# AutoPay
+# NightPay
 
 **An autonomous spending governance layer.** AI agents search for and pay for
 products on the web on the user's behalf, while policy, audit, isolation and
@@ -54,7 +54,7 @@ Then, once by hand:
 
 1. `chrome://extensions` → Developer mode → "Load unpacked" →
    `packages/broker-extension/.output/chrome-mv3` (after a rebuild, just press reload ⟳)
-2. Click the AutoPay toolbar icon to open the side panel → set a passphrase (first run;
+2. Click the NightPay toolbar icon to open the side panel → set a passphrase (first run;
    afterwards you unlock with it) → **Settings** tab: paste the
    token into **MCP Bridge** (it is on your clipboard) → **Policy** tab: check the payment
    limits (defaults: ₩20,000 per payment, ₩50,000/day, ₩100,000/month, 3/day, approval above ₩10,000)
@@ -66,11 +66,11 @@ The side panel has four tabs: Home (approvals and remaining limits), Policy, His
 (audit log) and Settings. The options page shows the same app. The **Getting started**
 card on the Home tab shows what is left. The History tab pages through the audit log.
 
-AutoPay is inactive until you unlock it with your passphrase: while locked, only the lock
+NightPay is inactive until you unlock it with your passphrase: while locked, only the lock
 screen is shown and every agent tool call is refused. Once unlocked it stays unlocked
 until you close the browser or press the lock button in the header. If Coupang
 asks for the payment password again during checkout, you get a notification and
-**type it yourself in the checkout tab**. AutoPay and the agent never handle the
+**type it yourself in the checkout tab**. NightPay and the agent never handle the
 password.
 
 The agent has exactly seven tools: `open`, `read_page`, `click`, `fill`,

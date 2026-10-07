@@ -65,7 +65,7 @@ export interface UiState {
 }
 
 export class Background {
-  // 잠금 해제 키. 잠겨 있으면 AutoPay는 비활성 — UI는 잠금 화면만, 브리지 도구는 전부 거부.
+  // 잠금 해제 키. 잠겨 있으면 NightPay는 비활성 — UI는 잠금 화면만, 브리지 도구는 전부 거부.
   // 서비스워커가 재시작돼도 브라우저를 닫기 전까진 풀린 상태를 유지하도록 키 원본을
   // chrome.storage.session(디스크에 쓰지 않는 메모리 저장소)에 둔다.
   private key: CryptoKey | null = null;
@@ -273,7 +273,7 @@ export class Background {
       createdId = await chrome.notifications.create({
         type: "basic",
         iconUrl: chrome.runtime.getURL("icon/128.png"),
-        title: "AutoPay 테스트 알림",
+        title: "NightPay 테스트 알림",
         message: "이 알림이 보이면 알림 경로는 정상입니다.",
       });
     } catch (e) {

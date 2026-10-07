@@ -1,7 +1,7 @@
 import { useState } from "react";
 import { lock, unlock } from "./rpc-client.js";
 
-// 잠금 화면 — 잠겨 있으면 AutoPay는 비활성이고 이 화면만 보인다. 첫 실행(검증값 없음)이면
+// 잠금 화면 — 잠겨 있으면 NightPay는 비활성이고 이 화면만 보인다. 첫 실행(검증값 없음)이면
 // 패스프레이즈를 두 번 입력해 설정한다. 해제 상태는 브라우저를 닫을 때까지 유지된다.
 export function LockScreen({ firstRun, onDone }: { firstRun: boolean; onDone: () => void }) {
   const [pass, setPass] = useState("");
@@ -45,8 +45,8 @@ export function LockScreen({ firstRun, onDone }: { firstRun: boolean; onDone: ()
         </div>
         <div className="muted" style={{ fontSize: 12, marginBottom: 12 }}>
           {firstRun
-            ? "AutoPay를 여는 패스프레이즈를 정하세요. 잊으면 저장된 본인 식별 정보를 복구할 수 없습니다."
-            : "잠금을 해제해야 AutoPay가 결제 요청을 받고 승인할 수 있습니다."}
+            ? "NightPay를 여는 패스프레이즈를 정하세요. 잊으면 저장된 본인 식별 정보를 복구할 수 없습니다."
+            : "잠금을 해제해야 NightPay가 결제 요청을 받고 승인할 수 있습니다."}
         </div>
         <label className="field">
           <span>패스프레이즈</span>
@@ -89,8 +89,8 @@ export function LockButton({ onDone }: { onDone: () => void }) {
     <button
       type="button"
       className="icon-btn icon-btn-square"
-      aria-label="AutoPay 잠그기"
-      title="AutoPay 잠그기"
+      aria-label="NightPay 잠그기"
+      title="NightPay 잠그기"
       onClick={async () => {
         try {
           await lock();

@@ -4,7 +4,7 @@
 
 사용자가 정책을 설정하고, 결제를 승인/거절하며, 결과를 인지하는 화면.
 `docs/design/ui-mockup.html`은 M1 초기(shadcn neutral) 목업이며 **2026-09-23
-Slate 재도색 이후로는 갱신되지 않았다** — 시각 기준은 실제 구현
+NightBrowser 재도색 이후로는 갱신되지 않았다** — 시각 기준은 실제 구현
 (`src/ui/theme.css`)과 §3의 토큰 표를 따른다.
 
 **비책임**: 판정(policy)·실행(executor). UI는 상태 표시와 사용자 입력만.
@@ -24,29 +24,31 @@ Slate 재도색 이후로는 갱신되지 않았다** — 시각 기준은 실�
 - 세 표면 모두 확장 자체 컨텍스트(신뢰 영역). 페이지 주입 오버레이는
   격리가 약해 쓰지 않는다(`spec/agent-integration.md`).
 
-## 3. 디자인 토큰 (구현 기준, 2026-09-23부터 Slate 적용)
+## 3. 디자인 토큰 (구현 기준, 2026-10-07부터 NightBrowser 적용)
 
-> `~/workspace/design/slate/design.md`(개발자 콘솔용, 한국어 대응) 적용.
-> 이전 shadcn neutral·각진 4px·Geist 조합은 폐기됨.
+> `~/workspace/design/agent-browser/design.md`(NightBrowser — 둥근 모노크롬
+> 워크벤치) 적용. 2026-09-23의 Slate(보라 accent·pill 컨트롤)는 폐기됨.
+> 제품 표시 이름은 NightPay(내부 식별자는 autopay 유지).
 
-- **토큰**: `canvas`/`surface`/`subtle`/`line`/`ink`/`accent`/`ok`/`warn`/
-  `danger` (light+dark) — `src/ui/theme.css`가 단일 진실.
-- **형태**: 버튼·배지·아이콘버튼은 **완전히 둥근 pill**, 입력창은 `radius-xl`
-  (20px), 카드·패널은 `radius-lg`(16px) — 컨트롤은 완전히 둥글게, 패널/필드는
-  큰 반경의 "형태"로 구분한다는 Slate 규칙.
-- **서체**: 시스템 한글 폰트 스택(`-apple-system, ..., Apple SD Gothic Neo,
-  Noto Sans KR`) — 원격 웹폰트(Geist) 로드 제거, 오프라인 안전. 금액·시각·
-  주문번호는 `.mono`(`tabular-nums`).
-- **한글 라벨**: 트래킹 확대·대문자 변환 금지(Slate CJK 규칙 — 한글은 대소문자가
-  없어 트래킹을 넓히면 "흩어진 글자"로 읽힌다). `.label`은 11.5px, 트래킹 0.
-- **상태색(semantic, accent 아님)**: 완료=`ok`(초록), 거절/실패=`danger`(빨강),
-  진행/폰승인=`accent`가 아니라 기존처럼 info 배지(현재 `accent`로 매핑),
-  주의/미충족/패턴C=`warn`(주황).
-- **포커스**: 모든 인터랙티브 요소에 `accent` 포커스 링(`:focus-visible`).
+- **토큰**: `canvas`(#f4f4f3/#111112)·`surface`(#fff/#19191b)·`ink`(#171719/#f2f2f3)·
+  `ink-soft`(#66666c/#a3a3aa)·`line`(#dedee1/#343438)·`subtle`(#eeeeef/#232326)
+  (light/dark) — `src/ui/theme.css`가 단일 진실. 기존 토큰 이름은 유지하되
+  `accent`·`ok`·`warn`·`danger`는 모두 `ink` 계열로 수렴(상태색 없음).
+- **형태**: 카드·패널 12px, 버튼·입력·배지 8px, 다이얼로그 18px, 1px 테두리.
+  폼 필드·페이지 액션 36px/14px, 목록 행·앱바 컴팩트 28px/12px.
+- **서체**: Pretendard(설치돼 있을 때) → 시스템 한글 폰트 스택. 금액·주소·시각은
+  `.mono`(JetBrains Mono 계열, `tabular-nums`). 본문 14px/1.5, 위계는 400·500.
+  원격 웹폰트는 로드하지 않는다(오프라인 안전).
+- **상태 표현**: 색이 아니라 단어 + 모양 — 완료=soft 채움, 주의=윤곽, 거절/실패=
+  반전 블록. 승인 대기 탭은 개수 숫자 대신 6px 점(개수는 접근성 이름·툴팁).
+- **주 액션**: 반전 블록(`primary`=text색), 보조는 윤곽 + soft 호버.
+- **포커스**: 필드는 1px 테두리를 `ink`로, 버튼은 1px `ink` 아웃라인.
+  탭 선택은 하단 2px 룰(반전 채움 아님).
+- **모션**: 120ms, `cubic-bezier(0.2, 0, 0, 1)`; `prefers-reduced-motion`에서 중단.
 - **테마**: light/dark 토글을 Side Panel 헤더 + Options 헤더에 탑재. 기본은
   system, 선택은 per-viewer로 저장(`localStorage`, try/catch).
-- **앱 아이콘**: "A" 워드마크. `primary` 토큰 배경(반경 `radius-sm`)에
-  `on-primary` 글자, dark에서 토큰이 자동 반전.
+- **앱 아이콘**: crow 마크. `primary` 토큰 배경 6px 반경 타일에 `on-primary` 마크,
+  dark에서 토큰이 자동 반전.
 
 ## 4. 화면별 요소·상태
 
@@ -55,15 +57,15 @@ Slate 재도색 이후로는 갱신되지 않았다** — 시각 기준은 실�
 사이드패널과 옵션 페이지는 같은 탭 앱을 띄운다(옵션은 가운데 680px). 기능이
 두 화면에 겹치거나 한쪽에만 있는 문제를 없애려고 2026-09-23 기능별 탭으로 재편.
 
-**헤더**: 로고("A") + "AutoPay" + 테마 토글. 그 아래 **탭**(Slate Segmented —
-pill 안의 pill, 선택 탭은 반전). 탭은 세션 내 상태로만 유지(영속 저장 없음).
+**헤더**: 로고(crow) + "NightPay" + 테마 토글. 그 아래 **탭**(동일 너비,
+선택 탭은 하단 2px 룰). 탭은 세션 내 상태로만 유지(영속 저장 없음).
 패널이 열릴 때(최초 로드) 및 잠금 해제 직후에는 `hasBridgeToken`이 있으면
 "홈", 없으면 "설정"을 자동 선택한다. 이후 수동 전환과 3초 폴링 갱신은 선택된
 탭을 건드리지 않는다.
 
 | 탭 | 내용 |
 |---|---|
-| **홈** | 시작하기 체크리스트(확인 가능한 단계가 끝나면 숨김) · **오늘 남은 한도**(일 잔여 mono·잔여 횟수·월 잔여·건당 최대·승인 규칙) · **승인 카드**(대기 건마다 한 장, 없으면 "승인 대기 중인 결제가 없습니다" 카드). 대기 건이 있으면 탭에 개수 배지(warn) |
+| **홈** | 시작하기 체크리스트(확인 가능한 단계가 끝나면 숨김) · **오늘 남은 한도**(일 잔여 mono·잔여 횟수·월 잔여·건당 최대·승인 규칙) · **승인 카드**(대기 건마다 한 장, 없으면 "승인 대기 중인 결제가 없습니다" 카드). 대기 건이 있으면 탭에 6px 점(개수는 접근성 이름) |
 | **주문** | 내장 어시스턴트 대화(`assistant.md §6`) — ChatGPT 미연결이면 설정으로 가는 안내 카드, 연결되면 대화 목록·입력창·보내기/중단·새 대화 |
 | **정책** | `PolicyForm` — 한도(건당/일/월/횟수)·확인 임계값·항상 확인·허용 머천트·결제수단·카테고리 |
 | **기록** | 감사 로그 — 최신순 10건씩 페이지네이션(이전/다음, `1–10 / 23`), 결과는 상태 배지(완료·거절·실패·취소·시간 초과·승인 대기). `getAudit {offset, limit}` RPC로 해당 페이지만 조회 |
@@ -90,9 +92,9 @@ pill 안의 pill, 선택 탭은 반전). 탭은 세션 내 상태로만 유지(�
 | 취소 | result=canceled | muted, 사용자 거절/미응답(사용자 행위이지 오류 아님) |
 | 실패 | result=failed (timeout 포함) | destructive, 오류 요약 |
 
-### 4.2 잠금 — AutoPay 활성 스위치
+### 4.2 잠금 — NightPay 활성 스위치
 
-잠겨 있으면 **AutoPay는 비활성**이다.
+잠겨 있으면 **NightPay는 비활성**이다.
 - UI는 잠금 화면만 보인다(탭 없음). 첫 실행(검증값 없음)이면 "패스프레이즈 설정"
   (두 번 입력), 이후엔 "잠금 해제". 해제하면 탭 화면으로 넘어간다.
 - 백그라운드 RPC는 `getState`·`unlock`만 허용하고 나머지는 `locked`로 거부.
@@ -142,7 +144,7 @@ pill 안의 pill, 선택 탭은 반전). 탭은 세션 내 상태로만 유지(�
 
 - [ ] Side Panel(승인+남은 한도+정책) + Options(전체 탭) + notifications 구현
 - [ ] Action popup 미사용(승인은 Side Panel에서)
-- [ ] Slate 토큰(canvas/surface/ink/accent/ok/warn/danger) + pill 컨트롤 + 시스템 한글 폰트 적용
+- [ ] NightBrowser 토큰(canvas/surface/ink/ink-soft/line/subtle) + 8/12px 반경 컨트롤 + Pretendard/시스템 한글 폰트 적용
 - [ ] light/dark 토글(기본 system, 저장) 동작
 - [ ] 승인 카드가 confirm/폰대기/완료/거절/실패 5상태를 표시
 - [ ] PII·비밀 마스킹, 알림 본문에 원문 없음

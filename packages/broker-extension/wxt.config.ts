@@ -6,7 +6,7 @@ import { defineConfig } from "wxt";
 export default defineConfig({
   srcDir: ".",
   manifest: {
-    name: "AutoPay",
+    name: "NightPay",
     description: "자율 지출 거버넌스 — 정책·감사·격리 하에 에이전트 결제",
     permissions: ["sidePanel", "notifications", "storage", "alarms", "scripting", "tabs"],
     // 최소 권한: 결제/쇼핑 도메인만. 로그인 등 범위 밖 하위 도메인 제외.
@@ -26,7 +26,7 @@ export default defineConfig({
       "https://auth.openai.com/*",
       "https://api.openai.com/*",
     ],
-    action: { default_title: "AutoPay" },
+    action: { default_title: "NightPay" },
   },
   vite: () => ({ plugins: [react()] }),
 });

@@ -1,6 +1,6 @@
 # @autopay/agent-skill (설계 — 미구현)
 
-Claude Code용 **스킬** — 사용자가 "○○ 사줘/지정가로 주문"이라고 하면 AutoPay
+Claude Code용 **스킬** — 사용자가 "○○ 사줘/지정가로 주문"이라고 하면 NightPay
 MCP 도구로 검색·비교·선택·장바구니·체크아웃·결제 요청을 수행한다.
 
 설계: [`docs/spec/mcp-integration.md`](../../docs/spec/mcp-integration.md) §6.

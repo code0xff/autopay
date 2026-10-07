@@ -1,4 +1,4 @@
-/** AutoPay 브랜드 마크 — crow 실루엣. fill=currentColor라 라이트/다크 테마를 따른다. */
+/** NightPay 브랜드 마크 — crow 실루엣. fill=currentColor라 라이트/다크 테마를 따른다. */
 export function CrowMark({ size = 17 }: { size?: number }) {
   return (
     <svg
@@ -7,7 +7,7 @@ export function CrowMark({ size = 17 }: { size?: number }) {
       width={size}
       height={size}
       role="img"
-      aria-label="AutoPay"
+      aria-label="NightPay"
       fill="currentColor"
     >
       <g fillRule="evenodd" clipRule="evenodd">

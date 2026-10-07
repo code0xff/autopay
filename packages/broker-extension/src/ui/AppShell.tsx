@@ -60,7 +60,7 @@ export function AppShell({ wide = false }: { wide?: boolean }) {
         <span className="logo">
           <CrowMark />
         </span>
-        <span className="brand">AutoPay</span>
+        <span className="brand">NightPay</span>
         <span className="spacer" />
         {state && !state.locked && <LockButton onDone={refresh} />}
         <ThemeToggle />
@@ -71,20 +71,26 @@ export function AppShell({ wide = false }: { wide?: boolean }) {
         </div>
       ) : (
         <>
-          <nav className="tabs" role="tablist" aria-label="AutoPay">
+          <nav className="tabs" role="tablist" aria-label="NightPay">
             {TABS.map((t) => (
               <button
                 key={t.id}
                 type="button"
                 role="tab"
                 aria-selected={tab === t.id}
+                aria-label={
+                  t.id === "home" && pendingCount > 0
+                    ? `${t.label} (승인 대기 ${pendingCount}건)`
+                    : undefined
+                }
+                title={
+                  t.id === "home" && pendingCount > 0 ? `승인 대기 ${pendingCount}건` : undefined
+                }
                 onClick={() => choose(t.id)}
               >
                 {t.label}
                 {t.id === "home" && pendingCount > 0 && (
-                  <span className="count" aria-label={`승인 대기 ${pendingCount}건`}>
-                    {pendingCount}
-                  </span>
+                  <span className="count" aria-hidden="true" />
                 )}
               </button>
             ))}

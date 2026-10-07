@@ -60,7 +60,7 @@ describe("Background RPC (compose)", () => {
     expect(res).toEqual({ ok: false, error: "invalid_request" });
   });
 
-  // 잠금 = AutoPay 활성 스위치(docs/spec/ui.md §4.2)
+  // 잠금 = NightPay 활성 스위치(docs/spec/ui.md §4.2)
   describe("잠금", () => {
     it("첫 해제는 패스프레이즈 설정 — 이후엔 틀린 패스프레이즈를 거부한다", async () => {
       const kv = new MemoryKv();

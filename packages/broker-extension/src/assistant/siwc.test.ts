@@ -31,7 +31,7 @@ describe("beginLogin", () => {
     const q = new URL(url).searchParams;
     expect(url.startsWith("https://auth.openai.com/api/accounts/authorize?")).toBe(true);
     expect(q.get("client_id")).toBe("dynamic_agent_client");
-    expect(q.get("agent_name_hint")).toBe("AutoPay");
+    expect(q.get("agent_name_hint")).toBe("NightPay");
     expect(q.get("ext_agent_host_id")).toBe(HOST);
     expect(q.get("redirect_uri")).toBe("http://127.0.0.1:50123/callback");
     expect(q.get("resource")).toBe("https://api.openai.com/v1");

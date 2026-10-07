@@ -10,7 +10,7 @@ export const SIWC_SCOPE =
   "openid profile email offline_access resource.invoke chatgpt.tokens.use.direct";
 const PLAN_SCOPE = "chatgpt.tokens.use.direct";
 const DYNAMIC_CLIENT = "dynamic_agent_client";
-const APP_NAME = "AutoPay";
+const APP_NAME = "NightPay";
 
 export interface PendingLogin {
   verifier: string;

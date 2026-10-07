@@ -1,91 +1,98 @@
-/* AutoPay UI — Slate 디자인 시스템 적용 (~/workspace/design/slate/design.md 참고).
-   Slate는 개발자 콘솔용 시스템: 무채색이 위계를 지고, 색은 의미가 있을 때만
-   쓰인다(상태=녹/호박/적, accent 하나=포커스·강조). 완전히 둥근 컨트롤(버튼·
-   배지·아이콘버튼), 패널/필드는 더 큰 반경의 "형태"로 구분한다.
-   원격 웹폰트(Google Fonts)는 제거 — 결제 브로커 익스텐션이 열릴 때마다
-   외부 CDN에 요청을 보내지 않도록 시스템 한글 폰트 스택을 그대로 쓴다
-   (오프라인 안전 + AGENTS §4 "API 표면 최소화"와 같은 정신: 불필요한 외부
-   호출을 만들지 않는다). */
+/* NightPay UI — NightBrowser 디자인 시스템 적용 (~/workspace/design/agent-browser/design.md).
+   둥근 모노크롬 워크벤치: 색은 background/surface/text/muted/border/soft 여섯 역할뿐이고
+   accent·상태색(녹/호박/적)은 쓰지 않는다 — 상태는 색이 아니라 모양(점·윤곽·반전)과
+   단어로 구분한다. 반경은 패널·카드 12px, 버튼·입력 8px, 다이얼로그 18px, 1px 테두리.
+   포커스는 필드=테두리를 text색으로, 버튼=1px 아웃라인. 선택된 탭은 하단 2px 룰.
+   글꼴: Pretendard(설치돼 있으면) → 시스템 한글 폰트, 숫자·주소는 JetBrains Mono 계열.
+   원격 웹폰트는 로드하지 않는다 — 결제 브로커 익스텐션이 열릴 때마다 외부 CDN에
+   요청을 보내지 않도록(오프라인 안전 + AGENTS §4 "불필요한 외부 호출 없음"). */
 :root {
-  --canvas: #faf9fb;
+  --canvas: #f4f4f3;
   --surface: #ffffff;
-  --subtle: #f5f3f7;
+  --subtle: #eeeeef;
   --raised: #ffffff;
-  --line: #e8e5ee;
-  --line-strong: #d5d1dd;
-  --ink: #12101a;
-  --ink-soft: #565064;
-  --ink-faint: #6f687f;
-  --primary: #12101a;
-  --on-primary: #faf9fb;
-  --accent: #6d5bd0;
-  --accent-soft: #f1eefc;
+  --line: #dedee1;
+  --line-strong: #dedee1;
+  --ink: #171719;
+  --ink-soft: #66666c;
+  --ink-faint: #66666c;
+  --primary: #171719;
+  --on-primary: #ffffff;
+  --accent: #171719;
+  --accent-soft: #eeeeef;
   --on-accent: #ffffff;
-  --ok: #1a7a43;
-  --ok-soft: #e9f7ef;
-  --warn: #8a5e00;
-  --warn-soft: #fdf3dc;
-  --danger: #c2403f;
-  --danger-soft: #fdeeee;
+  --ok: #171719;
+  --ok-soft: #eeeeef;
+  --warn: #171719;
+  --warn-soft: #eeeeef;
+  --danger: #171719;
+  --danger-soft: #eeeeef;
   --on-danger: #ffffff;
-  --shadow-pop: 0 1px 2px rgb(18 16 26 / 0.05), 0 18px 44px rgb(18 16 26 / 0.09);
-  --radius-sm: 8px;
-  --radius-md: 10px;
-  --radius-lg: 16px;
-  --radius-xl: 20px;
-  --ease-soft: cubic-bezier(0.22, 0.61, 0.36, 1);
+  --overlay: #17171966;
+  --shadow-pop: 0 0 0 1px #dedee1, 0 12px 32px rgb(23 23 25 / 0.12);
+  --radius-sm: 4px;
+  --radius-md: 8px;
+  --radius-lg: 12px;
+  --radius-xl: 18px;
+  --ease-soft: cubic-bezier(0.2, 0, 0, 1);
+  --font-sans: Pretendard, "Pretendard Variable", -apple-system, BlinkMacSystemFont, system-ui,
+    "Apple SD Gothic Neo", "Malgun Gothic", "Noto Sans KR", sans-serif;
+  --font-mono: "JetBrains Mono", ui-monospace, SFMono-Regular, "SF Mono", Menlo, Consolas,
+    Pretendard, "Apple SD Gothic Neo", "Noto Sans KR", monospace;
   color-scheme: light;
 }
 @media (prefers-color-scheme: dark) {
   :root:not([data-theme="light"]) {
-    --canvas: #0b0a0f;
-    --surface: #131219;
-    --subtle: #1b1a23;
-    --raised: #191822;
-    --line: #26242f;
-    --line-strong: #383544;
-    --ink: #eeecf2;
-    --ink-soft: #a8a2b8;
-    --ink-faint: #8983a0;
-    --primary: #eeecf2;
-    --on-primary: #0b0a0f;
-    --accent: #a898f5;
-    --accent-soft: rgb(168 152 245 / 0.13);
-    --on-accent: #0d0a1a;
-    --ok: #5fd08a;
-    --ok-soft: rgb(95 208 138 / 0.12);
-    --warn: #e3b25a;
-    --warn-soft: rgb(227 178 90 / 0.12);
-    --danger: #f07a7a;
-    --danger-soft: rgb(240 122 122 / 0.12);
-    --on-danger: #1a0f11;
-    --shadow-pop: 0 0 0 1px rgb(0 0 0 / 0.35), 0 20px 56px rgb(0 0 0 / 0.5);
+    --canvas: #111112;
+    --surface: #19191b;
+    --subtle: #232326;
+    --raised: #19191b;
+    --line: #343438;
+    --line-strong: #343438;
+    --ink: #f2f2f3;
+    --ink-soft: #a3a3aa;
+    --ink-faint: #a3a3aa;
+    --primary: #f2f2f3;
+    --on-primary: #111112;
+    --accent: #f2f2f3;
+    --accent-soft: #232326;
+    --on-accent: #111112;
+    --ok: #f2f2f3;
+    --ok-soft: #232326;
+    --warn: #f2f2f3;
+    --warn-soft: #232326;
+    --danger: #f2f2f3;
+    --danger-soft: #232326;
+    --on-danger: #111112;
+    --overlay: #00000099;
+    --shadow-pop: 0 0 0 1px #343438, 0 16px 40px rgb(0 0 0 / 0.5);
     color-scheme: dark;
   }
 }
 :root[data-theme="dark"] {
-  --canvas: #0b0a0f;
-  --surface: #131219;
-  --subtle: #1b1a23;
-  --raised: #191822;
-  --line: #26242f;
-  --line-strong: #383544;
-  --ink: #eeecf2;
-  --ink-soft: #a8a2b8;
-  --ink-faint: #8983a0;
-  --primary: #eeecf2;
-  --on-primary: #0b0a0f;
-  --accent: #a898f5;
-  --accent-soft: rgb(168 152 245 / 0.13);
-  --on-accent: #0d0a1a;
-  --ok: #5fd08a;
-  --ok-soft: rgb(95 208 138 / 0.12);
-  --warn: #e3b25a;
-  --warn-soft: rgb(227 178 90 / 0.12);
-  --danger: #f07a7a;
-  --danger-soft: rgb(240 122 122 / 0.12);
-  --on-danger: #1a0f11;
-  --shadow-pop: 0 0 0 1px rgb(0 0 0 / 0.35), 0 20px 56px rgb(0 0 0 / 0.5);
+  --canvas: #111112;
+  --surface: #19191b;
+  --subtle: #232326;
+  --raised: #19191b;
+  --line: #343438;
+  --line-strong: #343438;
+  --ink: #f2f2f3;
+  --ink-soft: #a3a3aa;
+  --ink-faint: #a3a3aa;
+  --primary: #f2f2f3;
+  --on-primary: #111112;
+  --accent: #f2f2f3;
+  --accent-soft: #232326;
+  --on-accent: #111112;
+  --ok: #f2f2f3;
+  --ok-soft: #232326;
+  --warn: #f2f2f3;
+  --warn-soft: #232326;
+  --danger: #f2f2f3;
+  --danger-soft: #232326;
+  --on-danger: #111112;
+  --overlay: #00000099;
+  --shadow-pop: 0 0 0 1px #343438, 0 16px 40px rgb(0 0 0 / 0.5);
   color-scheme: dark;
 }
 
@@ -96,18 +103,18 @@ body {
   margin: 0;
   background: var(--canvas);
   color: var(--ink);
-  font-family: -apple-system, BlinkMacSystemFont, system-ui, "Apple SD Gothic Neo", "Malgun Gothic",
-    "Noto Sans KR", sans-serif;
-  line-height: 1.55;
+  font-family: var(--font-sans);
+  font-size: 14px;
+  line-height: 1.5;
   -webkit-font-smoothing: antialiased;
 }
 .mono {
-  font-family: ui-monospace, SFMono-Regular, "SF Mono", Menlo, Consolas, monospace;
+  font-family: var(--font-mono);
   font-variant-numeric: tabular-nums;
 }
 
-/* 클릭 가능한 요소는 항상 포인터, 비활성은 not-allowed(브라우저 기본 프리플라이트가
-   없는 항목 보정) + 포커스 링(accent) — 이전엔 포커스 상태가 아예 없었다. */
+/* 클릭 가능한 요소는 항상 포인터, 비활성은 not-allowed + 포커스 링.
+   버튼류는 1px text색 아웃라인, 필드는 아래 .input:focus-visible에서 테두리만 바꾼다. */
 button,
 a,
 select,
@@ -119,19 +126,28 @@ label[for] {
   cursor: not-allowed;
 }
 :focus-visible {
-  outline: 2px solid var(--accent);
-  outline-offset: 2px;
+  outline: 1px solid var(--ink);
+  outline-offset: 1px;
 }
 ::selection {
-  background: var(--accent-soft);
+  background: var(--subtle);
   color: var(--ink);
+}
+@media (prefers-reduced-motion: reduce) {
+  *,
+  *::before,
+  *::after {
+    transition: none !important;
+    animation: none !important;
+  }
 }
 
 .head {
   display: flex;
   align-items: center;
-  gap: 9px;
-  padding: 12px 14px;
+  gap: 8px;
+  padding: 8px 12px;
+  background: var(--surface);
   border-bottom: 1px solid var(--line);
 }
 .logo {
@@ -146,58 +162,63 @@ label[for] {
   font-weight: 600;
 }
 .brand {
-  font-size: 16px;
-  font-weight: 600;
-  letter-spacing: -0.01em;
+  font-size: 14px;
+  font-weight: 500;
 }
 .spacer {
   flex: 1;
 }
 .tabs {
-  /* Slate Segmented — 알약 안의 알약, 선택된 탭은 반전(primary 바탕) */
+  /* NightBrowser 활동 탭 — 동일 너비, 선택은 반전이 아니라 하단 2px 룰 */
   display: flex;
-  gap: 2px;
-  margin: 12px 16px 0;
-  padding: 3px;
-  border: 1px solid var(--line-strong);
-  border-radius: 999px;
+  margin: 0;
+  padding: 0 12px;
   background: var(--surface);
+  border-bottom: 1px solid var(--line);
 }
 .tabs button {
   flex: 1;
+  position: relative;
   font: inherit;
-  font-size: 13px;
-  font-weight: 500;
+  font-size: 12px;
+  font-weight: 400;
   border: 0;
+  border-bottom: 2px solid transparent;
+  margin-bottom: -1px;
   background: transparent;
   color: var(--ink-soft);
-  height: 32px;
-  border-radius: 999px;
+  height: 36px;
+  border-radius: 0;
   display: inline-flex;
   align-items: center;
   justify-content: center;
   gap: 6px;
-  transition: background-color 180ms var(--ease-soft), color 180ms var(--ease-soft);
+  transition: color 120ms var(--ease-soft), border-color 120ms var(--ease-soft);
 }
 .tabs button:hover {
   color: var(--ink);
 }
 .tabs button[aria-selected="true"] {
-  background: var(--primary);
-  color: var(--on-primary);
+  color: var(--ink);
+  font-weight: 500;
+  border-bottom-color: var(--ink);
 }
+.tabs button:focus-visible {
+  outline-offset: -2px;
+}
+/* 승인 대기 — 숫자 대신 라벨 위 6px 점(레이블 폭 불변). 개수는 접근성 이름에 있다. */
 .tabs .count {
-  min-width: 18px;
-  height: 18px;
-  padding: 0 5px;
-  border-radius: 999px;
-  background: var(--warn);
-  color: var(--surface);
-  font-size: 11px;
-  font-weight: 600;
-  display: inline-grid;
-  place-items: center;
-  font-variant-numeric: tabular-nums;
+  position: absolute;
+  top: 5px;
+  left: 50%;
+  width: 6px;
+  height: 6px;
+  margin-left: -3px;
+  padding: 0;
+  border-radius: 50%;
+  background: var(--ink);
+  font-size: 0;
+  overflow: hidden;
 }
 .shell.wide {
   max-width: 680px;
@@ -218,7 +239,7 @@ label[for] {
 .row {
   display: flex;
   align-items: center;
-  gap: 10px;
+  gap: 8px;
 }
 .between {
   justify-content: space-between;
@@ -226,32 +247,30 @@ label[for] {
 .muted {
   color: var(--ink-soft);
 }
-/* Slate §Typography — 트래킹 늘린 대문자 이름표는 한글에선 "흩어진 글자"로
-   읽힌다(한글은 대소문자가 없다). 이 앱은 전부 한국어(lang=ko)라 CJK 규칙을
-   기본값으로 바로 적용 — 트래킹 최소화, 대문자 변환 없음. */
 .label {
-  font-size: 11.5px;
-  font-weight: 500;
+  font-size: 12px;
+  font-weight: 400;
   letter-spacing: 0;
-  color: var(--ink-faint);
+  color: var(--ink-soft);
 }
 .amount {
-  font-size: 26px;
-  font-weight: 650;
-  letter-spacing: -0.02em;
+  font-family: var(--font-mono);
+  font-size: 24px;
+  font-weight: 500;
+  letter-spacing: -0.01em;
   font-variant-numeric: tabular-nums;
 }
 
-/* 버튼 — pill 형태(완전히 둥근 컨트롤), primary는 반전(잉크 바탕/캔버스 글자). */
+/* 버튼 — 8px 반경. primary는 반전 블록(text색 바탕), 보조는 윤곽 + soft 호버. */
 .btn {
   font: inherit;
-  font-size: 13px;
+  font-size: 14px;
   font-weight: 500;
-  border-radius: 999px;
-  padding: 9px 16px;
+  border-radius: var(--radius-md);
+  height: 36px;
+  padding: 0 16px;
   border: 1px solid transparent;
-  transition: background-color 180ms var(--ease-soft), border-color 180ms var(--ease-soft), opacity
-    180ms var(--ease-soft);
+  transition: background-color 120ms var(--ease-soft), border-color 120ms var(--ease-soft);
 }
 .btn-primary {
   background: var(--primary);
@@ -260,10 +279,13 @@ label[for] {
 .btn-primary:hover {
   opacity: 0.9;
 }
+.btn-primary:focus-visible {
+  outline-offset: 2px;
+}
 .btn-outline {
-  background: var(--surface);
+  background: transparent;
   color: var(--ink);
-  border-color: var(--line-strong);
+  border-color: var(--line);
 }
 .btn-outline:hover {
   background: var(--subtle);
@@ -272,31 +294,36 @@ label[for] {
   width: 100%;
 }
 
-/* 배지 — pill 형태. 색은 상태 의미만(ok/warn/danger), solid는 중립 강조. */
+/* 배지 — 8px 반경, 모노크롬. 상태는 색이 아니라 단어 + 모양(채움/윤곽/반전)으로 구분한다. */
 .badge {
   display: inline-flex;
   align-items: center;
   gap: 5px;
-  font-size: 11px;
+  font-size: 12px;
   font-weight: 500;
-  padding: 3px 10px;
-  border-radius: 999px;
+  padding: 2px 8px;
+  border-radius: var(--radius-md);
+  border: 1px solid var(--line);
+  background: var(--subtle);
+  color: var(--ink);
 }
 .badge.ok {
-  background: var(--ok-soft);
-  color: var(--ok);
+  background: var(--subtle);
+  color: var(--ink);
 }
 .badge.warn {
-  background: var(--warn-soft);
-  color: var(--warn);
+  background: transparent;
+  border-color: var(--ink);
+  color: var(--ink);
 }
 .badge.info {
-  background: var(--accent-soft);
-  color: var(--accent);
+  background: transparent;
+  color: var(--ink-soft);
 }
 .badge.danger {
-  background: var(--danger-soft);
-  color: var(--danger);
+  background: var(--primary);
+  border-color: var(--primary);
+  color: var(--on-primary);
 }
 .badge.solid {
   background: var(--subtle);
@@ -306,8 +333,8 @@ label[for] {
 .field {
   display: flex;
   flex-direction: column;
-  gap: 6px;
-  margin-bottom: 10px;
+  gap: 8px;
+  margin-bottom: 16px;
 }
 .field > span {
   font-size: 12px;
@@ -316,30 +343,32 @@ label[for] {
 }
 .input {
   font: inherit;
-  font-size: 13px;
-  padding: 9px 13px;
+  font-size: 14px;
+  height: 36px;
+  padding: 0 12px;
   background: var(--canvas);
   color: var(--ink);
-  border: 1px solid var(--line-strong);
-  border-radius: var(--radius-xl);
+  border: 1px solid var(--line);
+  border-radius: var(--radius-md);
   width: 100%;
-  transition: border-color 180ms var(--ease-soft);
+  transition: border-color 120ms var(--ease-soft);
 }
+/* 필드 포커스 — 이중 아웃라인 없이 기존 1px 테두리만 text색으로 */
 .input:focus-visible {
-  border-color: var(--accent);
-  outline-offset: 0;
+  border-color: var(--ink);
+  outline: none;
 }
 .grid2 {
   display: grid;
   grid-template-columns: 1fr 1fr;
-  gap: 10px;
+  gap: 12px;
 }
 .listrow {
   display: flex;
   align-items: center;
   justify-content: space-between;
-  gap: 10px;
-  padding: 10px 0;
+  gap: 8px;
+  padding: 8px 0;
   border-top: 1px solid var(--line);
 }
 .listrow:first-child {
@@ -348,46 +377,49 @@ label[for] {
 .options {
   max-width: 680px;
   margin: 0 auto;
-  padding: 24px 20px 60px;
+  padding: 24px 20px 48px;
 }
+/* 컴팩트 컨트롤(28px, 12px 글자) — 목록 행·앱바용 */
 .icon-btn {
-  border: 1px solid var(--line-strong);
-  background: var(--surface);
+  border: 1px solid var(--line);
+  background: transparent;
   color: var(--ink);
-  border-radius: 999px;
-  padding: 6px 12px;
+  border-radius: var(--radius-md);
+  height: 28px;
+  padding: 0 12px;
   font-size: 12px;
-  transition: background-color 180ms var(--ease-soft);
+  transition: background-color 120ms var(--ease-soft);
 }
 .icon-btn:hover {
   background: var(--subtle);
 }
-/* 아이콘만 담는 정사각형 pill(테마 토글 등) — icon-btn의 텍스트 패딩과 구분. */
+/* 아이콘만 담는 28px 정사각형(테마 토글 등) — 평소 투명, 호버 시 soft */
 .icon-btn-square {
   display: inline-flex;
   align-items: center;
   justify-content: center;
-  width: 30px;
-  height: 30px;
+  width: 28px;
+  height: 28px;
   padding: 0;
+  border-color: transparent;
 }
 
 table {
   width: 100%;
   border-collapse: collapse;
-  font-size: 13px;
+  font-size: 12px;
 }
 th,
 td {
   text-align: left;
-  padding: 7px 6px;
+  padding: 8px 6px;
   border-bottom: 1px solid var(--line);
   color: var(--ink-soft);
 }
 th {
-  color: var(--ink-faint);
+  color: var(--ink-soft);
   font-weight: 500;
-  font-size: 11px;
+  font-size: 12px;
 }
 tbody tr {
   transition: background-color 120ms var(--ease-soft);
@@ -395,9 +427,6 @@ tbody tr {
 tbody tr:hover {
   background: var(--subtle);
 }
-/* 가로 중앙 정렬·최대폭만 — 위쪽 여백은 .body의 padding으로 충분하다.
-   (예전엔 margin-top 24px가 있었는데 옵션 페이지 기준으로 넣은 값이라
-   같은 컴포넌트를 쓰는 사이드패널에선 빈 공간으로만 보였다.) */
 .lock {
   max-width: 420px;
   margin: 0 auto;
@@ -422,42 +451,44 @@ tbody tr:hover {
   color: var(--ink-soft);
 }
 
-/* 주문(어시스턴트) 탭 — 대화 목록 + 입력창 */
+/* 주문(어시스턴트) 탭 — 프롬프트는 soft 말풍선(우측), 응답은 좌측 텍스트, 도구 호출은 한 줄 muted */
 .chat {
   display: flex;
   flex-direction: column;
   gap: 8px;
 }
 .chat .msg {
-  font-size: 13px;
+  font-size: 12px;
   line-height: 1.5;
   white-space: pre-wrap;
   overflow-wrap: anywhere;
-  padding: 10px 14px;
-  border-radius: var(--radius-lg);
-  border: 1px solid var(--line);
-  background: var(--surface);
+  padding: 0 4px;
+  border: none;
+  background: none;
 }
 .chat .msg.user {
   align-self: flex-end;
   max-width: 85%;
+  padding: 8px 12px;
+  border-radius: var(--radius-lg);
   background: var(--subtle);
 }
 .chat .msg.tool {
-  border: none;
-  background: none;
-  padding: 0 4px;
-  font-size: 12px;
+  font-family: var(--font-mono);
   color: var(--ink-soft);
 }
 .chat .msg.error {
-  border-color: var(--danger);
-  color: var(--danger);
+  padding: 8px 12px;
+  border: 1px solid var(--ink);
+  border-radius: var(--radius-md);
+  color: var(--ink);
 }
 .chat textarea.input {
   resize: vertical;
   min-height: 72px;
+  height: auto;
   font: inherit;
-  font-size: 13px;
-  padding: 12px 14px;
+  font-size: 14px;
+  padding: 12px;
+  border-radius: var(--radius-lg);
 }

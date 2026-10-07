@@ -35,7 +35,7 @@ export function GettingStarted({ state }: { state: UiState }) {
     {
       done: null,
       title: "쿠팡 로그인 · 원터치 결제 켜기",
-      hint: "로그인은 직접 해두세요(AutoPay는 로그인을 다루지 않음). 원터치는 쿠팡 앱에서 켭니다",
+      hint: "로그인은 직접 해두세요(NightPay는 로그인을 다루지 않음). 원터치는 쿠팡 앱에서 켭니다",
     },
   ];
   if (steps.every((s) => s.done !== false)) return null; // 확인 가능한 단계가 다 끝나면 숨김
@@ -87,7 +87,7 @@ export function SiteAccessNotice() {
     >
       <div style={{ marginBottom: 6 }}>
         다른 브라우저 에이전트 익스텐션(예: Claude for Chrome)을 함께 쓴다면, 그 익스텐션의 사이트
-        접근 권한(특히 쿠키·결제창 도메인)을 AutoPay가 강제로 제한할 수 없습니다. 민감한 세션과
+        접근 권한(특히 쿠키·결제창 도메인)을 NightPay가 강제로 제한할 수 없습니다. 민감한 세션과
         자동쇼핑 세션은 별도 브라우저 프로필로 분리하는 걸 권장합니다.
       </div>
       <button

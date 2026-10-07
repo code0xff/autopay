@@ -3,6 +3,8 @@
 > 이 문서는 AutoPay 프로젝트의 목표, 아키텍처, 설계 원칙을 정의한다.
 > 사람 개발자와 코딩 에이전트(Claude Code, Codex 등) 모두 이 문서를 프로젝트의
 > 단일 기준(source of truth)으로 삼는다.
+>
+> 2026-10-07: 제품 표시 이름을 NightPay로 변경. 저장소·패키지·MCP 서버 id 등 내부 식별자는 autopay 유지.
 
 ## 0. 포지셔닝 (가치 명제)
 
@@ -407,7 +409,7 @@ autopay/
 1. **M0 — 스켈레톤 ✅**: 모노레포 셋업, shared 스키마, 정책 엔진 코어 + 테스트
 2. **M1 — 브로커 익스텐션 ✅**: Side Panel(승인) + Options(정책·프로필·감사) +
    chrome.notifications. WXT MV3, light/dark (`docs/spec/ui.md`, 2026-09-23부터
-   `~/workspace/design/slate` 디자인 시스템 적용). chrome 어댑터·합성 루트
+   `~/workspace/design/agent-browser`(NightBrowser) 디자인 시스템 적용, 2026-10-07 Slate에서 교체). chrome 어댑터·합성 루트
    배선. `wxt build` 성공. 원시 비밀 저장 없음. **감시(가격 폴링) 기능은
    2026-09-23 제거됨**(`docs/spec/watch.md` — 실제로 작동하지 않는 스텁이었고,
    M2의 MCP 에이전트가 같은 역할을 더 유연하게 대신함).
