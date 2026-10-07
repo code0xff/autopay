@@ -1,0 +1,3 @@
+[mcp_servers.autopay]
+command = "node"
+args = ["packages/mcp-server/dist/index.js"]

@@ -100,7 +100,8 @@ yourself in the checkout tab**.
 **Option A: an AI agent (MCP).** Run Claude Code in the repo folder. The `autopay`
 server is already registered in `.mcp.json`; approve the MCP server when Claude
 Code asks. Then ask, for example: "Buy two 6-packs of 2L water on Coupang, the top
-recommended one." For other MCP agents, register
+recommended one." Codex is registered the same way in `.codex/config.toml`, so
+running Codex in the repo folder works too. For other MCP agents, register
 `node packages/mcp-server/dist/index.js` as a stdio server (run from the repo
 folder).
 
