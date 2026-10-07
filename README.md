@@ -22,9 +22,9 @@ User guide: **https://code0xff.github.io/autopay/** (source:
   one-touch payment (pattern C, Coupang). The design leaves nothing to steal.
 - **Audit and notification**: every payment attempt is written to an audit log,
   and completions and rejections are notified immediately.
-- **Limit-price buying**: Claude Code (via the MCP skill) watches a product and
-  a price ceiling, and requests payment once the condition is met, always
-  through the policy gate.
+- **Agent-driven buying**: an AI agent (any MCP agent, or the built-in Order tab)
+  searches, compares and reaches checkout, then requests payment, always through
+  the policy gate.
 
 ## Layout
 
@@ -37,41 +37,99 @@ packages/broker-extension    Chrome MV3 extension (trusted zone)
   src/bridge                 MCP bridge WebSocket client + tool mapping (M2)
   src/background             Composition root + UI RPC
   entrypoints                background · sidepanel · options (WXT / React)
-packages/mcp-server          Local stdio MCP server + WebSocket hub (M2, for Claude Code)
-packages/agent-skill         Claude Code shopping skill (SKILL.md)
+packages/mcp-server          Local stdio MCP server + WebSocket hub (M2, for MCP agents)
+packages/agent-skill         Shopping skill (SKILL.md, also at .claude/skills/autopay-shopping)
 docs/                        Design, specs and conventions (12 specs under spec/)
 ```
 
 ## Quick start
 
-Requirements: Node 20+, pnpm 9, Chrome, Claude Code.
+### Requirements
+
+- Node 20+ and pnpm 9 (`npm i -g pnpm@9`)
+- Google Chrome
+- One of: an MCP-capable AI agent such as Claude Code, **or** a ChatGPT account
+  for the built-in Order tab
+
+### 1. Install and build
 
 ```bash
-pnpm bootstrap   # install → build MCP server and extension → prepare bridge token (copied to clipboard)
+git clone https://github.com/code0xff/autopay.git && cd autopay
+pnpm bootstrap
 ```
 
-Then, once by hand:
+`pnpm bootstrap` (`scripts/bootstrap.mjs`) runs four steps:
 
-1. `chrome://extensions` → Developer mode → "Load unpacked" →
-   `packages/broker-extension/.output/chrome-mv3` (after a rebuild, just press reload ⟳)
-2. Click the NightPay toolbar icon to open the side panel → set a passphrase (first run;
-   afterwards you unlock with it) → **Settings** tab: paste the
-   token into **MCP Bridge** (it is on your clipboard) → **Policy** tab: check the payment
-   limits (defaults: ₩20,000 per payment, ₩50,000/day, ₩100,000/month, 3/day, approval above ₩10,000)
-3. Log in to Coupang yourself and turn on one-touch payment in the Coupang app
-4. Run Claude Code in this folder (the `autopay` server is already registered in
-   `.mcp.json`) → "Buy this laptop stand if it's under ₩30,000"
+1. installs dependencies (`pnpm install`);
+2. builds the MCP server (`packages/mcp-server/dist/index.js`);
+3. builds the Chrome extension (`packages/broker-extension/.output/chrome-mv3`);
+4. creates the bridge token at `~/.autopay/bridge-token` (mode 0600), or reuses it
+   if it already exists, and copies it to the clipboard. The token is never
+   printed to the terminal; if no clipboard tool is available, the script tells you
+   the file path instead.
 
-The side panel has four tabs: Home (approvals and remaining limits), Policy, History
-(audit log) and Settings. The options page shows the same app. The **Getting started**
-card on the Home tab shows what is left. The History tab pages through the audit log.
+### 2. Load the extension in Chrome
 
-NightPay is inactive until you unlock it with your passphrase: while locked, only the lock
-screen is shown and every agent tool call is refused. Once unlocked it stays unlocked
-until you close the browser or press the lock button in the header. If Coupang
-asks for the payment password again during checkout, you get a notification and
-**type it yourself in the checkout tab**. NightPay and the agent never handle the
-password.
+1. Open `chrome://extensions` and turn on **Developer mode**.
+2. Click **Load unpacked** and select `packages/broker-extension/.output/chrome-mv3`
+   (the script prints the absolute path).
+3. Pin the NightPay icon to the toolbar and click it to open the side panel.
+4. After a rebuild, press the reload button on the extension card.
+
+### 3. First run in the side panel
+
+1. Set a passphrase (first run; afterwards you unlock with it).
+2. **Settings** tab: paste the token into **MCP Bridge** (it is still on your
+   clipboard). Needed for option A; skip it for option B.
+3. **Policy** tab: check the limits. Defaults are ₩20,000 per payment, ₩50,000/day,
+   ₩100,000/month, 3 payments/day, and approval required above ₩10,000.
+   **Payments of ₩10,000 or less run without any confirmation.** Lower the
+   approval threshold or turn on "always confirm" if you do not want that.
+
+The **Getting started** card on the Home tab shows which steps are left.
+
+### 4. Prepare Coupang
+
+Log in to Coupang yourself in Chrome and turn on one-touch payment in the Coupang
+app. NightPay and the agent never handle logins or passwords. If Coupang asks for
+the payment password again during checkout, you get a notification: **type it
+yourself in the checkout tab**.
+
+### 5. Order something
+
+**Option A: an AI agent (MCP).** Run Claude Code in the repo folder. The `autopay`
+server is already registered in `.mcp.json`; approve the MCP server when Claude
+Code asks. Then ask, for example: "Buy two 6-packs of 2L water on Coupang, the top
+recommended one." For other MCP agents, register
+`node packages/mcp-server/dist/index.js` as a stdio server (run from the repo
+folder).
+
+**Option B: the Order tab.** Open the side panel's **Order** tab and press
+"설정에서 ChatGPT 연결" (connect ChatGPT in Settings), then press
+"ChatGPT로 로그인" in Settings. The tokens are encrypted with your passphrase and
+stored only in this browser. Back in the Order tab, type a request (for example
+"Buy two 6-packs of 2L water") and send it. You can stop a running request with the
+stop button ("중단").
+
+Either way, payments go through policy, confirmation and audit.
+
+### Troubleshooting
+
+- **Side panel stuck on loading**: remove the extension and load it again. This
+  resets the policy, bridge token and passphrase, so re-enter them.
+- **Bridge not connected**: make sure the agent is running in the repo folder (so
+  it picks up `.mcp.json`) and that the token in Settings → MCP Bridge matches
+  `~/.autopay/bridge-token`.
+
+### Notes
+
+The side panel has five tabs: Home (approvals and remaining limits), Order, Policy,
+History (audit log) and Settings. The options page shows the same app. The History
+tab pages through the audit log.
+
+NightPay is inactive until you unlock it with your passphrase: while locked, only the
+lock screen is shown and every agent tool call is refused. Once unlocked it stays
+unlocked until you close the browser or press the lock button in the header.
 
 The agent has exactly seven tools: `open`, `read_page`, `click`, `fill`,
 `request_payment`, `get_payment_result` and `get_policy_summary`. Payments always
@@ -102,6 +160,6 @@ live integration. See [docs/status.md](docs/status.md).
 
 ## License
 
-[Apache License 2.0](LICENSE). The self-hosted fonts under `docs/site/fonts/` (Wanted Sans,
-JetBrains Mono) are distributed under the SIL Open Font License 1.1; their licence files sit
-beside them.
+[Apache License 2.0](LICENSE). The self-hosted fonts under `docs/site/fonts/` (Pretendard,
+JetBrains Mono) are distributed under the SIL Open Font License 1.1; JetBrains Mono's
+licence file (`OFL.txt`) sits beside it. No licence file is present in the Pretendard folder yet.
