@@ -3,6 +3,7 @@ import type { UiState } from "../background/compose.js";
 import { AssistantTab, ChatGptCard } from "./Assistant.js";
 import { CrowMark } from "./CrowMark.js";
 import { PolicyForm } from "./PolicyForm.js";
+import { HomeSkeleton } from "./Skeleton.js";
 import { ThemeToggle } from "./ThemeToggle.js";
 import { LockButton, LockScreen } from "./Unlock.js";
 import {
@@ -109,7 +110,9 @@ export function AppShell({ wide = false }: { wide?: boolean }) {
                 </button>
               </div>
             ) : (
-              <div className="body muted">불러오는 중…</div>
+              <div className="body">
+                <HomeSkeleton />
+              </div>
             )
           ) : (
             <div className="body">

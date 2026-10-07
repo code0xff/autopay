@@ -1,5 +1,6 @@
 import { useEffect, useRef, useState } from "react";
 import type { AssistantState } from "../assistant/assistant.js";
+import { AssistantSkeleton } from "./Skeleton.js";
 import {
   assistantCallback,
   assistantLoadModels,
@@ -42,7 +43,7 @@ export function AssistantTab({ onOpenSettings }: { onOpenSettings: () => void })
     endRef.current?.scrollIntoView({ block: "end" });
   }, [count, lastLen]);
 
-  if (!state) return <div className="muted">불러오는 중…</div>;
+  if (!state) return <AssistantSkeleton />;
   if (!state.signedIn) {
     return (
       <div className="card">

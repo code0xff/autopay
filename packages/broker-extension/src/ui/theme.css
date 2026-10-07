@@ -483,3 +483,46 @@ tbody tr:hover {
   padding: 12px;
   border-radius: var(--radius-lg);
 }
+
+/* 스켈레톤 로딩 — 그라데이션/시머 없이 불투명도 깜박임만 */
+.sr-only {
+  position: absolute;
+  width: 1px;
+  height: 1px;
+  margin: -1px;
+  padding: 0;
+  overflow: hidden;
+  clip: rect(0 0 0 0);
+  white-space: nowrap;
+  border: 0;
+}
+.skeleton-region {
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
+}
+.skeleton-card {
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+}
+.skeleton-block {
+  background: var(--subtle);
+  border-radius: var(--radius-md);
+  max-width: 100%;
+  animation: skeleton-blink 1.4s ease-in-out infinite;
+}
+@keyframes skeleton-blink {
+  0%,
+  100% {
+    opacity: 1;
+  }
+  50% {
+    opacity: 0.45;
+  }
+}
+@media (prefers-reduced-motion: reduce) {
+  .skeleton-block {
+    animation: none;
+  }
+}
