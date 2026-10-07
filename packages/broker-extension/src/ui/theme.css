@@ -325,10 +325,6 @@ label[for] {
   border-color: var(--primary);
   color: var(--on-primary);
 }
-.badge.solid {
-  background: var(--subtle);
-  color: var(--ink-soft);
-}
 
 .field {
   display: flex;
@@ -373,11 +369,6 @@ label[for] {
 }
 .listrow:first-child {
   border-top: 0;
-}
-.options {
-  max-width: 680px;
-  margin: 0 auto;
-  padding: 24px 20px 48px;
 }
 /* 컴팩트 컨트롤(28px, 12px 글자) — 목록 행·앱바용 */
 .icon-btn {
