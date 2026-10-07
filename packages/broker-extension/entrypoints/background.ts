@@ -56,6 +56,21 @@ export default defineBackground(() => {
     }
   });
 
+  // SIWC 로그인 콜백 수신(docs/spec/assistant.md §3). 리다이렉트는 문서 규칙상
+  // http://127.0.0.1:<PORT>/callback 고정인데 익스텐션은 포트를 열 수 없다 — 그래서
+  // 탭이 그 주소로 **이동하려는 순간** URL에서 code를 읽고 탭을 닫는다(아무도 그
+  // 포트를 듣지 않으므로 페이지는 뜨지 않는다). 진행 중인 로그인의 주소와 정확히
+  // 맞을 때만 처리하며, 그 판정은 Assistant가 한다.
+  chrome.tabs?.onUpdated.addListener((tabId, info, tab) => {
+    const url = info.url ?? tab.pendingUrl ?? tab.url;
+    if (!url?.startsWith("http://127.0.0.1:")) return;
+    bg.handleLoginCallback(url)
+      .then((handled) => {
+        if (handled) return chrome.tabs.remove(tabId);
+      })
+      .catch((e) => console.warn("[autopay] login callback failed", e));
+  });
+
   // confirm 타임아웃 + 중단된 실행 스윕(최소 간격 — payment-flows 무우회 원칙).
   chrome.alarms?.create("autopay-tick", { periodInMinutes: 5 });
   chrome.alarms?.onAlarm.addListener(async (a) => {

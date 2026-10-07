@@ -21,6 +21,10 @@ export default defineConfig({
       "https://*.coupang.com/*",
       "https://online-payment.kakaopay.com/*",
       "https://pay.toss.im/*",
+      // 내장 어시스턴트(docs/spec/assistant.md): SIWC 토큰 교환과 Responses API 호출.
+      // 백그라운드에서만 호출하며 이 도메인의 페이지를 읽거나 조작하지는 않는다.
+      "https://auth.openai.com/*",
+      "https://api.openai.com/*",
     ],
     action: { default_title: "AutoPay" },
   },

@@ -225,7 +225,7 @@ FDS/안티봇 회피, 카드번호·CVC 평문 보관/자동입력.
 | **Audit Log** | 모든 결제 시도의 불변 기록 (요청자, 금액, 머천트, 판정 결과, 시각) | Trusted |
 | **Notifier** | 결제 완료/거절 시 사용자에게 즉시 알림 | Trusted |
 
-### 3.2 에이전트 연동 방식 (두 가지 모두 지원 목표)
+### 3.2 에이전트 연동 방식
 
 1. **Chrome Extension Messaging** — Claude for Chrome 같은 브라우저 에이전트가
    `chrome.runtime.sendMessage`(externally_connectable)로 브로커와 통신.
@@ -233,8 +233,11 @@ FDS/안티봇 회피, 카드번호·CVC 평문 보관/자동입력.
 2. **MCP 서버 / 스킬** — Claude Code, Codex 등 로컬 에이전트를 위해 브로커가
    Native Messaging Host를 통해 로컬 MCP 서버를 노출. 에이전트는
    `search_status`, `request_payment`, `get_payment_result` 같은 도구만 사용.
+3. **내장 어시스턴트** — 익스텐션이 사용자의 ChatGPT 계정(Sign in with ChatGPT)으로
+   모델을 직접 호출한다. 프로세스 경계가 없으므로 격리는 코드 구조로 지킨다:
+   어시스턴트 모듈은 2번과 같은 도구 표면만 받는다(`docs/spec/assistant.md §2`).
 
-두 경로 모두 동일한 Broker API 스키마와 동일한 정책 엔진을 거친다.
+세 경로 모두 동일한 Broker API 스키마와 동일한 정책 엔진을 거친다.
 
 ### 3.3 Broker API (에이전트에게 노출되는 전체 표면)
 
@@ -323,6 +326,9 @@ FDS/안티봇 회피, 카드번호·CVC 평문 보관/자동입력.
 7. **로그에 비밀 금지** — Audit Log, 콘솔, 에러 메시지 어디에도 비밀·빌링키
    원문/부분값을 남기지 않는다. 결제수단은 항상 `paymentMethodId`와
    label로만 참조.
+8. **어시스턴트의 OAuth 토큰** — 내장 어시스턴트가 받는 ChatGPT 액세스·리프레시
+   토큰은 5번과 같은 방식(패스프레이즈 파생 키, AES-GCM)으로 봉인 저장하고,
+   모델 입력·UI 상태·로그로 내보내지 않는다(`docs/spec/assistant.md §5`).
 
 ## 5. 위협 모델 (요약)
 
@@ -415,7 +421,12 @@ autopay/
    까지 검증(전체 179 케이스 중 다수). **2026-09-23 라이브 연결 확인**: 실제
    Claude Code 세션 → MCP 서버 → WS 브리지 → Chrome 익스텐션 경로로 쿠팡 검색·
    상품 선택·체크아웃 진입·결제 요청·정책 판정·사이드패널 승인까지 실제로
-   왕복했다(스킬 트리거 포함). 두뇌 내장(①)은 대안으로 미채택.
+   왕복했다(스킬 트리거 포함).
+   - **2026-10-07 두뇌 내장(①) 병행 채택**: 사이드패널 "주문" 탭에서 프롬프트를
+     직접 받아 사용자의 ChatGPT 플랜으로 실행한다(Sign in with ChatGPT 오픈소스
+     흐름, `docs/spec/assistant.md`). 모델은 익스텐션 안에서 호출되지만 신뢰하지
+     않는 에이전트로 취급하며, 쓸 수 있는 것은 ③과 같은 도구 7개뿐이다. 구현과
+     유닛 테스트는 끝났고 **실제 로그인은 미검증**이다.
 4. **M3 — Payment Executor (쿠팡 ✅ / 카카오·토스 잔여)**: `SimplePayAdapter`로
    **쿠팡(패턴 C, 원터치) 라이브 셀렉터 확정(2026-09-22)** → 카카오·토스(패턴 B)는
    placeholder 유지.

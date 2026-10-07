@@ -1,5 +1,6 @@
 import { useEffect, useRef, useState } from "react";
 import type { UiState } from "../background/compose.js";
+import { AssistantTab, ChatGptCard } from "./Assistant.js";
 import { PolicyForm } from "./PolicyForm.js";
 import { ThemeToggle } from "./ThemeToggle.js";
 import { LockButton, LockScreen } from "./Unlock.js";
@@ -15,9 +16,10 @@ import { getState, resolveConfirmation } from "./rpc-client.js";
 // 사이드패널과 옵션 페이지가 같은 탭 앱을 띄운다 — 화면이 겹치거나 한쪽에만
 // 있는 기능이 생기지 않도록. 탭은 기능별: 홈(승인·남은 한도) / 정책 / 기록 / 설정.
 
-type Tab = "home" | "policy" | "history" | "settings";
+type Tab = "home" | "assistant" | "policy" | "history" | "settings";
 const TABS: { id: Tab; label: string }[] = [
   { id: "home", label: "홈" },
+  { id: "assistant", label: "주문" },
   { id: "policy", label: "정책" },
   { id: "history", label: "기록" },
   { id: "settings", label: "설정" },
@@ -90,6 +92,7 @@ export function AppShell({ wide = false }: { wide?: boolean }) {
           ) : (
             <div className="body">
               {tab === "home" && <Home state={state} onRefresh={refresh} />}
+              {tab === "assistant" && <AssistantTab onOpenSettings={() => choose("settings")} />}
               {tab === "policy" && <PolicyForm policy={state.policy} onSaved={refresh} />}
               {tab === "history" && <AuditTable refreshKey={state} />}
               {tab === "settings" && (
@@ -99,6 +102,7 @@ export function AppShell({ wide = false }: { wide?: boolean }) {
                     hasToken={state.hasBridgeToken}
                     onSaved={refresh}
                   />
+                  <ChatGptCard />
                   <NotificationCheck />
                   <SiteAccessNotice />
                 </>

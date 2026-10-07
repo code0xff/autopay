@@ -25,6 +25,7 @@
 | [watch.md](watch.md) | ~~감시 엔진~~ — M2에서 제거됨(사유는 문서 참조) | — | 폐기 |
 | [agent-integration.md](agent-integration.md) | 제어 메커니즘(DOM) + 두뇌 부착 방식 + 도구 인터페이스 | `broker-extension` + 전송 | ✅ |
 | [mcp-integration.md](mcp-integration.md) | 스킬→MCP→브리지→익스텐션(③, Claude Code) 설계 | `mcp-server` + `agent-skill` + 익스텐션 | 설계 |
+| [assistant.md](assistant.md) | 내장 어시스턴트(①) — SIWC 로그인 + Responses API 루프, 주문 탭 | `broker-extension/assistant` | 구현·라이브 미검증 |
 | [ui.md](ui.md) | UI 표면(Side Panel/Options/알림)·디자인 토큰·화면별 상태 | `broker-extension/ui` | ✅ |
 | [manifest.md](manifest.md) | MV3 권한 정책·도메인 화이트리스트 | `broker-extension` | ✅ |
 

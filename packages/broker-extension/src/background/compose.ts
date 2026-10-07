@@ -1,4 +1,5 @@
 import type { PaymentMethod, PaymentPolicy } from "@autopay/shared";
+import { Assistant } from "../assistant/assistant.js";
 import { KvAuditLog } from "../audit/audit-log.js";
 import { BridgeTools } from "../bridge/bridge-tools.js";
 import { ChromeGenericPageBridge } from "../bridge/page-bridge.js";
@@ -19,6 +20,8 @@ import {
   deriveKeyBytes,
   importAesKey,
   makeVerifier,
+  openJson,
+  sealJson,
 } from "../refstore/refstore.js";
 import { RpcRequest } from "./rpc.js";
 
@@ -74,6 +77,7 @@ export class Background {
   private readonly deps_adapter: (m: PaymentMethod) => SimplePayAdapter;
   private readonly bridgeTools: BridgeTools;
   private readonly bridgeClient: BridgeClient;
+  private readonly assistant: Assistant;
   private bridgeConnected = false;
 
   constructor(kv: Kv = new ChromeKv(), session?: Kv) {
@@ -123,6 +127,26 @@ export class Background {
         this.bridgeConnected = connected;
       },
     });
+    // 내장 어시스턴트(docs/spec/assistant.md) — MCP 브리지와 **같은 BridgeTools**만 쥔다.
+    // 모델이 익스텐션 안에서 돌아도 정책·잠금·감사 경로는 스킬과 동일하다.
+    this.assistant = new Assistant({
+      kv,
+      session: this.session,
+      seal: async (obj) => sealJson(this.requireKey(), obj),
+      open: async (sealed) => openJson(this.requireKey(), sealed),
+      tools: this.bridgeTools,
+      fetch: (...args) => fetch(...args),
+      openTab: async (url) => {
+        await chrome.tabs.create({ url });
+      },
+    });
+  }
+
+  /** 탭이 SIWC 콜백 주소로 이동했으면 로그인 완료 처리(background의 탭 리스너가 호출).
+   *  잠겨 있으면 토큰을 봉인할 수 없으므로 처리하지 않는다. */
+  async handleLoginCallback(url: string): Promise<boolean> {
+    if (!(await this.restoreKey())) return false;
+    return this.assistant.handleCallbackUrl(url);
   }
 
   get brokerCore(): BrokerCore {
@@ -186,6 +210,32 @@ export class Background {
         return { ok: true };
       case "testNotification":
         return this.testNotification();
+      case "getAssistant":
+        return this.assistant.state();
+      case "assistantLogin":
+        await this.assistant.startLogin();
+        return { ok: true };
+      case "assistantCallback":
+        return { ok: await this.assistant.handleCallbackUrl(req.url) };
+      case "assistantLogout":
+        await this.assistant.logout();
+        return { ok: true };
+      case "assistantLoadModels":
+        await this.assistant.loadModels();
+        return { ok: true };
+      case "assistantSetModel":
+        await this.assistant.setModel(req.slug);
+        return { ok: true };
+      case "assistantSend":
+        // 접수만 하고 바로 돌아온다 — RPC는 직렬 큐라 여기서 기다리면 UI 전체가 멈춘다.
+        await this.assistant.send(req.text);
+        return { ok: true };
+      case "assistantStop":
+        this.assistant.stop();
+        return { ok: true };
+      case "assistantReset":
+        await this.assistant.reset();
+        return { ok: true };
     }
   }
 

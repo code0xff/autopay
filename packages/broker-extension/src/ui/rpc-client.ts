@@ -1,4 +1,5 @@
 import type { AuditRecord, PaymentPolicy } from "@autopay/shared";
+import type { AssistantState } from "../assistant/assistant.js";
 import type { UiState } from "../background/compose.js";
 
 // UI → background RPC 헬퍼. background가 zod로 재검증한다(rpc.ts).
@@ -29,6 +30,16 @@ export interface NotificationDiagnosis {
   error: string | null;
 }
 export const testNotification = () => rpc<NotificationDiagnosis>({ type: "testNotification" });
+
+export const getAssistant = () => rpc<AssistantState>({ type: "getAssistant" });
+export const assistantLogin = () => rpc({ type: "assistantLogin" });
+export const assistantCallback = (url: string) => rpc({ type: "assistantCallback", url });
+export const assistantLogout = () => rpc({ type: "assistantLogout" });
+export const assistantLoadModels = () => rpc({ type: "assistantLoadModels" });
+export const assistantSetModel = (slug: string) => rpc({ type: "assistantSetModel", slug });
+export const assistantSend = (text: string) => rpc({ type: "assistantSend", text });
+export const assistantStop = () => rpc({ type: "assistantStop" });
+export const assistantReset = () => rpc({ type: "assistantReset" });
 
 export function applyTheme(): void {
   try {

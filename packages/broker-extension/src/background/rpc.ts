@@ -35,5 +35,20 @@ export const RpcRequest = z.discriminatedUnion("type", [
   z
     .object({ type: z.literal("testNotification") })
     .strict(),
+  // 내장 어시스턴트(docs/spec/assistant.md) — ChatGPT 로그인과 프롬프트 실행.
+  z
+    .object({ type: z.literal("getAssistant") })
+    .strict(),
+  z.object({ type: z.literal("assistantLogin") }).strict(),
+  // 탭 이동 가로채기가 실패했을 때의 수동 경로 — 주소창의 콜백 URL을 붙여넣는다.
+  z
+    .object({ type: z.literal("assistantCallback"), url: z.string().url().max(4000) })
+    .strict(),
+  z.object({ type: z.literal("assistantLogout") }).strict(),
+  z.object({ type: z.literal("assistantLoadModels") }).strict(),
+  z.object({ type: z.literal("assistantSetModel"), slug: z.string().min(1).max(100) }).strict(),
+  z.object({ type: z.literal("assistantSend"), text: z.string().min(1).max(4000) }).strict(),
+  z.object({ type: z.literal("assistantStop") }).strict(),
+  z.object({ type: z.literal("assistantReset") }).strict(),
 ]);
 export type RpcRequest = z.infer<typeof RpcRequest>;

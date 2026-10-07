@@ -27,6 +27,9 @@ integration). 권한은 곧 공격 표면이므로 필요한 것만, 근거와 �
   `online-payment.kakaopay.com`, 토스 `pay.toss.im`, 쿠팡 `coupang.com` 등).
 - 실결제 네트워크 캡처로 도메인 확정 전까지는 후보로 두고, 확정 시 갱신
   (payment-flows 검증 항목).
+- 내장 어시스턴트용으로 `auth.openai.com`(SIWC 토큰 교환)과 `api.openai.com`
+  (Responses API)을 둔다. 백그라운드 fetch 전용이며 이 도메인의 페이지에는
+  스크립트를 주입하지 않는다(`assistant.md`).
 - content script는 가능하면 `scripting.registerContentScripts`로 **동적 등록**해
   대상 축소. 정적 `content_scripts` 광역 매칭 지양.
 

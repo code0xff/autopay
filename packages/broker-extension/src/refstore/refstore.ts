@@ -58,26 +58,33 @@ export class WebCryptoRefStore implements RefStore {
   }
 
   private async seal(obj: unknown): Promise<Sealed> {
-    const key = await this.getKey();
-    const iv = crypto.getRandomValues(new Uint8Array(12));
-    const data = new TextEncoder().encode(JSON.stringify(obj));
-    const ct = await crypto.subtle.encrypt(
-      { name: "AES-GCM", iv: iv as BufferSource },
-      key,
-      data as BufferSource,
-    );
-    return { v: 1, iv: toB64(iv), ct: toB64(new Uint8Array(ct)) };
+    return sealJson(await this.getKey(), obj);
   }
 
   private async open<T>(sealed: Sealed): Promise<T> {
-    const key = await this.getKey();
-    const pt = await crypto.subtle.decrypt(
-      { name: "AES-GCM", iv: fromB64(sealed.iv) as BufferSource },
-      key,
-      fromB64(sealed.ct) as BufferSource,
-    );
-    return JSON.parse(new TextDecoder().decode(pt)) as T;
+    return openJson<T>(await this.getKey(), sealed);
   }
+}
+
+/** 객체를 AES-GCM으로 봉인한다(refstore·어시스턴트 토큰 저장 공용). */
+export async function sealJson(key: CryptoKey, obj: unknown): Promise<Sealed> {
+  const iv = crypto.getRandomValues(new Uint8Array(12));
+  const data = new TextEncoder().encode(JSON.stringify(obj));
+  const ct = await crypto.subtle.encrypt(
+    { name: "AES-GCM", iv: iv as BufferSource },
+    key,
+    data as BufferSource,
+  );
+  return { v: 1, iv: toB64(iv), ct: toB64(new Uint8Array(ct)) };
+}
+
+export async function openJson<T>(key: CryptoKey, sealed: Sealed): Promise<T> {
+  const pt = await crypto.subtle.decrypt(
+    { name: "AES-GCM", iv: fromB64(sealed.iv) as BufferSource },
+    key,
+    fromB64(sealed.ct) as BufferSource,
+  );
+  return JSON.parse(new TextDecoder().decode(pt)) as T;
 }
 
 /** 패스프레이즈 → PBKDF2 → 256비트 키 원본. deriveKey와 같은 비트다(같은 키가 된다).
