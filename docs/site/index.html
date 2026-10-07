@@ -321,7 +321,7 @@
         <span style="display:block" data-i18n="hero.t1">AI가 대신 사도,</span>
         <span style="display:block" data-i18n="hero.t2">통제권은 당신에게.</span>
       </h1>
-      <p class="lead" data-i18n="hero.lead">Claude가 검색·비교·체크아웃까지 하고, NightPay는 정한 한도 안에서만 결제를 허락하며 모든 시도를 기록하고 즉시 알립니다. AI는 어떤 결제 비밀에도 닿지 않습니다.</p>
+      <p class="lead" data-i18n="hero.lead">AI 에이전트가 검색·비교·체크아웃까지 하고, NightPay는 정한 한도 안에서만 결제를 허락하며 모든 시도를 기록하고 즉시 알립니다. AI는 어떤 결제 비밀에도 닿지 않습니다.</p>
       <div class="actions">
         <a class="btn primary" href="#start"><span data-i18n="hero.cta">시작하기</span><svg class="lucide"><use href="#i-arrow"/></svg></a>
         <a class="btn ghost" href="https://github.com/code0xff/autopay">GitHub</a>
@@ -357,8 +357,8 @@
       <h2 data-i18n="how.title">AI는 준비하고, 결제의 문지기는 NightPay와 당신입니다.</h2>
     </div>
     <div class="rows four">
-      <div class="cell"><span class="badge who">User</span><h3 data-i18n="how.1t">요청</h3><p data-i18n="how.1p">Claude Code에 "○○ 사줘"라고 말합니다.</p></div>
-      <div class="cell"><span class="badge who">Claude Code</span><h3 data-i18n="how.2t">준비</h3><p data-i18n="how.2p">쿠팡에서 검색·비교하고 체크아웃까지 진입해 결제를 요청만 합니다.</p></div>
+      <div class="cell"><span class="badge who">User</span><h3 data-i18n="how.1t">요청</h3><p data-i18n="how.1p">AI 에이전트(예: Claude Code)에 "○○ 사줘"라고 말합니다.</p></div>
+      <div class="cell"><span class="badge who" data-i18n="how.2w">AI 에이전트</span><h3 data-i18n="how.2t">준비</h3><p data-i18n="how.2p">쿠팡에서 검색·비교하고 체크아웃까지 진입해 결제를 요청만 합니다.</p></div>
       <div class="cell"><span class="badge who">NightPay</span><h3 data-i18n="how.3t">검증</h3><p data-i18n="how.3p">화면의 실제 금액을 직접 읽어 대조하고 한도·횟수·머천트·결제수단을 검사합니다.</p></div>
       <div class="cell"><span class="badge who">NightPay</span><h3 data-i18n="how.4t">기록</h3><p data-i18n="how.4p">주문 완료를 독립적으로 확인하고 알림과 감사 로그를 남깁니다.</p></div>
     </div>
@@ -368,7 +368,7 @@
     <div class="shead">
       <p class="eyebrow" data-i18n="start.eyebrow">시작하기</p>
       <h2 data-i18n="start.title">한 줄 설치, 네 번의 확인.</h2>
-      <p class="lead" data-i18n="start.lead">필요한 것: Node 20+, pnpm 9, Chrome, Claude Code.</p>
+      <p class="lead" data-i18n="start.lead">필요한 것: Node 20+, pnpm 9, Chrome, 그리고 MCP를 지원하는 AI 에이전트(예: Claude Code). 에이전트 없이 사이드패널 안에서 바로 쓰려면 ChatGPT 계정이면 됩니다.</p>
     </div>
     <ol class="steps">
       <li><div>
@@ -391,8 +391,31 @@
       </div></li>
       <li><div>
         <h3 data-i18n="s5.t">Claude Code에서 요청</h3>
-        <p data-i18n="s5.p">저장소 폴더에서 Claude Code를 실행하고 말하면 됩니다.</p>
+        <p data-i18n="s5.p">MCP를 지원하는 AI 에이전트라면 모두 쓸 수 있습니다. 예를 들어 Claude Code를 저장소 폴더에서 실행하고 말하면 됩니다.</p>
         <div class="copy say"><span data-i18n="s5.c">쿠팡에서 생수 2리터 6개짜리 두 묶음, 추천 1순위 상품으로 사줘</span></div>
+      </div></li>
+    </ol>
+  </section>
+
+  <section id="panel">
+    <div class="shead">
+      <p class="eyebrow" data-i18n="panel.eyebrow">내장 주문 탭</p>
+      <h2 data-i18n="panel.title">터미널 없이, 사이드패널에서 바로 주문.</h2>
+      <p class="lead" data-i18n="panel.lead">에이전트를 따로 설치하지 않아도 됩니다. 내 ChatGPT 플랜으로 실행되며, 7개 도구와 정책·승인 단계는 위와 똑같이 적용됩니다.</p>
+    </div>
+    <ol class="steps">
+      <li><div>
+        <h3 data-i18n="p1.t">ChatGPT 계정 연결</h3>
+        <p data-i18n="p1.p">잠금을 푼 뒤 주문 탭의 "설정에서 ChatGPT 연결"을 눌러 설정 탭의 "ChatGPT 연결" 카드로 이동하고, "ChatGPT로 로그인"으로 Sign in with ChatGPT를 진행합니다. 토큰은 잠금 패스프레이즈로 암호화해 이 브라우저에만 저장되며, 잠겨 있으면 쓸 수 없습니다.</p>
+      </div></li>
+      <li><div>
+        <h3 data-i18n="p2.t">주문 탭에서 요청</h3>
+        <p data-i18n="p2.p">"무엇을 살까요?" 입력창에 적고 Enter(또는 "보내기")를 누릅니다. 진행 중에는 "중단"으로 멈출 수 있습니다.</p>
+        <div class="copy say"><span data-i18n="p2.c">쿠팡에서 생수 2리터 6개짜리 두 묶음, 추천 1순위 상품으로 사줘</span></div>
+      </div></li>
+      <li><div>
+        <h3 data-i18n="p3.t">같은 한도, 같은 승인</h3>
+        <p data-i18n="p3.p">어시스턴트도 신뢰하지 않는 에이전트로 취급합니다. 정책 한도, 금액 검증, 승인, 기록과 알림이 그대로 적용되고, 쿠팡이 비밀번호를 다시 물으면 결제 탭에서 직접 입력합니다.</p>
       </div></li>
     </ol>
   </section>
@@ -469,7 +492,7 @@
     <details><summary><svg class="lucide"><use href="#i-chev"/></svg><span data-i18n="q3">결제가 모두 거절돼요.</span></summary>
       <p data-i18n="a3">건당·일·월 한도나 하루 횟수를 넘었을 수 있습니다. 홈 탭의 남은 한도를 확인하고, 필요하면 정책 탭에서 한도를 올려 저장하세요.</p></details>
     <details><summary><svg class="lucide"><use href="#i-chev"/></svg><span data-i18n="q4">브리지가 연결되지 않아요.</span></summary>
-      <p data-i18n="a4">사이드패널 설정 탭의 MCP 브리지에 토큰이 등록되어 있는지, Claude Code가 저장소 폴더에서 실행 중인지 확인하세요. pnpm bootstrap을 다시 실행하면 토큰이 클립보드에 복사됩니다. 익스텐션을 다시 빌드했다면 chrome://extensions에서 새로고침하세요.</p></details>
+      <p data-i18n="a4">사이드패널 설정 탭의 MCP 브리지에 토큰이 등록되어 있는지, AI 에이전트(예: Claude Code)가 저장소 폴더에서 실행 중인지 확인하세요. pnpm bootstrap을 다시 실행하면 토큰이 클립보드에 복사됩니다. 익스텐션을 다시 빌드했다면 chrome://extensions에서 새로고침하세요.</p></details>
     <details><summary><svg class="lucide"><use href="#i-chev"/></svg><span data-i18n="q5">잠금 해제는 왜 필요한가요?</span></summary>
       <p data-i18n="a5">잠겨 있는 동안 NightPay는 결제 요청을 받지 않고 에이전트의 모든 도구 호출을 거부합니다. 한 번 풀면 브라우저를 닫거나 헤더의 자물쇠 버튼을 누를 때까지 유지됩니다. 패스프레이즈는 카카오·토스용 본인 식별 정보를 암호화하는 키이기도 합니다.</p></details>
     <details><summary><svg class="lucide"><use href="#i-chev"/></svg><span data-i18n="q6">다른 AI 브라우저 익스텐션과 같이 써도 되나요?</span></summary>
@@ -525,21 +548,26 @@
     "nav.how": "How it works", "nav.start": "Get started", "nav.safety": "Safety",
     "hero.badge": "Prototype · Coupang (Coupay) first",
     "hero.t1": "AI does the buying.", "hero.t2": "You keep control.",
-    "hero.lead": "Claude searches, compares and reaches checkout. NightPay allows a payment only within the limits you set, records every attempt and tells you at once. The AI never touches a payment secret.",
+    "hero.lead": "Your AI agent searches, compares and reaches checkout. NightPay allows a payment only within the limits you set, records every attempt and tells you at once. The AI never touches a payment secret.",
     "hero.cta": "Get started",
     "trace.title": "One payment, message by message", 
     "how.eyebrow": "How it works", "how.title": "The AI prepares. NightPay and you hold the gate.",
-    "how.1t": "Ask", "how.1p": "Tell Claude Code what to buy.",
-    "how.2t": "Prepare", "how.2p": "It searches Coupang, compares, reaches checkout, and only requests the payment.",
+    "how.1t": "Ask", "how.1p": "Tell your AI agent (e.g. Claude Code) what to buy.",
+    "how.2w": "AI agent", "how.2t": "Prepare", "how.2p": "It searches Coupang, compares, reaches checkout, and only requests the payment.",
     "how.3t": "Verify", "how.3p": "NightPay reads the real amount on screen and checks limits, counts, merchants and payment methods.",
     "how.4t": "Record", "how.4p": "It confirms the order independently, notifies you and writes the audit log.",
     "start.eyebrow": "Get started", "start.title": "One command, four checks.",
-    "start.lead": "You need Node 20+, pnpm 9, Chrome and Claude Code.",
+    "start.lead": "You need Node 20+, pnpm 9, Chrome and an MCP-capable AI agent (e.g. Claude Code). To skip the agent and work inside the side panel, a ChatGPT account is enough.",
     "s1.t": "Install and build", "s1.p": "Installs dependencies, builds everything and prepares the pairing token. The token is copied to the clipboard, never printed.",
     "s2.t": "Load the extension in Chrome", "s2.p": "In developer mode, choose \"Load unpacked\" and pick this folder. After a rebuild, just press reload.",
     "s3.t": "Pair and set limits", "s3.p": "Open the side panel from the NightPay toolbar icon, paste the token into MCP Bridge on the Settings tab, then check your payment limits on the Policy tab. On first open you set a passphrase first (afterwards you unlock with it). Defaults are ₩20,000 per payment, ₩50,000 a day, ₩100,000 a month and 3 payments a day, with approval above ₩10,000. The Getting started card on the Home tab lists what's left.",
     "s4.t": "Prepare Coupang", "s4.p": "Log in to Coupang yourself and turn on one-touch payment in the Coupang app. NightPay never handles login details.",
-    "s5.t": "Ask in Claude Code", "s5.p": "Run Claude Code in the repository folder and ask.", "s5.c": "Buy two 6-packs of 2L water on Coupang, the top recommended one",
+    "s5.t": "Ask in Claude Code", "s5.p": "Any MCP-capable AI agent works. For example, run Claude Code in the repository folder and ask.", "s5.c": "Buy two 6-packs of 2L water on Coupang, the top recommended one",
+    "panel.eyebrow": "Built-in Order tab", "panel.title": "No terminal. Order right from the side panel.",
+    "panel.lead": "You don't need to install an agent. It runs on your own ChatGPT plan, with the same 7 tools and the same policy and approval gates as above.",
+    "p1.t": "Connect your ChatGPT account", "p1.p": "After unlocking, press \"설정에서 ChatGPT 연결\" (Connect ChatGPT in Settings) on the Order tab to reach the \"ChatGPT 연결\" card on the Settings tab, then press \"ChatGPT로 로그인\" (Sign in with ChatGPT). The token is encrypted with your lock passphrase and stored only in this browser; it can't be used while locked.",
+    "p2.t": "Ask on the Order tab", "p2.p": "Type into the \"무엇을 살까요?\" (What should I buy?) box and press Enter (or the send button). While it runs you can stop it with the stop button.", "p2.c": "Buy two 6-packs of 2L water on Coupang, the top recommended one",
+    "p3.t": "Same limits, same approval", "p3.p": "The assistant is treated as an untrusted agent too. Policy limits, amount verification, approval, records and notifications all apply as they are, and if Coupang asks for the password again you type it yourself in the checkout tab.",
     "copy": "Copy",
     "safe.eyebrow": "Safety", "safe.title": "Instead of fencing the AI in, there is nothing for it to steal.",
     "safe.yes": "What NightPay does", "y1": "Per-payment, daily and monthly limits, plus a daily count", "y2": "Allowed merchants and payment methods",
@@ -558,7 +586,7 @@
     "q1": "A password prompt appeared during payment.", "a1": "Even with one-touch on, Coupang may ask for the password again based on risk. When NightPay notifies you, type it yourself in that checkout tab. Within about three minutes the payment completes and is recorded.",
     "q2": "Could NightPay type the password if I store it in settings?", "a2": "No. Storing it breaks the premise that there is no secret for the AI to steal, and pressing a secure keypad on your behalf bypasses the provider's controls. Relaying it through a remote channel such as Telegram is out for the same reason. For remote approval, phone-approved payment methods fill that role.",
     "q3": "Every payment is refused.", "a3": "You may have hit a per-payment, daily or monthly limit or the daily count. Check the remaining limits on the Home tab and raise them on the Policy tab if needed.",
-    "q4": "The bridge won't connect.", "a4": "Check that the token is registered under MCP Bridge on the Settings tab and that Claude Code is running in the repository folder. Running pnpm bootstrap again copies the token to the clipboard. After a rebuild, reload the extension at chrome://extensions.",
+    "q4": "The bridge won't connect.", "a4": "Check that the token is registered under MCP Bridge on the Settings tab and that your AI agent (e.g. Claude Code) is running in the repository folder. Running pnpm bootstrap again copies the token to the clipboard. After a rebuild, reload the extension at chrome://extensions.",
     "q5": "Why do I have to unlock?", "a5": "While locked, NightPay accepts no payment requests and refuses every agent tool call. Once unlocked it stays that way until you close the browser or press the lock button in the header. The passphrase is also the key that encrypts the identity details used for KakaoPay and Toss Pay.",
     "q6": "Can I use it alongside other AI browser extensions?", "a6": "NightPay cannot limit another extension's permissions. An AI extension with cookie or site access can read your logged-in sessions, so use a separate browser profile for automated shopping.",
     "footer": "NightPay is a prototype in development. Check your policy limits before any real payment. Fonts: Pretendard, JetBrains Mono (SIL OFL 1.1)."
