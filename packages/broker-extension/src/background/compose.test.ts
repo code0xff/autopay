@@ -113,4 +113,24 @@ describe("Background RPC (compose)", () => {
       expect(((await restarted.handle({ type: "getState" })) as UiState).locked).toBe(true);
     });
   });
+
+  it("멈춘 쓰기 RPC가 있어도 getState·getAudit은 큐를 우회해 즉시 응답한다", async () => {
+    const bg = new Background(new MemoryKv(), new MemoryKv());
+    // 큐 안의 쓰기 RPC가 끝나지 않는 상황을 흉내 — dispatch를 영원히 대기시킨다.
+    const real = (bg as unknown as { dispatch: (r: unknown) => Promise<unknown> }).dispatch.bind(
+      bg,
+    );
+    (bg as unknown as { dispatch: (r: unknown) => Promise<unknown> }).dispatch = (r) =>
+      (r as { type: string }).type === "assistantLoadModels" ? new Promise(() => {}) : real(r);
+    void bg.handle({ type: "assistantLoadModels" }); // 영원히 pending
+    const state = (await bg.handle({ type: "getState" })) as UiState;
+    expect(state.locked).toBe(true);
+    // 큐 뒤의 또 다른 쓰기는 계속 대기(직렬 유지)하지만 읽기는 통과
+    let settled = false;
+    void bg.handle({ type: "lock" }).then(() => {
+      settled = true;
+    });
+    await bg.handle({ type: "getState" });
+    expect(settled).toBe(false);
+  });
 });

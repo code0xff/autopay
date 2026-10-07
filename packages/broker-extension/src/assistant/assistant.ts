@@ -90,6 +90,7 @@ const ERROR_TEXT: Record<string, string> = {
   subscription_sharing_invalid_user: "ChatGPT 계정 확인에 실패했습니다. 다시 로그인하세요.",
   max_steps: "단계 상한에 도달해 멈췄습니다. 이어서 진행하려면 다시 요청하세요.",
   stopped: "중단했습니다.",
+  network_timeout: "ChatGPT 서버 응답이 늦어 중단했습니다. 잠시 후 다시 시도하세요.",
 };
 
 function errorCode(e: unknown): string {

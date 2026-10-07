@@ -32,10 +32,13 @@ export function AppShell({ wide = false }: { wide?: boolean }) {
   const [tab, setTab] = useState<Tab>("home");
   // 잠금 해제 상태의 이전 값 — locked→unlocked 전환 감지용. 아직 첫 로드 전이면 null.
   const wasLockedRef = useRef<boolean | null>(null);
+  // 마지막 getState 실패 사유 — 성공하면 null. 무한 "불러오는 중…" 대신 원인을 보여준다.
+  const [loadError, setLoadError] = useState<string | null>(null);
   const refresh = () =>
     getState()
       .then((s) => {
         setState(s);
+        setLoadError(null);
         const wasLocked = wasLockedRef.current;
         if (!s.locked && (wasLocked === null || wasLocked === true)) {
           // 최초 로드 또는 잠금 해제 직후에만 탭을 자동 선택 — 폴링 갱신으로는 건드리지 않음
@@ -43,7 +46,7 @@ export function AppShell({ wide = false }: { wide?: boolean }) {
         }
         wasLockedRef.current = s.locked;
       })
-      .catch(() => undefined);
+      .catch((e) => setLoadError(e instanceof Error ? e.message : String(e)));
   // biome-ignore lint/correctness/useExhaustiveDependencies: refresh는 안정적이며 마운트 시 1회 폴링 시작
   useEffect(() => {
     refresh();
@@ -97,7 +100,17 @@ export function AppShell({ wide = false }: { wide?: boolean }) {
           </nav>
 
           {!state ? (
-            <div className="body muted">불러오는 중…</div>
+            loadError ? (
+              <div className="body">
+                <p>상태를 불러오지 못했습니다</p>
+                <p className="muted">{loadError}</p>
+                <button type="button" className="btn btn-outline" onClick={refresh}>
+                  다시 시도
+                </button>
+              </div>
+            ) : (
+              <div className="body muted">불러오는 중…</div>
+            )
           ) : (
             <div className="body">
               {tab === "home" && <Home state={state} onRefresh={refresh} />}

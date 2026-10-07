@@ -1,5 +1,6 @@
 import type { PaymentMethod, PaymentPolicy } from "@autopay/shared";
 import { Assistant } from "../assistant/assistant.js";
+import { withTimeout } from "../assistant/timeout-fetch.js";
 import { KvAuditLog } from "../audit/audit-log.js";
 import { BridgeTools } from "../bridge/bridge-tools.js";
 import { ChromeGenericPageBridge } from "../bridge/page-bridge.js";
@@ -135,7 +136,7 @@ export class Background {
       seal: async (obj) => sealJson(this.requireKey(), obj),
       open: async (sealed) => openJson(this.requireKey(), sealed),
       tools: this.bridgeTools,
-      fetch: (...args) => fetch(...args),
+      fetch: withTimeout((...args) => fetch(...args)),
       openTab: async (url) => {
         await chrome.tabs.create({ url });
       },
@@ -172,7 +173,13 @@ export class Background {
   /** UI RPC 처리. 반환값은 요청별 상이(직렬화 가능 객체). */
   // RPC를 워커 내에서 직렬 처리(동시 read-modify-write 경쟁 완화).
   private queue: Promise<unknown> = Promise.resolve();
+  // 읽기 전용 RPC는 큐를 거치지 않는다 — 멈춘 쓰기/네트워크 RPC 뒤에서 상태 조회가
+  // 영원히 대기해 UI가 "불러오는 중…"에 갇히는 일을 막는다.
   async handle(raw: unknown): Promise<unknown> {
+    const type = (raw as { type?: unknown } | null)?.type;
+    if (type === "getState" || type === "getAudit" || type === "getAssistant") {
+      return this.dispatch(raw);
+    }
     const run = this.queue.then(() => this.dispatch(raw));
     this.queue = run.catch(() => undefined);
     return run;
