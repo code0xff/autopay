@@ -161,5 +161,5 @@ live integration. See [docs/status.md](docs/status.md).
 ## License
 
 [Apache License 2.0](LICENSE). The self-hosted fonts under `docs/site/fonts/` (Pretendard,
-JetBrains Mono) are distributed under the SIL Open Font License 1.1; JetBrains Mono's
-licence file (`OFL.txt`) sits beside it. No licence file is present in the Pretendard folder yet.
+JetBrains Mono) are distributed under the SIL Open Font License 1.1; each font's licence
+file (`OFL.txt`) sits beside it.
