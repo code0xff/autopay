@@ -137,7 +137,8 @@ label[for] {
 .logo {
   width: 25px;
   height: 25px;
-  border-radius: var(--radius-sm);
+  border-radius: 6px; /* 까마귀 앱 아이콘 타일 비율(약 21%)에 맞춤 */
+  overflow: hidden;
   background: var(--primary);
   color: var(--on-primary);
   display: grid;

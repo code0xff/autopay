@@ -1,6 +1,7 @@
 import { useEffect, useRef, useState } from "react";
 import type { UiState } from "../background/compose.js";
 import { AssistantTab, ChatGptCard } from "./Assistant.js";
+import { CrowMark } from "./CrowMark.js";
 import { PolicyForm } from "./PolicyForm.js";
 import { ThemeToggle } from "./ThemeToggle.js";
 import { LockButton, LockScreen } from "./Unlock.js";
@@ -56,7 +57,9 @@ export function AppShell({ wide = false }: { wide?: boolean }) {
   return (
     <div className={wide ? "shell wide" : "shell"}>
       <header className="head">
-        <span className="logo">A</span>
+        <span className="logo">
+          <CrowMark />
+        </span>
         <span className="brand">AutoPay</span>
         <span className="spacer" />
         {state && !state.locked && <LockButton onDone={refresh} />}
