@@ -27,6 +27,14 @@ export interface PendingConfirmation {
   at: string; // ISO8601 — confirm 생성 시각(타임아웃 판정용)
 }
 
+/** 실행 착수 후 아직 끝나지 않은 결제(비번 입력 대기 등) — UI의 "진행 중인 결제" 카드용. */
+export interface ActiveExecution {
+  requestId: string;
+  merchant: string;
+  amount: number;
+  tabId: number; // UI 전용(결제 탭으로 이동). 에이전트 표면에는 노출하지 않는다
+}
+
 export interface PolicySummary {
   remainingDailyBudget: number;
   remainingMonthlyBudget: number;
@@ -75,6 +83,7 @@ export class BrokerCore {
   private readonly payTimeoutMs: number;
   private readonly handoffTimeoutMs: number;
   private readonly inFlight = new Set<string>(); // 같은 워커 내 중복 실행 방지
+  private readonly cancelers = new Map<string, AbortController>(); // 진행 중 결제의 취소 손잡이
   private readonly running = new Set<Promise<void>>(); // 백그라운드 실행(idle() 대기용)
 
   constructor(private readonly deps: BrokerDeps) {
@@ -339,7 +348,10 @@ export class BrokerCore {
         });
       }
 
+      const canceler = new AbortController();
+      this.cancelers.set(requestId, canceler);
       const outcome = await adapter.pay({
+        signal: canceler.signal,
         tabId: state.req.checkoutTabId,
         identity,
         timeoutMs: this.payTimeoutMs,
@@ -411,6 +423,7 @@ export class BrokerCore {
       }
     } finally {
       this.inFlight.delete(requestId);
+      this.cancelers.delete(requestId);
       if (acquiredLock) {
         await this.removeExecutingIndex(requestId).catch(() => {}); // 색인 정리 실패는 무시(스윕이 나중에 정리)
       }
@@ -423,6 +436,41 @@ export class BrokerCore {
    *  (fail-closed). */
   async hasActiveExecution(): Promise<boolean> {
     return (await this.listExecutingIndex()).length > 0;
+  }
+
+  /** 진행 중인 결제 목록(UI 전용). */
+  async listExecuting(): Promise<ActiveExecution[]> {
+    const out: ActiveExecution[] = [];
+    for (const requestId of await this.listExecutingIndex()) {
+      const state = await this.loadState(requestId);
+      if (!state || state.result.status !== "pending_user_confirmation") continue;
+      out.push({
+        requestId,
+        merchant: state.merchantName,
+        amount: state.verifiedAmount,
+        tabId: state.req.checkoutTabId,
+      });
+    }
+    return out;
+  }
+
+  /** 사용자가 진행 중인 결제를 그만둔다(UI 전용 — 에이전트 표면에 없다).
+   *  비번 창만 닫고 결제 탭은 둔 경우처럼 브로커가 알아챌 수 없는 중단이 있어서,
+   *  이게 없으면 타임아웃(핸드오프면 10분)까지 페이지 도구가 잠긴 채 기다려야 했다.
+   *  우리 쪽 대기를 끝낼 뿐이다 — 쿠팡에서 이미 승인된 결제를 되돌리지는 못한다. */
+  async cancelExecution(requestId: string): Promise<void> {
+    const canceler = this.cancelers.get(requestId);
+    if (canceler) {
+      canceler.abort(); // 실행 루프가 canceled로 끝내고 감사·통지·잠금 해제를 한다
+      return;
+    }
+    // 이 워커가 돌리는 건이 아니다(죽은 워커의 잔여) — 여기서 직접 끝낸다.
+    if (!(await this.listExecutingIndex()).includes(requestId)) return;
+    await this.removeExecutingIndex(requestId);
+    const state = await this.loadState(requestId);
+    if (!state || state.result.status !== "pending_user_confirmation") return;
+    await this.audit(requestId, state, state.decision, "canceled");
+    await this.setResult(requestId, state, { status: "canceled", reason: "user_declined" });
   }
 
   /** MV3 워커가 실행 도중(폰 승인 대기 등) 종료·재시작되면 in-memory 가드는

@@ -39,6 +39,8 @@ export class SimplePayCore implements SimplePayAdapter {
       return { status: "canceled", reason: "content_changed" }; // TOCTOU
     }
 
+    // 누르기 전에 취소됐으면 결제를 시작하지 않는다.
+    if (input.signal?.aborted) return { status: "canceled", reason: "user" };
     try {
       await this.driver.startPayment(input.tabId, { identity: input.identity });
     } catch (e) {
@@ -53,6 +55,7 @@ export class SimplePayCore implements SimplePayAdapter {
       current.origin,
       input.onPasswordHandoff,
       input.handoffTimeoutMs,
+      input.signal,
     );
     if (result.status === "approved") {
       return { status: "approved", orderId: result.orderId.slice(0, 64), amount: current.amount };

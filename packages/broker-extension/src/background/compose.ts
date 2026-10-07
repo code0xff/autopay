@@ -6,7 +6,12 @@ import { BridgeTools } from "../bridge/bridge-tools.js";
 import { ChromeGenericPageBridge } from "../bridge/page-bridge.js";
 import { BridgeClient } from "../bridge/ws-client.js";
 import { defaultWsFactory } from "../bridge/ws-factory.js";
-import { BrokerCore, type PendingConfirmation, type PolicySummary } from "../broker/broker-core.js";
+import {
+  type ActiveExecution,
+  BrokerCore,
+  type PendingConfirmation,
+  type PolicySummary,
+} from "../broker/broker-core.js";
 import { createAdapter } from "../executor/adapters.js";
 import type { SimplePayAdapter } from "../executor/types.js";
 import { BrokerNotifier } from "../notify/notifier.js";
@@ -58,6 +63,7 @@ export interface UiState {
   policy: PaymentPolicy;
   summary: PolicySummary;
   pending: PendingConfirmation[];
+  executing: ActiveExecution[]; // 실행 착수 후 아직 안 끝난 결제(비번 입력 대기 등)
   hasProfile: boolean;
   locked: boolean;
   hasPassphrase: boolean; // false면 첫 실행 — 잠금 화면이 "패스프레이즈 설정"으로 뜬다
@@ -211,6 +217,9 @@ export class Background {
       case "resolveConfirmation":
         await this.broker.resolveConfirmation(req.requestId, req.approved);
         return { ok: true };
+      case "cancelExecution":
+        await this.broker.cancelExecution(req.requestId);
+        return { ok: true };
       case "setBridgeToken":
         await this.kv.set(BRIDGE_TOKEN_KEY, req.token);
         await this.connectBridge();
@@ -251,6 +260,7 @@ export class Background {
       policy: await this.getPolicy(),
       summary: await this.broker.getPolicySummary(),
       pending: await this.broker.listPending(),
+      executing: await this.broker.listExecuting(),
       hasProfile: await this.safeHasProfile(),
       locked: !(await this.restoreKey()),
       hasPassphrase:

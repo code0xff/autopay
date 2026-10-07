@@ -24,6 +24,10 @@ export const RpcRequest = z.discriminatedUnion("type", [
       approved: z.boolean(),
     })
     .strict(),
+  // 진행 중인 결제를 사용자가 그만둔다(홈 탭 카드).
+  z
+    .object({ type: z.literal("cancelExecution"), requestId: z.string().min(1) })
+    .strict(),
   // MCP 브리지 토큰 등록(docs/spec/mcp-integration.md §5) — mcp-server가 발급한
   // 토큰을 사용자가 옵션에서 1회 입력. 저장 즉시 재접속 시도.
   z

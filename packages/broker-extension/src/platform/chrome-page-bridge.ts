@@ -264,12 +264,42 @@ export class ChromePageBridge implements PageBridge {
       handoffTimeoutMs?: number;
       expectedOrigin: string;
       onPasswordRequired?: () => Promise<void>;
+      signal?: AbortSignal;
+    },
+  ): Promise<CompletionResult> {
+    try {
+      return await this.pollOutcome(tabId, cfg);
+    } catch (e) {
+      // 결제 탭이 닫혔으면 사용자가 그만둔 것 — 내부 오류가 아니라 취소로 끝낸다.
+      // (탭이 살아 있는데 난 오류는 그대로 올려 보낸다.)
+      const alive = await chrome.tabs.get(tabId).then(
+        () => true,
+        () => false,
+      );
+      if (!alive) return { status: "canceled" };
+      throw e;
+    }
+  }
+
+  private async pollOutcome(
+    tabId: number,
+    cfg: {
+      successSel: string;
+      orderIdSel: string;
+      passwordUiSel?: string;
+      timeoutMs: number;
+      handoffTimeoutMs?: number;
+      expectedOrigin: string;
+      onPasswordRequired?: () => Promise<void>;
+      signal?: AbortSignal;
     },
   ): Promise<CompletionResult> {
     let deadline = Date.now() + cfg.timeoutMs;
     const poll = 500;
     let handedOff = false;
     while (Date.now() < deadline) {
+      // 사용자가 진행 중인 결제를 취소했다 — 더 기다리지 않는다.
+      if (cfg.signal?.aborted) return { status: "canceled" };
       // 완료 판정은 승인 시점과 동일 origin에서만(허위 완료 페이지 차단).
       const originNow = await this.origin(tabId);
       if (originNow === cfg.expectedOrigin) {

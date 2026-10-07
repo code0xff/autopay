@@ -90,6 +90,39 @@ describe("createAdapter (coupay, 패턴 C)", () => {
     expect(click).not.toHaveBeenCalled();
   });
 
+  it("[2026-10-08] 누르기 전에 취소됐으면 결제 버튼을 누르지 않는다", async () => {
+    const click = vi.fn(async () => {});
+    const adapter = createAdapter("coupay", fakeBridge({ click }));
+    const { snapshot } = await adapter.verify(1);
+    const ctrl = new AbortController();
+    ctrl.abort();
+    const out = await adapter.pay({
+      tabId: 1,
+      timeoutMs: 1000,
+      approvedSnapshot: snapshot,
+      signal: ctrl.signal,
+    });
+    expect(out).toEqual({ status: "canceled", reason: "user" });
+    expect(click).not.toHaveBeenCalled();
+  });
+
+  it("[2026-10-08] 취소 신호를 완료 대기까지 전달한다", async () => {
+    const waitForOutcome = vi.fn(async (): Promise<CompletionResult> => ({ status: "canceled" }));
+    const adapter = createAdapter("coupay", fakeBridge({ waitForOutcome }));
+    const { snapshot } = await adapter.verify(1);
+    const ctrl = new AbortController();
+    await adapter.pay({
+      tabId: 1,
+      timeoutMs: 1000,
+      approvedSnapshot: snapshot,
+      signal: ctrl.signal,
+    });
+    expect(waitForOutcome).toHaveBeenCalledWith(
+      1,
+      expect.objectContaining({ signal: ctrl.signal }),
+    );
+  });
+
   it("pay: 비번 UI 등장 → failed(비번 미입력)", async () => {
     const bridge = fakeBridge({
       waitForOutcome: vi.fn(

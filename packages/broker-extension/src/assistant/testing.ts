@@ -25,3 +25,21 @@ export const textTurn = (text: string) => [
 export const callTurn = (name: string, args: object, callId = "call_1") => [
   completed([{ type: "function_call", call_id: callId, name, arguments: JSON.stringify(args) }]),
 ];
+
+/** 실제 플랜 사용 스트림의 모양 — 항목은 output_item.done으로 오고 completed의 output은 비어 있다. */
+export const liveCallTurn = (name: string, args: object, callId = "call_1") => [
+  { type: "response.created", response: {} },
+  {
+    type: "response.output_item.done",
+    item: { type: "function_call", call_id: callId, name, arguments: JSON.stringify(args) },
+  },
+  completed([]),
+];
+
+export const liveTextTurn = (text: string) => [
+  {
+    type: "response.output_item.done",
+    item: { type: "message", role: "assistant", content: [{ type: "output_text", text }] },
+  },
+  completed([]),
+];

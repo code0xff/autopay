@@ -13,7 +13,7 @@ import {
   NotificationCheck,
   SiteAccessNotice,
 } from "./cards.js";
-import { getState, resolveConfirmation } from "./rpc-client.js";
+import { cancelExecution, getState, resolveConfirmation } from "./rpc-client.js";
 
 // 사이드패널과 옵션 페이지가 같은 탭 앱을 띄운다 — 화면이 겹치거나 한쪽에만
 // 있는 기능이 생기지 않도록. 탭은 기능별: 홈(승인·남은 한도) / 정책 / 기록 / 설정.
@@ -92,10 +92,12 @@ export function AppShell({ wide = false }: { wide?: boolean }) {
                 }
                 onClick={() => choose(t.id)}
               >
-                {t.label}
-                {t.id === "home" && pendingCount > 0 && (
-                  <span className="count" aria-hidden="true" />
-                )}
+                <span className="tab-label">
+                  {t.label}
+                  {t.id === "home" && pendingCount > 0 && (
+                    <span className="count" aria-hidden="true" />
+                  )}
+                </span>
               </button>
             ))}
           </nav>
@@ -115,7 +117,7 @@ export function AppShell({ wide = false }: { wide?: boolean }) {
               </div>
             )
           ) : (
-            <div className="body">
+            <div className={tab === "assistant" ? "body body-chat" : "body"}>
               {tab === "home" && <Home state={state} onRefresh={refresh} />}
               {tab === "assistant" && <AssistantTab onOpenSettings={() => choose("settings")} />}
               {tab === "policy" && <PolicyForm policy={state.policy} onSaved={refresh} />}
@@ -153,7 +155,66 @@ function Home({ state, onRefresh }: { state: UiState; onRefresh: () => void }) {
     <>
       <GettingStarted state={state} />
       <Remaining state={state} />
+      <Executing state={state} onRefresh={onRefresh} />
       <Pending state={state} onResolve={resolve} />
+    </>
+  );
+}
+
+// 진행 중인 결제 — 실행은 시작됐는데 아직 안 끝난 건(쿠팡이 비밀번호를 요구해 입력을
+// 기다리는 중 등). 이 동안에는 페이지 도구가 잠기므로, 그만두려면 여기서 취소한다.
+function Executing({ state, onRefresh }: { state: UiState; onRefresh: () => void }) {
+  if (state.executing.length === 0) return null;
+  const focus = async (tabId: number) => {
+    try {
+      const tab = await chrome.tabs.update(tabId, { active: true });
+      if (tab?.windowId !== undefined) await chrome.windows.update(tab.windowId, { focused: true });
+    } catch {
+      // 탭이 이미 닫혔다 — 브로커가 곧 취소로 정리한다
+    }
+  };
+  const cancel = async (id: string) => {
+    try {
+      await cancelExecution(id);
+    } catch {
+      // 결과는 폴링으로 갱신됨
+    }
+    onRefresh();
+  };
+  return (
+    <>
+      {state.executing.map((e) => (
+        <div className="card" key={e.requestId}>
+          <div className="row between">
+            <span className="label">진행 중인 결제</span>
+            <span className="badge warn">입력 대기</span>
+          </div>
+          <div className="row between" style={{ margin: "8px 0 4px" }}>
+            <span style={{ fontWeight: 600 }}>{e.merchant}</span>
+            <span className="amount mono">{won(e.amount)}</span>
+          </div>
+          <div className="muted" style={{ fontSize: 12, marginBottom: 10 }}>
+            결제 탭에서 마무리하거나 여기서 취소하세요. 취소는 NightPay의 대기를 끝낼 뿐이며,
+            쇼핑몰에서 이미 승인된 결제는 되돌리지 못합니다.
+          </div>
+          <div className="row" style={{ gap: 8 }}>
+            <button
+              type="button"
+              className="btn btn-outline btn-block"
+              onClick={() => cancel(e.requestId)}
+            >
+              취소
+            </button>
+            <button
+              type="button"
+              className="btn btn-primary btn-block"
+              onClick={() => focus(e.tabId)}
+            >
+              결제 탭 열기
+            </button>
+          </div>
+        </div>
+      ))}
     </>
   );
 }

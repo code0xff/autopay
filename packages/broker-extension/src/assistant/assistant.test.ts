@@ -3,7 +3,14 @@ import { describe, expect, it, vi } from "vitest";
 import { MemoryKv } from "../platform/kv.js";
 import { importAesKey, openJson, sealJson } from "../refstore/refstore.js";
 import { Assistant } from "./assistant.js";
-import { callTurn, sseResponse, textTurn } from "./testing.js";
+import {
+  callTurn,
+  completed,
+  liveCallTurn,
+  liveTextTurn,
+  sseResponse,
+  textTurn,
+} from "./testing.js";
 
 // 내장 어시스턴트(docs/spec/assistant.md). OpenAI 쪽은 주입한 fetch로 대체한다.
 // 핵심 불변식: 모델이 할 수 있는 일은 BridgeTools 7개뿐이고(스키마 재검증),
@@ -123,6 +130,33 @@ describe("로그인", () => {
     expect(state.signedIn).toBe(false);
     expect(state.loginError).toContain("일치하지");
     expect(t.requests.some((r) => r.url.endsWith("/oauth/token"))).toBe(false); // 교환 시도 없음
+  });
+
+  // 2026-10-08 실사용 버그: tabs.onUpdated가 같은 콜백 주소로 여러 번 불려 code를 두 번
+  // 교환했다. 첫 번째로 연결은 됐는데 두 번째의 invalid_grant가 오류 문구로 남았다.
+  it("3-b. 같은 콜백이 동시에 여러 번 들어와도 code는 한 번만 교환한다", async () => {
+    const t = await setup({
+      tokenBodies: [
+        {
+          access_token: "ACCESS-1",
+          refresh_token: "REFRESH-1",
+          expires_in: 3600,
+          scope: "chatgpt.tokens.use.direct",
+        },
+        new Response(JSON.stringify({ error: "invalid_grant" }), { status: 400 }),
+      ],
+    });
+    await t.assistant.startLogin();
+    const auth = new URL(t.opened[0] as string).searchParams;
+    const cb = `${auth.get("redirect_uri")}?code=CODE&client_id=oaiapp_issued&state=${auth.get("state")}`;
+    const handled = await Promise.all([
+      t.assistant.handleCallbackUrl(cb),
+      t.assistant.handleCallbackUrl(cb),
+      t.assistant.handleCallbackUrl(cb),
+    ]);
+    expect(handled).toEqual([true, false, false]); // 첫 번째만 처리(탭도 한 번만 닫는다)
+    expect(t.requests.filter((r) => r.url.endsWith("/oauth/token"))).toHaveLength(1);
+    expect(await t.assistant.state()).toMatchObject({ signedIn: true, loginError: null });
   });
 
   it("4. 재로그인은 발급된 client_id로 요청한다", async () => {
@@ -291,6 +325,56 @@ describe("실행 루프", () => {
     const last = (await t.assistant.state()).messages.at(-1);
     expect(last).toMatchObject({ role: "error" });
     expect(last?.text).toContain("한도");
+  });
+
+  // 2026-10-08: 프롬프트가 "씹히는" 것처럼 보이는데 원인을 볼 방법이 없었다.
+  it("12-b. 진단 로그에 단계와 서버 오류 설명이 남고, 토큰·대화 내용은 남지 않는다", async () => {
+    const bad = new Response(
+      JSON.stringify({ error: { code: "invalid_request_error", message: "Unknown role" } }),
+      { status: 400 },
+    );
+    const t = await setup({
+      turns: [callTurn("get_policy_summary", {}), textTurn("비밀답변"), bad],
+    });
+    await t.login();
+    await t.assistant.send("비밀프롬프트");
+    await t.assistant.idle();
+    await t.assistant.send("두번째");
+    await t.assistant.idle();
+    const log = (await t.assistant.state()).log.join("\n");
+    expect(log).toContain("워커 시작");
+    expect(log).toContain("로그인 완료");
+    expect(log).toContain("요청 접수 (6자)");
+    expect(log).toContain("1단계: 응답 [function_call]");
+    expect(log).toContain("도구 get_policy_summary: 성공");
+    expect(log).toContain("완료");
+    expect(log).toContain("실행 실패: invalid_request_error (HTTP 400) — Unknown role");
+    for (const secret of ["ACCESS-1", "REFRESH-1", "비밀프롬프트", "비밀답변", "CODE"]) {
+      expect(log).not.toContain(secret);
+    }
+  });
+
+  it("12-c. 실제 스트림 모양(항목이 output_item.done으로 옴)에서도 도구 왕복이 된다", async () => {
+    const t = await setup({
+      turns: [liveCallTurn("get_policy_summary", {}), liveTextTurn("건당 한도는 3만원입니다.")],
+    });
+    await t.login();
+    await t.assistant.send("오늘 남은 한도 알려줘");
+    await t.assistant.idle();
+    expect(t.handle).toHaveBeenCalledTimes(1);
+    const state = await t.assistant.state();
+    expect(state.messages.map((m) => m.role)).toEqual(["user", "tool", "assistant"]);
+    expect(state.messages.at(-1)?.text).toBe("건당 한도는 3만원입니다.");
+  });
+
+  it("12-d. 내용 없는 응답은 조용히 끝내지 않고 오류로 알린다", async () => {
+    const t = await setup({ turns: [[completed([])]] });
+    await t.login();
+    await t.assistant.send("x");
+    await t.assistant.idle();
+    const state = await t.assistant.state();
+    expect(state.messages.at(-1)).toMatchObject({ role: "error" });
+    expect(state.log.join("\n")).toContain("빈 응답 — 받은 이벤트: response.completed");
   });
 
   it("13. 실행 중에는 새 프롬프트를 거부하고, 로그인 전에는 안내 오류로 끝난다", async () => {

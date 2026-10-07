@@ -526,6 +526,64 @@ describe("BrokerCore", () => {
     expect((await broker.getPaymentResult(requestId)).status).toBe("approved");
   });
 
+  // 2026-10-08 실사용: 비번 창만 닫으면 브로커가 알 길이 없어 타임아웃(핸드오프면 10분)
+  // 까지 "결제 진행 중"으로 잠겨 있었고, 사용자가 끝낼 방법이 없었다.
+  it("18-c. 진행 중인 결제를 사용자가 취소하면 대기를 끝내고 잠금을 푼다", async () => {
+    const adapter = fakeAdapter({ method: "coupay", hasExternalApproval: false });
+    adapter.pay = vi.fn(
+      (input): Promise<PayOutcome> =>
+        new Promise((resolve) => {
+          // 사용자가 비번을 입력하지 않는 중 — 취소 신호가 와야만 끝난다
+          input.signal?.addEventListener("abort", () =>
+            resolve({ status: "canceled", reason: "user" }),
+          );
+        }),
+    );
+    const { broker } = setup({ adapters: { coupay: adapter } });
+    const { requestId } = await broker.requestPayment(validReq);
+    await new Promise((r) => setTimeout(r, 0));
+    expect(await broker.listExecuting()).toMatchObject([{ requestId, amount: 20_000 }]);
+    expect(await broker.hasActiveExecution()).toBe(true);
+
+    await broker.cancelExecution(requestId);
+    await broker.idle();
+    expect(await broker.getPaymentResult(requestId)).toEqual({
+      status: "canceled",
+      reason: "user_declined",
+    });
+    expect(await broker.hasActiveExecution()).toBe(false);
+    expect(await broker.listExecuting()).toEqual([]);
+  });
+
+  it("18-d. 죽은 워커가 남긴 실행도 취소할 수 있고, 모르는 요청은 건드리지 않는다", async () => {
+    const kv = new MemoryKv();
+    const adapter = fakeAdapter({ method: "coupay", hasExternalApproval: false });
+    adapter.pay = vi.fn((): Promise<PayOutcome> => new Promise(() => {})); // 워커1과 함께 사라질 실행
+    const mk = () =>
+      new BrokerCore({
+        getPolicy: async () => basePolicy(),
+        adapterFor: () => adapter,
+        audit: new KvAuditLog(new MemoryKv()),
+        notify: new BrokerNotifier({ senders: {}, notifyOnRejection: true }),
+        refstore: fakeRefStore(null),
+        kv,
+        now: () => NOW,
+        idgen: () => "orphan-1",
+      });
+    const { requestId } = await mk().requestPayment(validReq);
+    await new Promise((r) => setTimeout(r, 0));
+
+    const worker2 = mk();
+    await worker2.cancelExecution("no-such-request"); // 아무 일도 없어야 한다
+    expect(await worker2.hasActiveExecution()).toBe(true);
+    await worker2.cancelExecution(requestId);
+    expect(await worker2.getPaymentResult(requestId)).toEqual({
+      status: "canceled",
+      reason: "user_declined",
+    });
+    expect(await worker2.hasActiveExecution()).toBe(false);
+  });
+
   // executor.md §3.2 — 비번 핸드오프: 통지만 하고 결제는 pending 유지, 실행 중 잠금
   it("19. 비번 핸드오프 → enter_password_on_page 통지 + 실행 중 hasActiveExecution=true → approved", async () => {
     let lockedDuringHandoff: boolean | undefined;

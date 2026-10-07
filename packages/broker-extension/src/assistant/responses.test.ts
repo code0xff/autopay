@@ -1,6 +1,6 @@
 import { describe, expect, it, vi } from "vitest";
-import { createResponse, listModels } from "./responses.js";
-import { completed, sseResponse, textTurn } from "./testing.js";
+import { createResponse, listModels, sseEvents } from "./responses.js";
+import { completed, liveCallTurn, liveTextTurn, sseResponse, textTurn } from "./testing.js";
 
 const base = { token: "at", model: "m", input: [], tools: [], includeReasoning: true };
 
@@ -59,6 +59,42 @@ describe("createResponse", () => {
     await createResponse(f as unknown as typeof fetch, { ...base, includeReasoning: false });
     const init = (f.mock.calls[0] as unknown as [string, RequestInit])[1];
     expect(JSON.parse(init.body as string)).not.toHaveProperty("include");
+  });
+});
+
+// 2026-10-08 실사용 버그: completed의 output이 비어 와서 "응답 []"로 읽고 도구 호출을
+// 통째로 놓쳤다. 화면에는 아무 반응이 없는 것처럼 보였다.
+describe("출력 항목 수집", () => {
+  it("4-d. completed의 output이 비어도 output_item.done으로 온 항목을 쓴다", async () => {
+    const f = vi.fn(async () => sseResponse(liveCallTurn("get_policy_summary", {})));
+    const r = await createResponse(f as unknown as typeof fetch, base);
+    expect(r.output).toHaveLength(1);
+    expect(r.output[0]).toMatchObject({ type: "function_call", name: "get_policy_summary" });
+    expect(r.eventTypes).toContain("response.output_item.done");
+  });
+
+  it("4-e. 델타 없이 message 항목만 와도 본문을 꺼낸다", async () => {
+    const f = vi.fn(async () => sseResponse(liveTextTurn("건당 한도는 3만원입니다.")));
+    const r = await createResponse(f as unknown as typeof fetch, base);
+    expect(r.text).toBe("건당 한도는 3만원입니다.");
+  });
+});
+
+describe("스트림 중단·정지", () => {
+  // 열려만 있고 아무것도 보내지 않는 스트림 — 멈춘 서버를 흉내낸다.
+  const stalled = () => new Response(new ReadableStream<Uint8Array>({ start() {} }));
+
+  it("4-b. 중단 신호는 헤더 수신 뒤에도 본문 읽기를 끊는다", async () => {
+    const ctrl = new AbortController();
+    const f = vi.fn(async () => stalled());
+    const p = createResponse(f as unknown as typeof fetch, { ...base, signal: ctrl.signal });
+    ctrl.abort();
+    await expect(p).rejects.toMatchObject({ name: "AbortError" });
+  });
+
+  it("4-c. 이벤트가 한참 오지 않으면 멈춘 스트림으로 보고 끝낸다", async () => {
+    const events = sseEvents(stalled().body as ReadableStream<Uint8Array>, { idleMs: 20 });
+    await expect(events.next()).rejects.toThrow("network_timeout");
   });
 });
 

@@ -104,6 +104,10 @@ describe("콜백", () => {
     await expect(
       exchangeCode(tokenFetch(200, { ...ok, id_token: jwt({ nonce: "other" }) }), pending, cb, 0),
     ).rejects.toThrow("nonce_mismatch");
+    // 이미 쓴 코드 — "로그인 만료"가 아니라 코드 교환 실패로 구분한다.
+    await expect(
+      exchangeCode(tokenFetch(400, { error: "invalid_grant" }), pending, cb, 0),
+    ).rejects.toThrow("code_exchange_failed");
   });
 });
 

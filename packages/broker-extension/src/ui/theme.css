@@ -206,14 +206,17 @@ label[for] {
 .tabs button:focus-visible {
   outline-offset: -2px;
 }
-/* 승인 대기 — 숫자 대신 라벨 위 6px 점(레이블 폭 불변). 개수는 접근성 이름에 있다. */
+/* 승인 대기 — 숫자 대신 라벨 우상단의 6px 점(알림 배지 자리). 라벨 기준으로 띄워
+   놓아 레이블 폭과 가운데 정렬은 그대로다. 개수는 접근성 이름에 있다. */
+.tabs .tab-label {
+  position: relative;
+}
 .tabs .count {
   position: absolute;
-  top: 5px;
-  left: 50%;
+  top: -3px;
+  right: -9px;
   width: 6px;
   height: 6px;
-  margin-left: -3px;
   padding: 0;
   border-radius: 50%;
   background: var(--ink);
@@ -442,20 +445,92 @@ tbody tr:hover {
   color: var(--ink-soft);
 }
 
-/* 주문(어시스턴트) 탭 — 프롬프트는 soft 말풍선(우측), 응답은 좌측 텍스트, 도구 호출은 한 줄 muted */
-.chat {
+/* 주문(어시스턴트) 탭 — 채팅 화면. 패널 높이를 꽉 채우고, 대화만 스크롤되며
+   입력창은 아래에 고정된다. */
+.shell:has(.body-chat) {
+  height: 100vh;
   display: flex;
   flex-direction: column;
+}
+.body.body-chat {
+  flex: 1;
+  min-height: 0;
+  padding: 0;
+  gap: 0;
+}
+.chat {
+  flex: 1;
+  min-height: 0;
+  display: flex;
+  flex-direction: column;
+}
+.chat-scroll {
+  flex: 1;
+  min-height: 0;
+  overflow-y: auto;
+  padding: 16px;
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
+}
+.chat-empty {
+  flex: 1;
+  min-height: 0;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
   gap: 8px;
+  padding: 24px 16px;
+  text-align: center;
+  font-size: 12px;
+}
+.chat-mark {
+  width: 40px;
+  height: 40px;
+  border-radius: 9px;
+  overflow: hidden;
+  display: grid;
+  place-items: center;
+  background: var(--primary);
+  color: var(--on-primary);
+  margin-bottom: 4px;
+}
+.chat-empty-title {
+  font-size: 16px;
+  font-weight: 500;
+}
+.chat-empty .btn {
+  margin-top: 8px;
+}
+.chat-examples {
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+  width: 100%;
+  max-width: 360px;
+  margin-top: 12px;
+}
+.chat-examples button {
+  font: inherit;
+  font-size: 12px;
+  text-align: left;
+  padding: 8px 12px;
+  border: 1px solid var(--line);
+  border-radius: var(--radius-md);
+  background: transparent;
+  color: var(--ink-soft);
+  transition: background-color 120ms var(--ease-soft), color 120ms var(--ease-soft);
+}
+.chat-examples button:hover {
+  background: var(--subtle);
+  color: var(--ink);
 }
 .chat .msg {
-  font-size: 12px;
-  line-height: 1.5;
+  font-size: 14px;
+  line-height: 1.6;
   white-space: pre-wrap;
   overflow-wrap: anywhere;
-  padding: 0 4px;
-  border: none;
-  background: none;
 }
 .chat .msg.user {
   align-self: flex-end;
@@ -464,24 +539,201 @@ tbody tr:hover {
   border-radius: var(--radius-lg);
   background: var(--subtle);
 }
+/* 답변 본문(마크다운) — 블록 간격은 여기서 주고 pre-wrap은 끈다 */
+.chat .msg.assistant {
+  white-space: normal;
+}
+.md > * {
+  margin: 0;
+}
+.md > * + * {
+  margin-top: 8px;
+}
+.md p {
+  white-space: pre-line;
+}
+.md h4 {
+  font-size: 14px;
+  font-weight: 600;
+}
+.md ul,
+.md ol {
+  padding-left: 20px;
+}
+.md li + li {
+  margin-top: 2px;
+}
+.md strong {
+  font-weight: 600;
+}
+.md code,
+.md pre {
+  font-family: var(--font-mono);
+  font-size: 12px;
+  background: var(--subtle);
+  border-radius: var(--radius-sm);
+}
+.md code {
+  padding: 1px 4px;
+}
+.md pre {
+  padding: 8px 10px;
+  overflow-x: auto;
+  white-space: pre;
+}
+/* 도구 호출 — 답변보다 한 단계 낮춘 작업 로그 한 줄 */
 .chat .msg.tool {
   font-family: var(--font-mono);
+  font-size: 12px;
   color: var(--ink-soft);
+  padding-left: 10px;
+  border-left: 1px solid var(--line);
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+.chat .msg.tool + .msg.tool {
+  margin-top: -8px;
 }
 .chat .msg.error {
+  font-size: 12px;
   padding: 8px 12px;
   border: 1px solid var(--ink);
   border-radius: var(--radius-md);
-  color: var(--ink);
 }
-.chat textarea.input {
-  resize: vertical;
-  min-height: 72px;
-  height: auto;
+.chat .msg.working {
+  display: flex;
+  gap: 4px;
+  padding: 6px 0;
+}
+.chat .msg.working span {
+  width: 6px;
+  height: 6px;
+  border-radius: 50%;
+  background: var(--ink-soft);
+  animation: skeleton-blink 1.2s var(--ease-soft) infinite;
+}
+.chat .msg.working span:nth-child(2) {
+  animation-delay: 0.2s;
+}
+.chat .msg.working span:nth-child(3) {
+  animation-delay: 0.4s;
+}
+.chat-error {
+  margin: 0 12px 8px;
+  font-size: 12px;
+  padding: 8px 12px;
+  border: 1px solid var(--ink);
+  border-radius: var(--radius-md);
+}
+/* 입력창 — 텍스트와 컨트롤(새 대화·모델·보내기)을 한 카드에 담는다 */
+.composer {
+  margin: 0 12px 12px;
+  padding: 10px 10px 8px 12px;
+  border: 1px solid var(--line);
+  border-radius: var(--radius-xl);
+  background: var(--surface);
+  transition: border-color 120ms var(--ease-soft);
+}
+.composer:focus-within {
+  border-color: var(--ink);
+}
+.composer textarea {
+  display: block;
+  width: 100%;
+  min-height: 66px;
+  max-height: 200px;
+  padding: 2px 0 8px;
+  border: 0;
+  outline: none;
+  resize: none;
+  background: transparent;
+  color: var(--ink);
   font: inherit;
   font-size: 14px;
-  padding: 12px;
-  border-radius: var(--radius-lg);
+  line-height: 1.5;
+}
+.composer textarea::placeholder {
+  color: var(--ink-soft);
+}
+.composer-bar {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  margin-left: -6px;
+  min-height: 32px;
+}
+.composer-model {
+  font: inherit;
+  font-size: 12px;
+  max-width: 170px;
+  height: 32px;
+  /* 기본 화살표는 오른쪽 끝에 붙어 여백을 줄 수 없다 — 직접 그리고 자리를 잡아준다. */
+  appearance: none;
+  padding: 0 26px 0 10px;
+  border: 0;
+  border-radius: var(--radius-md);
+  background: transparent
+    url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='12' height='12' viewBox='0 0 12 12'%3E%3Cpath d='M2.5 4.5 6 8l3.5-3.5' fill='none' stroke='%238a8a90' stroke-width='1.5' stroke-linecap='round' stroke-linejoin='round'/%3E%3C/svg%3E")
+    no-repeat right 9px center;
+  color: var(--ink-soft);
+  text-overflow: ellipsis;
+}
+.composer-model:hover {
+  color: var(--ink);
+}
+.composer-icon,
+.composer-send {
+  flex-shrink: 0;
+  width: 32px;
+  height: 32px;
+  border: 0;
+  border-radius: 50%;
+  display: grid;
+  place-items: center;
+}
+.composer-icon {
+  background: transparent;
+  color: var(--ink-soft);
+  transition: background-color 120ms var(--ease-soft), color 120ms var(--ease-soft);
+}
+.composer-icon:hover:not(:disabled) {
+  background: var(--subtle);
+  color: var(--ink);
+}
+.composer-icon:disabled {
+  opacity: 0.4;
+}
+.composer-send {
+  background: var(--primary);
+  color: var(--on-primary);
+  transition: opacity 120ms var(--ease-soft);
+}
+.composer-send:disabled {
+  opacity: 0.3;
+}
+
+/* 진단 로그 — 접어두고 필요할 때만 펼친다 */
+.diag {
+  margin-top: 12px;
+  font-size: 12px;
+}
+.diag summary {
+  cursor: pointer;
+  color: var(--ink-soft);
+}
+.diag pre {
+  margin: 8px 0;
+  padding: 8px 10px;
+  max-height: 240px;
+  overflow: auto;
+  white-space: pre-wrap;
+  overflow-wrap: anywhere;
+  font-size: 11px;
+  line-height: 1.5;
+  border: 1px solid var(--line);
+  border-radius: var(--radius-md);
+  background: var(--canvas);
 }
 
 /* 스켈레톤 로딩 — 그라데이션/시머 없이 불투명도 깜박임만 */

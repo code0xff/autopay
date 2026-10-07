@@ -19,6 +19,7 @@ export const getAudit = (offset: number, limit: number) =>
   rpc<{ records: AuditRecord[]; total: number }>({ type: "getAudit", offset, limit });
 export const resolveConfirmation = (requestId: string, approved: boolean) =>
   rpc({ type: "resolveConfirmation", requestId, approved });
+export const cancelExecution = (requestId: string) => rpc({ type: "cancelExecution", requestId });
 export const setBridgeToken = (token: string) => rpc({ type: "setBridgeToken", token });
 
 export interface NotificationDiagnosis {

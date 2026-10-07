@@ -32,6 +32,8 @@ const TOKENS_KEY = "assistant:tokens"; // Sealed<TokenSet>
 const MODEL_KEY = "assistant:model";
 const LOGIN_KEY = "assistant:login"; // 세션(메모리) — 진행 중인 로그인의 PKCE 상태
 const CHAT_KEY = "assistant:chat"; // 세션(메모리) — 대화. 브라우저를 닫으면 사라진다
+const LOG_KEY = "assistant:log"; // 세션(메모리) — 진단 로그(코드·개수만, 비밀·대화 내용 없음)
+const MAX_LOG = 150;
 
 const MAX_STEPS = 40; // 한 프롬프트당 모델 호출 상한(폭주·플랜 소진 방지)
 const MAX_TOOL_OUTPUT = 16_000; // 도구 결과를 모델에 넘길 때의 글자 상한
@@ -52,6 +54,8 @@ export interface AssistantState {
   model: string | null;
   models: ModelInfo[];
   messages: ChatMessage[];
+  /** 진단 로그(최근 것이 아래). 설정 탭에서 보고 복사한다. */
+  log: string[];
 }
 
 interface Chat {
@@ -79,6 +83,7 @@ export interface AssistantDeps {
 const ERROR_TEXT: Record<string, string> = {
   not_signed_in: "ChatGPT에 로그인되어 있지 않습니다. 설정 탭에서 로그인하세요.",
   reauth_required: "ChatGPT 로그인이 만료됐습니다. 설정 탭에서 다시 로그인하세요.",
+  code_exchange_failed: "ChatGPT 로그인 코드를 토큰으로 바꾸지 못했습니다. 다시 로그인하세요.",
   access_denied: "ChatGPT에서 권한 요청이 거절됐습니다.",
   plan_usage_not_granted: "ChatGPT 플랜 사용 권한이 부여되지 않았습니다.",
   state_mismatch: "로그인 응답이 이 요청과 일치하지 않습니다. 다시 시도하세요.",
@@ -88,6 +93,7 @@ const ERROR_TEXT: Record<string, string> = {
   subscription_sharing_unsupported_capability:
     "ChatGPT가 이 요청(모델 또는 도구)을 지원하지 않습니다.",
   subscription_sharing_invalid_user: "ChatGPT 계정 확인에 실패했습니다. 다시 로그인하세요.",
+  empty_response: "모델이 빈 응답을 보냈습니다. 설정 탭의 진단 로그를 확인하세요.",
   max_steps: "단계 상한에 도달해 멈췄습니다. 이어서 진행하려면 다시 요청하세요.",
   stopped: "중단했습니다.",
   network_timeout: "ChatGPT 서버 응답이 늦어 중단했습니다. 잠시 후 다시 시도하세요.",
@@ -111,11 +117,36 @@ export class Assistant {
   private includeReasoning = true;
   private models: ModelInfo[] = [];
   private loginError: string | null = null;
+  private callbackQueue: Promise<unknown> = Promise.resolve();
+  private logQueue: Promise<unknown> = Promise.resolve();
   private streaming = ""; // 진행 중인 답변(완료되면 messages로 옮긴다)
 
   constructor(private readonly deps: AssistantDeps) {
     this.now = deps.now ?? (() => Date.now());
     this.sleep = deps.sleep ?? ((ms) => new Promise((r) => setTimeout(r, ms)));
+    this.log("워커 시작"); // 실행 도중 이 줄이 다시 찍히면 서비스워커가 재시작된 것
+  }
+
+  /** 진단 로그 한 줄. 무엇이 어디서 멈췄는지 밖에서 볼 수 있게 한다 — 프롬프트가
+   *  "씹히는" 것처럼 보이는데 원인을 알 길이 없던 일이 있었다(2026-10-08).
+   *  남기는 것은 단계·코드·개수·서버 오류 설명뿐이다. 토큰, 프롬프트와 답변 본문,
+   *  도구 인자·결과는 남기지 않는다. */
+  private log(msg: string): void {
+    const line = `${new Date(this.now()).toISOString().slice(11, 19)} ${msg}`;
+    console.info("[nightpay] assistant:", msg);
+    this.logQueue = this.logQueue
+      .then(async () => {
+        const lines = (await this.deps.session.get<string[] | null>(LOG_KEY)) ?? [];
+        lines.push(line);
+        await this.deps.session.set(LOG_KEY, lines.slice(-MAX_LOG));
+      })
+      .catch(() => undefined);
+  }
+
+  private logError(where: string, e: unknown): void {
+    const detail = e instanceof ApiError && e.detail ? ` — ${e.detail}` : "";
+    const status = e instanceof ApiError && e.status ? ` (HTTP ${e.status})` : "";
+    this.log(`${where} 실패: ${errorCode(e)}${status}${detail}`);
   }
 
   // ── 로그인 ──────────────────────────────────────────────────────────────
@@ -126,11 +157,22 @@ export class Assistant {
     const { url, pending } = await beginLogin({ clientId: reg.clientId, hostId: reg.hostId });
     await this.deps.session.set(LOGIN_KEY, pending);
     this.loginError = null;
+    this.log(`로그인 시작 (${reg.clientId ? "재인가" : "첫 등록"})`);
     await this.deps.openTab(url);
   }
 
-  /** 탭 URL이 진행 중인 로그인의 콜백이면 처리하고 true(호출부가 탭을 닫는다). */
-  async handleCallbackUrl(url: string): Promise<boolean> {
+  /** 탭 URL이 진행 중인 로그인의 콜백이면 처리하고 true(호출부가 탭을 닫는다).
+   *  한 번에 하나씩만 처리한다 — tabs.onUpdated는 같은 주소로 여러 번 불리는데(이동
+   *  시작·URL 확정·로딩 상태), 동시에 들어오면 둘 다 대기 중인 로그인을 읽고 같은
+   *  code를 두 번 교환한다. 첫 번째는 성공하고 두 번째가 invalid_grant로 실패해,
+   *  연결은 됐는데 오류 문구가 남는 일이 실제로 있었다(2026-10-08). */
+  handleCallbackUrl(url: string): Promise<boolean> {
+    const run = this.callbackQueue.then(() => this.processCallback(url));
+    this.callbackQueue = run.catch(() => undefined);
+    return run;
+  }
+
+  private async processCallback(url: string): Promise<boolean> {
     const pending = await this.deps.session.get<PendingLogin | null>(LOGIN_KEY);
     if (!pending || !isCallbackFor(url, pending)) return false;
     await this.deps.session.set(LOGIN_KEY, null); // code는 1회용 — 재처리 방지
@@ -142,7 +184,9 @@ export class Assistant {
       await this.saveTokens(tokens);
       this.loginError = null;
       this.models = [];
+      this.log("로그인 완료");
     } catch (e) {
+      this.logError("로그인", e);
       this.loginError = describe(errorCode(e));
     }
     return true;
@@ -155,6 +199,7 @@ export class Assistant {
     await this.deps.session.set(CHAT_KEY, null);
     this.models = [];
     this.loginError = null;
+    this.log("연결 해제");
   }
 
   private async clientReg(): Promise<ClientReg> {
@@ -195,8 +240,10 @@ export class Assistant {
     try {
       const next = await refreshTokens(this.deps.fetch, clientId, tokens.refreshToken, this.now());
       await this.saveTokens(next);
+      this.log("토큰 갱신 완료");
       return next;
     } catch (e) {
+      this.logError("토큰 갱신", e);
       // 리프레시 토큰이 죽었으면 지운다 — 다시 로그인해야 한다.
       if (errorCode(e) === "reauth_required") await this.deps.kv.set(TOKENS_KEY, null);
       throw e;
@@ -219,6 +266,7 @@ export class Assistant {
       model: (await this.deps.kv.get<string>(MODEL_KEY)) ?? null,
       models: this.models,
       messages,
+      log: (await this.deps.session.get<string[] | null>(LOG_KEY)) ?? [],
     };
   }
 
@@ -226,7 +274,9 @@ export class Assistant {
   async loadModels(): Promise<void> {
     try {
       this.models = await listModels(this.deps.fetch, await this.accessToken());
-    } catch {
+      this.log(`모델 목록 ${this.models.length}개`);
+    } catch (e) {
+      this.logError("모델 목록", e);
       this.models = [];
     }
   }
@@ -262,7 +312,11 @@ export class Assistant {
 
   /** 프롬프트를 접수하고 즉시 돌아온다. 진행 상황은 state()로 본다. */
   async send(text: string): Promise<void> {
-    if (this.running) throw new Error("assistant_busy");
+    if (this.running) {
+      this.log("요청 거부: 이전 요청이 아직 실행 중");
+      throw new Error("assistant_busy");
+    }
+    this.log(`요청 접수 (${text.length}자)`);
     const chat = await this.chat();
     chat.messages.push({ role: "user", text });
     chat.history.push({ role: "user", content: text });
@@ -276,6 +330,7 @@ export class Assistant {
   }
 
   stop(): void {
+    if (this.abort) this.log("중단 요청");
     this.abort?.abort();
   }
 
@@ -289,13 +344,21 @@ export class Assistant {
       for (let step = 0; step < MAX_STEPS; step++) {
         const token = await this.accessToken();
         const model = await this.model(token);
+        this.log(`${step + 1}단계: 모델 호출 (${model}, 입력 ${chat.history.length + 1}개)`);
         const result = await this.respond(token, model, chat.history, signal);
+        this.log(`${step + 1}단계: 응답 [${result.output.map((o) => o.type).join(", ")}]`);
+        if (result.output.length === 0 && !result.text.trim()) {
+          // 성공으로 끝났는데 내용이 없다 — 조용히 "완료"로 넘기지 않고 드러낸다.
+          this.log(`빈 응답 — 받은 이벤트: ${result.eventTypes.join(", ")}`);
+          throw new Error("empty_response");
+        }
         this.streaming = "";
         chat.history.push(...result.output);
         if (result.text.trim()) chat.messages.push({ role: "assistant", text: result.text.trim() });
         const calls = result.output.filter(isFunctionCall);
         if (calls.length === 0) {
           await this.saveChat(chat);
+          this.log("완료");
           return;
         }
         for (const call of calls) {
@@ -309,6 +372,7 @@ export class Assistant {
       }
       throw new Error("max_steps");
     } catch (e) {
+      this.logError("실행", e);
       chat.messages.push({ role: "error", text: describe(errorCode(e)) });
       await this.saveChat(chat);
     }
@@ -337,6 +401,8 @@ export class Assistant {
         e.status === 400 &&
         e.code === "subscription_sharing_unsupported_capability";
       if (!unsupported || !this.includeReasoning) throw e;
+      this.logError("모델 호출(include 포함)", e);
+      this.log("include를 빼고 다시 보냄");
       this.includeReasoning = false;
       this.streaming = "";
       return createResponse(this.deps.fetch, { ...req, includeReasoning: false });
@@ -346,8 +412,12 @@ export class Assistant {
   /** 도구 한 건 실행 → 모델에 돌려줄 문자열. 예외를 던지지 않는다. */
   private async execute(call: FunctionCallItem): Promise<string> {
     const bridgeCall = toBridgeCall(call.call_id, call.name, call.arguments);
-    if (!bridgeCall) return JSON.stringify({ error: "invalid_tool_call" });
+    if (!bridgeCall) {
+      this.log(`도구 ${call.name}: 스키마 위반으로 실행 안 함`);
+      return JSON.stringify({ error: "invalid_tool_call" });
+    }
     const res = await this.deps.tools.handle(bridgeCall);
+    this.log(`도구 ${call.name}: ${res.ok ? "성공" : `실패 ${res.error}`}`);
     if (!res.ok) return JSON.stringify({ error: res.error });
     // 결제 대기 중이면 잠깐 쉰 뒤 돌려준다 — 모델이 조회를 연타해 플랜을 태우지 않게.
     const pending =

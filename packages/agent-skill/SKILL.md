@@ -54,7 +54,9 @@ description: 사용자가 "○○ 사줘 / 구매해줘 / 최저가로 주문해
      받거나 대신 입력하겠다고 제안하지 않는다.
    - 결제 실행 중에는 `open`/`read_page`/`click`/`fill`이
      `page_locked_during_payment`로 거부된다(정상 동작). 페이지를 건드리려
-     재시도하지 말고 `get_payment_result`만 폴링한다.
+     재시도하지 말고 `get_payment_result`만 폴링한다. 사용자가 그 결제를
+     그만두고 싶어 하면, 이 스킬은 취소할 수 없으니 NightPay 홈 탭의 "진행 중인
+     결제" 카드에서 취소를 누르라고 안내한다.
    - `rejected` / `canceled` / `failed`: 사유를 그대로 사용자에게 보고한다.
      재시도 전에 사유(한도 초과 등)를 먼저 설명한다.
 

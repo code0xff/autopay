@@ -181,6 +181,8 @@ export async function exchangeCode(
   cb: { code: string; clientId: string },
   now: number,
 ): Promise<TokenSet> {
+  // 코드 교환의 invalid_grant는 "리프레시 토큰이 죽었다"가 아니라 코드가 만료됐거나
+  // 이미 쓰였다는 뜻이다 — 만료 안내와 섞이지 않게 따로 구분한다.
   const body = await tokenRequest(fetchFn, {
     grant_type: "authorization_code",
     client_id: cb.clientId,
@@ -188,6 +190,11 @@ export async function exchangeCode(
     code_verifier: pending.verifier,
     redirect_uri: pending.redirectUri,
     resource: SIWC_RESOURCE,
+  }).catch((e) => {
+    if (e instanceof SiwcError && e.code === "reauth_required") {
+      throw new SiwcError("code_exchange_failed");
+    }
+    throw e;
   });
   // 플랜 사용 권한이 없으면 이 토큰으로는 모델을 못 부른다 — 로그인 실패로 취급.
   if (!(body.scope ?? "").split(" ").includes(PLAN_SCOPE)) {

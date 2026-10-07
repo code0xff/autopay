@@ -34,6 +34,8 @@ export interface PageBridge {
       handoffTimeoutMs?: number;
       expectedOrigin: string;
       onPasswordRequired?: () => Promise<void>;
+      /** 중단되면 대기를 끝내고 canceled를 돌려준다(사용자 취소). */
+      signal?: AbortSignal;
     },
   ): Promise<CompletionResult>;
 }
@@ -186,6 +188,7 @@ class DomCheckoutDriver implements CheckoutDriver {
     expectedOrigin: string,
     onPasswordRequired?: () => Promise<void>,
     handoffTimeoutMs?: number,
+    signal?: AbortSignal,
   ): Promise<CompletionResult> {
     const s = this.cfg.selectors;
     return this.bridge.waitForOutcome(tabId, {
@@ -196,6 +199,7 @@ class DomCheckoutDriver implements CheckoutDriver {
       handoffTimeoutMs,
       expectedOrigin,
       onPasswordRequired,
+      signal,
     });
   }
 }

@@ -22,6 +22,8 @@ export interface PayInput {
   /** 비번 UI 등장 시 1회 호출(사용자 핸드오프 통지, executor.md §3.2). 미주입이면
    *  비번 UI 등장 = failed(password_required). */
   onPasswordHandoff?: () => Promise<void>;
+  /** 사용자가 진행 중인 결제를 취소하면 중단된다 — 대기를 끝내고 canceled로 수렴. */
+  signal?: AbortSignal;
 }
 
 export type PayOutcome =
@@ -67,5 +69,6 @@ export interface CheckoutDriver {
     expectedOrigin: string,
     onPasswordRequired?: () => Promise<void>,
     handoffTimeoutMs?: number,
+    signal?: AbortSignal,
   ): Promise<CompletionResult>;
 }
