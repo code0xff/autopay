@@ -140,13 +140,6 @@ export function AssistantTab({ onOpenSettings }: { onOpenSettings: () => void })
           </span>
           <div className="chat-empty-title">무엇을 도와드릴까요?</div>
           <div className="muted">결제는 항상 정책 한도와 금액 검증을 거칩니다.</div>
-          <div className="chat-examples">
-            {EXAMPLES.map((ex) => (
-              <button key={ex} type="button" onClick={() => void send(ex)}>
-                {ex}
-              </button>
-            ))}
-          </div>
         </div>
       ) : (
         <div className="chat-scroll" ref={scrollRef} onScroll={onChatScroll} aria-live="polite">
@@ -167,6 +160,15 @@ export function AssistantTab({ onOpenSettings }: { onOpenSettings: () => void })
         </div>
       )}
       {err && <div className="chat-error">{err}</div>}
+      {state.messages.length === 0 && sending === null && (
+        <div className="chat-examples">
+          {EXAMPLES.map((ex) => (
+            <button key={ex} type="button" onClick={() => void send(ex)}>
+              {ex}
+            </button>
+          ))}
+        </div>
+      )}
       <div className="composer">
         <textarea
           ref={inputRef}
