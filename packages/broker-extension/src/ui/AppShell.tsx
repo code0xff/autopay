@@ -42,8 +42,9 @@ export function AppShell({ wide = false }: { wide?: boolean }) {
         setLoadError(null);
         const wasLocked = wasLockedRef.current;
         if (!s.locked && (wasLocked === null || wasLocked === true)) {
-          // 최초 로드 또는 잠금 해제 직후에만 탭을 자동 선택 — 폴링 갱신으로는 건드리지 않음
-          setTab(s.hasBridgeToken ? "home" : "settings");
+          // 최초 로드 또는 잠금 해제 직후에만 홈 탭을 자동 선택 — 폴링 갱신으로는 건드리지 않음.
+          // 내장 주문 탭은 MCP 브리지 토큰 없이도 동작하므로 토큰 유무로 갈리지 않는다.
+          setTab("home");
         }
         wasLockedRef.current = s.locked;
       })
