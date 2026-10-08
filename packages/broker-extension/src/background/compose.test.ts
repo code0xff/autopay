@@ -27,6 +27,16 @@ describe("Background RPC (compose)", () => {
     expect(state.summary.remainingDailyBudget).toBe(100_000);
   });
 
+  it("assistantConnected — 봉인 토큰 존재만 반영하고 토큰 값은 getState에 없다", async () => {
+    const kv = new MemoryKv();
+    const bg = new Background(kv);
+    expect(((await bg.handle({ type: "getState" })) as UiState).assistantConnected).toBe(false);
+    await kv.set("assistant:tokens", { iv: "IV-SENTINEL", ct: "CT-SENTINEL" });
+    const raw = await bg.handle({ type: "getState" });
+    expect((raw as UiState).assistantConnected).toBe(true);
+    expect(JSON.stringify(raw)).not.toMatch(/SENTINEL/);
+  });
+
   it("기본 상태는 잠김 + 가장 제한적 기본 정책", async () => {
     const bg = new Background(new MemoryKv());
     const state = (await bg.handle({ type: "getState" })) as UiState;

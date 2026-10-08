@@ -252,8 +252,13 @@ export class Assistant {
 
   // ── 상태 ────────────────────────────────────────────────────────────────
 
+  /** 봉인 토큰 존재 여부만 본다 — 복호화·네트워크 없음, 토큰 값은 반환하지 않는다. */
+  async isSignedIn(): Promise<boolean> {
+    return Boolean(await this.deps.kv.get<Sealed | null>(TOKENS_KEY));
+  }
+
   async state(): Promise<AssistantState> {
-    const signedIn = Boolean(await this.deps.kv.get<Sealed | null>(TOKENS_KEY));
+    const signedIn = await this.isSignedIn();
     const chat = await this.chat();
     const messages = this.streaming
       ? [...chat.messages, { role: "assistant" as const, text: this.streaming }]

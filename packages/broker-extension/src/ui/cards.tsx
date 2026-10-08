@@ -15,19 +15,25 @@ import {
 // bridgeConnected는 SW 깨어남 직후 브리지 연결까지(~1-2초) false였다가 바뀌는
 // 런타임 상태라 체크리스트에 쓰면 깜빡인다. 여기선 사용자가 할 일(토큰 등록
 // 여부)만 본다 — 런타임 연결 상태는 설정 탭 BridgeCard가 이미 보여준다.
+const AGENT_GUIDE =
+  "둘 중 하나면 충분합니다 — 주문 탭에서 ChatGPT로 로그인하거나, 설정 탭의 'MCP 브리지'에 토큰을 붙여넣으세요. pnpm bootstrap이 클립보드에 복사해 두며, 다시 복사하려면 `pbcopy < ~/.autopay/bridge-token`";
+
+export function agentHint(state: Pick<UiState, "hasBridgeToken" | "assistantConnected">): string {
+  const parts: string[] = [];
+  if (state.hasBridgeToken) parts.push("MCP 브리지 토큰 등록됨");
+  if (state.assistantConnected) parts.push("ChatGPT 연결됨");
+  return parts.length > 0 ? parts.join(" · ") : AGENT_GUIDE;
+}
+
 export function GettingStarted({ state }: { state: UiState }) {
   const limits = state.policy.limits;
   const limitsSet =
     limits.perTransaction > 0 && limits.daily > 0 && limits.maxTransactionsPerDay > 0;
   const steps: { done: boolean | null; title: string; hint: string }[] = [
     {
-      // ChatGPT 로그인 여부는 UiState에 없어 알 수 없다 — 토큰이 없어도 "필요"로
-      // 표시하지 않고(null) 둘 중 하나만 연결하면 된다고 안내한다.
-      done: state.hasBridgeToken ? true : null,
+      done: state.hasBridgeToken || state.assistantConnected,
       title: "에이전트 연결 (Claude Code 또는 ChatGPT)",
-      hint: state.hasBridgeToken
-        ? "MCP 브리지 토큰 등록됨 — Claude Code를 실행하면 자동 연결됩니다"
-        : "둘 중 하나면 충분합니다 — 주문 탭에서 ChatGPT로 로그인하거나, 설정 탭의 'MCP 브리지'에 토큰을 붙여넣으세요. pnpm bootstrap이 클립보드에 복사해 두며, 다시 복사하려면 `pbcopy < ~/.autopay/bridge-token`",
+      hint: agentHint(state),
     },
     {
       done: limitsSet,

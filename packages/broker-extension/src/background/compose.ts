@@ -69,6 +69,7 @@ export interface UiState {
   hasPassphrase: boolean; // false면 첫 실행 — 잠금 화면이 "패스프레이즈 설정"으로 뜬다
   bridgeConnected: boolean;
   hasBridgeToken: boolean;
+  assistantConnected: boolean; // ChatGPT 로그인됨(봉인 토큰 존재 여부만 — 토큰 값은 싣지 않는다)
 }
 
 export class Background {
@@ -268,6 +269,7 @@ export class Background {
         (await this.kv.get(PROFILE_KEY)) !== undefined,
       bridgeConnected: this.bridgeConnected,
       hasBridgeToken: (await this.kv.get<string>(BRIDGE_TOKEN_KEY)) !== undefined,
+      assistantConnected: await this.assistant.isSignedIn(),
     };
   }
 
