@@ -368,9 +368,15 @@
     <div class="shead">
       <p class="eyebrow" data-i18n="start.eyebrow">시작하기</p>
       <h2 data-i18n="start.title">설치하고 첫 주문 해보기</h2>
-      <p class="lead" data-i18n="start.lead">Node 20+, pnpm 9, Chrome으로 확장 프로그램을 설치한 뒤 ChatGPT 계정을 연결하세요. 주문은 NightPay 사이드패널에서 진행합니다.</p>
+      <p class="lead" data-i18n="start.lead">Git, Node 20+, pnpm 9, Chrome을 준비하세요. 아래 순서로 확장 프로그램을 설치한 뒤 ChatGPT 계정을 연결하세요. 주문은 NightPay 사이드패널에서 진행합니다.</p>
     </div>
     <ol class="steps">
+      <li><div>
+        <h3 data-i18n="clone.t">GitHub에서 프로젝트 내려받기</h3>
+        <p data-i18n="clone.p">터미널에서 아래 명령어를 차례로 실행해 저장소를 클론하고 프로젝트 폴더로 이동하세요.</p>
+        <div class="copy"><code>git clone https://github.com/code0xff/autopay.git</code><button type="button" data-copy="git clone https://github.com/code0xff/autopay.git"><svg class="lucide"><use href="#i-copy"/></svg><span data-i18n="copy">복사</span></button></div>
+        <div class="copy"><code>cd autopay</code><button type="button" data-copy="cd autopay"><svg class="lucide"><use href="#i-copy"/></svg><span data-i18n="copy">복사</span></button></div>
+      </div></li>
       <li><div>
         <h3 data-i18n="s1.t">프로젝트 설치·빌드</h3>
         <p data-i18n="s1.p">저장소 폴더에서 아래 명령어를 실행하세요. 필요한 패키지를 설치하고 확장 프로그램을 빌드합니다. 함께 복사되는 MCP 연결 토큰은 외부 에이전트를 연결할 때만 사용합니다.</p>
@@ -560,6 +566,8 @@
 
   // ── i18n: 한국어는 마크업이 원본, 영어는 사전 ──
   var EN = {
+    "clone.t": "Clone the project from GitHub",
+    "clone.p": "Run these commands in your terminal to clone the repository and open the project folder.",
     "mcp.eyebrow": "Connect an external agent",
     "mcp.title": "Use NightPay with Claude Code or Codex",
     "mcp.lead": "Connect an MCP-compatible agent you already use. You can skip this setup when ordering from the side panel.",
@@ -578,7 +586,7 @@
     "how.3t": "Check payment rules", "how.3p": "NightPay checks the checkout amount against the request, then checks your limits, payment count, allowed stores and payment methods.",
     "how.4t": "Confirm and notify", "how.4p": "NightPay checks whether the order completed, records the result and sends you a notification.",
     "start.eyebrow": "Get started", "start.title": "Set up NightPay and place an order",
-    "start.lead": "Install the extension using Node 20+, pnpm 9 and Chrome, then connect your ChatGPT account. You can place orders from the NightPay side panel.",
+    "start.lead": "You will need Git, Node 20+, pnpm 9 and Chrome. Follow the steps below to install the extension, then connect your ChatGPT account. You can place orders from the NightPay side panel.",
     "s1.t": "Install and build the project", "s1.p": "Run this command in the repository folder to install dependencies and build the extension. The MCP pairing token it copies is only needed for external agents.",
     "s2.t": "Add the extension to Chrome", "s2.p": "Open chrome://extensions and enable Developer mode. Click \"Load unpacked\" and select the folder below. After rebuilding, click the extension’s reload button.",
     "s3.t": "Set a passphrase and spending limits", "s3.p": "Open the side panel using the NightPay toolbar icon and set a lock passphrase. Check your limits on the Policy tab. Defaults are \u20a920,000 per payment, \u20a950,000 and 3 payments per day, and \u20a9100,000 per month. Payments over \u20a910,000 require your approval.",
