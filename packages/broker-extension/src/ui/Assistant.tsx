@@ -53,14 +53,20 @@ export function AssistantTab({ onOpenSettings }: { onOpenSettings: () => void })
   const [sending, setSending] = useState<string | null>(null);
   const scrollRef = useRef<HTMLDivElement>(null);
   const inputRef = useRef<HTMLTextAreaElement>(null);
+  // 사용자가 맨 아래 근처에 있을 때만 새 메시지를 따라 내려간다.
+  const stickRef = useRef(true);
   const count = state?.messages.length ?? 0;
   const lastLen = state?.messages[count - 1]?.text.length ?? 0;
   const running = state?.running ?? false;
   // biome-ignore lint/correctness/useExhaustiveDependencies: 새 메시지·스트리밍 진행 시 맨 아래로
   useEffect(() => {
     const el = scrollRef.current;
-    if (el) el.scrollTop = el.scrollHeight;
+    if (el && stickRef.current) el.scrollTop = el.scrollHeight;
   }, [count, lastLen, running, sending]);
+  const onChatScroll = () => {
+    const el = scrollRef.current;
+    if (el) stickRef.current = el.scrollHeight - el.scrollTop - el.clientHeight < 48;
+  };
   // 입력창은 내용만큼 자란다(상한은 CSS max-height).
   // biome-ignore lint/correctness/useExhaustiveDependencies: text가 바뀔 때마다 높이를 다시 잰다
   useEffect(() => {
@@ -106,6 +112,7 @@ export function AssistantTab({ onOpenSettings }: { onOpenSettings: () => void })
     const t = (preset ?? text).trim();
     if (!t || state.running || sending !== null) return;
     setErr("");
+    stickRef.current = true;
     setSending(t);
     if (!preset) setText("");
     try {
@@ -142,7 +149,7 @@ export function AssistantTab({ onOpenSettings }: { onOpenSettings: () => void })
           </div>
         </div>
       ) : (
-        <div className="chat-scroll" ref={scrollRef} aria-live="polite">
+        <div className="chat-scroll" ref={scrollRef} onScroll={onChatScroll} aria-live="polite">
           {state.messages.map((m, i) => (
             // biome-ignore lint/suspicious/noArrayIndexKey: 대화는 뒤에만 추가되는 목록이라 인덱스가 안정적
             <div key={i} className={`msg ${m.role}`}>

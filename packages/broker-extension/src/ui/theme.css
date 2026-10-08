@@ -473,6 +473,10 @@ tbody tr:hover {
   flex-direction: column;
   gap: 12px;
 }
+/* 메시지가 쌓여도 줄어들지 않고 목록이 스크롤되게 한다(tool 줄은 overflow:hidden이라 min-height가 0). */
+.chat-scroll > * {
+  flex-shrink: 0;
+}
 .chat-empty {
   flex: 1;
   min-height: 0;
