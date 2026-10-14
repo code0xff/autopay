@@ -138,6 +138,85 @@ describe("createAdapter (coupay, 패턴 C)", () => {
   });
 });
 
+describe("createAdapter (naverpay, 핸드오프 전용)", () => {
+  it("hasExternalApproval=false, verify는 금액·스냅샷을 돌려준다", async () => {
+    const adapter = createAdapter("naverpay", fakeBridge());
+    expect(adapter.method).toBe("naverpay");
+    expect(adapter.hasExternalApproval).toBe(false);
+    const v = await adapter.verify(1);
+    expect(v.amount).toBe(23_500);
+    expect(v.snapshot).toMatch(/^[0-9a-f]{64}$/);
+  });
+
+  it("키패드 문구 감지 → 핸드오프 통지 요청, 입력·fill 없이 결제 버튼 클릭 1회만", async () => {
+    const fill = vi.fn(async () => {});
+    const click = vi.fn(async () => {});
+    const waitForOutcome = vi.fn(
+      async (_t: number, cfg: Parameters<PageBridge["waitForOutcome"]>[1]) => {
+        await cfg.onPasswordRequired?.();
+        return { status: "approved", orderId: "N-1" } as CompletionResult;
+      },
+    );
+    const adapter = createAdapter("naverpay", fakeBridge({ fill, click, waitForOutcome }));
+    const { snapshot } = await adapter.verify(1);
+    const onPasswordHandoff = vi.fn(async () => {});
+    const out = await adapter.pay({
+      tabId: 1,
+      timeoutMs: 1000,
+      approvedSnapshot: snapshot,
+      onPasswordHandoff,
+    });
+    expect(out).toEqual({ status: "approved", orderId: "N-1", amount: 23_500 });
+    expect(onPasswordHandoff).toHaveBeenCalledTimes(1);
+    expect(fill).not.toHaveBeenCalled();
+    expect(click).toHaveBeenCalledTimes(1);
+    expect(click).toHaveBeenCalledWith(1, "text:네이버페이 결제");
+    // 키패드 감지 셀렉터가 전달되고 "보이는가"만 확인한다.
+    expect(waitForOutcome).toHaveBeenCalledWith(
+      1,
+      expect.objectContaining({ passwordUiSel: "contains:결제 비밀번호" }),
+    );
+  });
+
+  it("핸드오프 훅 없이 키패드가 뜨면 → failed(password_required), PIN 시도 없음", async () => {
+    const fill = vi.fn(async () => {});
+    const bridge = fakeBridge({
+      fill,
+      waitForOutcome: vi.fn(
+        async (): Promise<CompletionResult> => ({ status: "failed", error: "password_required" }),
+      ),
+    });
+    const adapter = createAdapter("naverpay", bridge);
+    const { snapshot } = await adapter.verify(1);
+    expect(await adapter.pay({ tabId: 1, timeoutMs: 10, approvedSnapshot: snapshot })).toEqual({
+      status: "failed",
+      error: "password_required",
+    });
+    expect(fill).not.toHaveBeenCalled();
+  });
+
+  it("승인 후 금액이 바뀌면(검증 불일치) 클릭하지 않고 canceled(content_changed)", async () => {
+    let amount = "₩23,500";
+    const click = vi.fn(async () => {});
+    const bridge = fakeBridge({
+      click,
+      readText: vi.fn(async (_t, sel) => (sel.startsWith("label:") ? amount : "86091485721:1")),
+    });
+    const adapter = createAdapter("naverpay", bridge);
+    const { snapshot } = await adapter.verify(1);
+    amount = "₩99,000";
+    const out = await adapter.pay({ tabId: 1, timeoutMs: 100, approvedSnapshot: snapshot });
+    expect(out).toEqual({ status: "canceled", reason: "content_changed" });
+    expect(click).not.toHaveBeenCalled();
+  });
+
+  it("금액을 파싱하지 못하면 NaN을 돌려 정책 단계에서 거절되게 한다", async () => {
+    const bridge = fakeBridge({ readText: vi.fn(async () => null) });
+    const v = await createAdapter("naverpay", bridge).verify(1);
+    expect(v.amount).toBeNaN();
+  });
+});
+
 describe("createAdapter (kakaopay, 패턴 B)", () => {
   it("hasExternalApproval=true, identity 입력 후 결제 진행", async () => {
     const fill = vi.fn(async () => {});

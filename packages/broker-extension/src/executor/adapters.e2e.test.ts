@@ -274,4 +274,39 @@ describe("결제 흐름 E2E (픽스처)", () => {
     expect(bridge.filled["#dateOfBirth"]).toBe("19900101");
     expect(bridge.clicked).toContain("#kakaopay-next");
   });
+
+  // 네이버페이(핸드오프 전용) — ⚠️ 픽스처·셀렉터는 라이브 캡처 전 placeholder.
+  it("네이버페이: 키패드 문구 → 핸드오프 통지 1회 → 사용자 입력 후 approved, 브로커는 입력·키패드 조작 없음", async () => {
+    const checkout = `<div><span>총 결제금액</span><span>12,300원</span></div>
+      <button>네이버페이 결제</button>`;
+    const keypad = "<div>결제 비밀번호 6자리를 입력해 주세요</div>";
+    const done = `<div>주문이 완료되었습니다</div>
+      <div><span>주문번호</span><span>N-7788</span></div>`;
+    const sel = "text:네이버페이 결제";
+    const bridge = new FixtureBridge(
+      checkout,
+      keypad,
+      "https://smartstore.naver.com",
+      sel,
+      undefined,
+      "1:1",
+    );
+    bridge.afterUserPasswordHtml = done;
+    const adapter = createAdapter("naverpay", bridge);
+    const v = await adapter.verify(0);
+    expect(v.amount).toBe(12_300);
+    let notified = 0;
+    const out = await adapter.pay({
+      tabId: 0,
+      timeoutMs: 1000,
+      approvedSnapshot: v.snapshot,
+      onPasswordHandoff: async () => {
+        notified++;
+      },
+    });
+    expect(out).toEqual({ status: "approved", orderId: "N-7788", amount: 12_300 });
+    expect(notified).toBe(1);
+    expect(bridge.filled).toEqual({});
+    expect(bridge.clicked).toEqual([sel]);
+  });
 });

@@ -15,6 +15,13 @@ const policy: PaymentPolicy = {
 };
 
 describe("Background RPC (compose)", () => {
+  it("기본 정책은 네이버페이를 허용하지 않는다(사용자가 직접 켜야 함)", async () => {
+    const bg = new Background(new MemoryKv(), new MemoryKv());
+    await bg.handle({ type: "unlock", passphrase: "pw" });
+    const state = (await bg.handle({ type: "getState" })) as UiState;
+    expect(state.policy.methods).not.toContain("naverpay");
+  });
+
   it("setPolicy → 저장되고 getState에 반영된다", async () => {
     const bg = new Background(new MemoryKv(), new MemoryKv());
     expect(await bg.handle({ type: "unlock", passphrase: "pw" })).toEqual({ ok: true });

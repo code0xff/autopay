@@ -265,6 +265,48 @@ awaitCompletion 폴링 중 passwordUi(보이는 요소) 최초 감지:
 - **비밀번호를 브로커가 입력하지 않는다**: 6자리 비번 입력 UI가 나타나면 브로커는
   멈추고 사용자에게 넘긴다(§3.2 핸드오프). 입력은 100% 사용자(§2.5 금지).
 
+## 3.3 네이버페이 어댑터 (핸드오프 전용, 2026-10-14)
+
+> ⚠️ **셀렉터·완료신호는 전부 PLACEHOLDER** — 라이브 캡처 전이다. 구현
+> (`NAVERPAY`, `adapters.ts`)은 flow `handoffOnly`, `hasExternalApproval:false`.
+> 근거: `payment-flows.md §3`·"설계 반영" 2번.
+
+```
+verify(tabId):
+  - 가맹점 주문서에서 최종 결제 금액·상품키(TOCTOU 스냅샷)를 독립 파싱
+pay(input):
+  0. 실행 직전 재검증(§2.1) — 불일치 시 canceled(content_changed), 클릭 없음
+  1. 결제 버튼(가맹점 [결제하기]/[네이버페이 결제])에 핸들러가 붙을 때까지 대기 후 1회 클릭
+  2. 네이버페이 PIN 키패드 문구가 보이면 → §3.2 핸드오프 (항상 예상되는 경로)
+     통지 → 사용자가 직접 PIN 입력 → 브로커는 완료 신호만 독립 파싱
+  3. 완료 신호(동일 origin) → approved / 경과 → timeout / 취소 → canceled
+```
+
+**불변식** (§4와 동일하게 강제):
+- PIN 단계는 **필수 핸드오프** — 브로커는 키패드·PIN 칸을 읽거나 채우거나
+  합성 클릭하지 않는다. 감지는 "문구가 보이는가"만. 핸드오프 훅이 없으면
+  `failed(password_required)`.
+- 로그인(`nid.naver.com`)은 범위 밖 — host_permissions에도 넣지 않는다.
+- 비밀·PIN·카드 정보 저장 없음, `identity` 불필요(폰 푸시 없음).
+- 정책 기본 허용 수단에 포함하지 않는다(사용자가 정책에서 직접 켠다).
+
+**셀렉터 (PLACEHOLDER, 캡처 대기)**
+
+| 항목 | 현재 값(추측) | 상태 |
+|---|---|---|
+| amount | `label:총 결제금액` | 미확정 — 가맹점별 상이 가능 |
+| items | `location:items` | 미확정 — 주문서 URL 파라미터 적합성 불명 |
+| payButton | `text:네이버페이 결제` | 미확정 |
+| passwordUi | `contains:결제 비밀번호` | 미확정(키패드 감지 문구) |
+| success / orderId | `text:주문이 완료되었습니다` / `after:주문번호` | 미확정(완료 후 화면) |
+
+**열린 질문**
+- **팝업 윈도우**: PC 웹은 `pay.naver.com` 팝업 윈도우로 키패드가 뜬다. 결제
+  탭 폴링만으로는 키패드가 보이지 않을 수 있어, 팝업 창/탭 추적(핸드오프 통지
+  타이밍, 알림 클릭 시 포커스 대상, 완료 origin 검증)이 필요하다.
+- 완료 신호가 가맹점 도메인에 있는지, 팝업 닫힘 후 리다이렉트인지.
+- 가맹점별(스마트스토어 등) 주문서 DOM 편차를 하나의 셀렉터 세트로 커버 가능한지.
+
 ## 4. 불변식
 
 - 결제 비밀번호·카드번호를 입력하거나 저장하지 않는다. 화면에서 채우는 건
@@ -307,6 +349,13 @@ awaitCompletion 폴링 중 passwordUi(보이는 요소) 최초 감지:
 ### TOCTOU (스냅샷 재검증)
 A. 승인 후 대기 중 금액/상품 변경 → 실행 직전 재검증 불일치 → 결제 중단(canceled)
 B. 변경 없음 → 스냅샷 일치 → 정상 결제
+
+### 네이버페이(핸드오프 전용) — placeholder 셀렉터 기준
+N1. `hasExternalApproval === false`, `verify()` 금액·스냅샷 파싱
+N2. 키패드 문구 → 핸드오프 통지 1회, `fill` 호출 0회, 결제 버튼 클릭 1회
+N3. 훅 없이 키패드 → `failed(password_required)`
+N4. 승인 후 금액 변경 → 클릭 없이 `canceled(content_changed)`
+N5. 기본 정책 methods에 `naverpay` 없음
 
 ### 쿠팡(패턴 C) 전용
 9. `CoupayAdapter.hasExternalApproval === false`

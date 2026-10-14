@@ -47,7 +47,8 @@ const PAY_BUTTON_READY_MS = 15_000;
 interface AdapterConfig {
   method: PaymentMethod;
   hasExternalApproval: boolean;
-  flow: "patternB" | "patternC";
+  // handoffOnly: 네이버페이 — 브로커는 결제 버튼 클릭까지만, PIN 단계는 항상 사용자 핸드오프.
+  flow: "patternB" | "patternC" | "handoffOnly";
   selectors: {
     amount: string;
     merchant: string;
@@ -130,12 +131,39 @@ export const COUPAY: AdapterConfig = {
   },
 };
 
+// ⚠️⚠️ PLACEHOLDER — 라이브 캡처 전(2026-10-14 추가, executor.md §3.3).
+// 네이버페이는 **핸드오프 전용**이다: 브로커는 가맹점 [결제하기]/[네이버페이 결제]
+// 클릭까지만 하고, 6자리 PIN(보안 키패드) 단계는 항상 사용자가 직접 입력한다.
+// 키패드·PIN 입력칸은 읽지도, 입력하지도, 합성 클릭하지도 않는다. 로그인
+// (nid.naver.com)은 범위 밖. 아래 셀렉터는 전부 미확정 추측값이다.
+export const NAVERPAY: AdapterConfig = {
+  method: "naverpay",
+  hasExternalApproval: false, // 폰 푸시 없음 → 신원 입력 불필요, confirm 게이트는 정책이 담당
+  flow: "handoffOnly",
+  merchantName: "네이버페이",
+  selectors: {
+    // PLACEHOLDER: 주문서의 최종 결제 금액 라벨(가맹점별로 다를 수 있음).
+    amount: "label:총 결제금액",
+    merchant: "css:[data-autopay-merchant]", // 없으면 merchantName 폴백
+    items: "location:items", // PLACEHOLDER: 주문서 URL 파라미터가 TOCTOU 키로 적합한지 미확인
+    payButton: "text:네이버페이 결제", // PLACEHOLDER: 가맹점 주문서의 네이버페이 결제 버튼
+    // PLACEHOLDER: 완료 후 화면의 신호 — 미검증.
+    success: "text:주문이 완료되었습니다",
+    orderId: "after:주문번호",
+    // PLACEHOLDER: 보안 키패드/PIN 창 감지 문구. "보이는가"만 확인, 값은 읽지 않음.
+    // 열린 질문: 키패드가 팝업 윈도우(pay.naver.com)라면 결제 탭 폴링으로는
+    // 보이지 않는다 → 팝업 창/탭 추적 필요(executor.md §3.3).
+    passwordUi: "contains:결제 비밀번호",
+  },
+};
+
 export const TOSS: AdapterConfig = { ...KAKAO, method: "tosspay", merchantName: "토스페이" };
 
 const CONFIGS: Record<PaymentMethod, AdapterConfig> = {
   kakaopay: KAKAO,
   coupay: COUPAY,
   tosspay: TOSS,
+  naverpay: NAVERPAY,
 };
 
 class DomCheckoutDriver implements CheckoutDriver {
@@ -178,6 +206,7 @@ class DomCheckoutDriver implements CheckoutDriver {
       if (s.next) await this.bridge.click(tabId, s.next);
     } else {
       // 패턴 C: 원터치 [결제하기] 클릭만. 비밀번호 입력 없음.
+      // handoffOnly(네이버페이)도 동일: 클릭 한 번 + 입력칸 fill 없음. PIN은 사용자.
       await this.bridge.click(tabId, s.payButton);
     }
   }

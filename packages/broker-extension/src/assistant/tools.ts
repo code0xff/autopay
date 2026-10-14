@@ -64,7 +64,7 @@ export const ASSISTANT_TOOLS = [
         },
         totalAmount: { type: "integer", minimum: 0 },
         currency: { type: "string", enum: ["KRW"] },
-        method: { type: "string", enum: ["kakaopay", "tosspay", "coupay"] },
+        method: { type: "string", enum: ["kakaopay", "tosspay", "coupay", "naverpay"] },
       },
       required: ["merchant", "items", "totalAmount", "currency", "method"],
       additionalProperties: false,

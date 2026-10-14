@@ -269,7 +269,11 @@ function Pending({
           <div className="row between">
             <span className="label">결제 승인 요청</span>
             <span className={`badge ${p.method === "coupay" ? "warn" : "info"}`}>
-              {p.method === "coupay" ? "쿠페이 · 원터치" : p.method}
+              {p.method === "coupay"
+                ? "쿠페이 · 원터치"
+                : p.method === "naverpay"
+                  ? "네이버페이 · 직접 입력"
+                  : p.method}
             </span>
           </div>
           <div className="row between" style={{ margin: "8px 0 4px" }}>

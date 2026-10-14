@@ -26,8 +26,12 @@ describe("data-model schemas", () => {
     expect(PaymentRequest.safeParse({ ...validReq, totalAmount: -100 }).success).toBe(false);
   });
 
-  it("3. 미지원 method(naverpay) → 실패", () => {
-    expect(PaymentRequest.safeParse({ ...validReq, method: "naverpay" }).success).toBe(false);
+  it("3. 미지원 method(paypal) → 실패", () => {
+    expect(PaymentRequest.safeParse({ ...validReq, method: "paypal" }).success).toBe(false);
+  });
+
+  it("3b. naverpay(핸드오프 전용)는 유효한 method", () => {
+    expect(PaymentRequest.safeParse({ ...validReq, method: "naverpay" }).success).toBe(true);
   });
 
   it("4. 잘못된 merchant.origin → 실패", () => {

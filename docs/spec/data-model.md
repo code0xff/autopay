@@ -21,8 +21,9 @@ export const Currency = z.literal("KRW");            // MVP는 KRW만
 export const Amount = z.number().int().nonnegative(); // 원 단위 정수
 
 // ── 결제수단 (단일 진실. 다른 스펙·모듈은 이걸 참조) ──
-// kakao/toss=패턴 B(폰 승인), coupay=패턴 C(원터치)
-export const PaymentMethod = z.enum(["kakaopay", "tosspay", "coupay"]);
+// kakao/toss=패턴 B(폰 승인), coupay=패턴 C(원터치),
+// naverpay=패턴 B 변형(핸드오프 전용: PIN은 항상 사용자 직접 입력, 2026-10-14)
+export const PaymentMethod = z.enum(["kakaopay", "tosspay", "coupay", "naverpay"]);
 export type PaymentMethod = z.infer<typeof PaymentMethod>;
 
 // 오리진 URL: https, 자격증명·경로·쿼리·프래그먼트 없음 (비밀/PII 차단)
@@ -158,7 +159,7 @@ export type AuditRecord = z.infer<typeof AuditRecord>;
 
 1. 유효한 `PaymentRequest` → `safeParse.success === true`
 2. `totalAmount: -100` → 실패
-3. `method: "naverpay"` → 실패(enum 밖)
+3. `method: "paypal"` → 실패(enum 밖); `method: "naverpay"` → 성공(핸드오프 전용 수단)
 4. `merchant.origin: "not-a-url"` → 실패
 5. `items: []` → 실패(min 1)
 6. `Decision` 각 변형 라운드트립(parse→infer) 일치

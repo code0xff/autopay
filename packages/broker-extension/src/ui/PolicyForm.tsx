@@ -3,6 +3,14 @@ import { useEffect, useState } from "react";
 import { setPolicy } from "./rpc-client.js";
 
 // 결제 정책 편집 폼 — 사이드패널(기본 화면)과 옵션 페이지가 같은 컴포넌트를 쓴다.
+// 결제수단 표시 이름(기존 id 표기는 유지, 네이버페이만 한글 라벨).
+const METHOD_LABELS: Record<PaymentPolicy["methods"][number], string> = {
+  coupay: "coupay",
+  kakaopay: "kakaopay",
+  tosspay: "tosspay",
+  naverpay: "네이버페이",
+};
+
 export function PolicyForm({ policy, onSaved }: { policy: PaymentPolicy; onSaved: () => void }) {
   const [p, setP] = useState<PaymentPolicy>(policy);
   const [msg, setMsg] = useState<{ kind: "ok" | "err"; text: string } | null>(null);
@@ -134,7 +142,7 @@ export function PolicyForm({ policy, onSaved }: { policy: PaymentPolicy; onSaved
         결제 수단
       </div>
       <div className="row" style={{ gap: 14, marginBottom: 10 }}>
-        {(["coupay", "kakaopay", "tosspay"] as const).map((m) => (
+        {(["coupay", "kakaopay", "tosspay", "naverpay"] as const).map((m) => (
           <label key={m} className="row" style={{ gap: 6 }}>
             <input
               type="checkbox"
@@ -146,7 +154,7 @@ export function PolicyForm({ policy, onSaved }: { policy: PaymentPolicy; onSaved
                 })
               }
             />
-            <span>{m}</span>
+            <span>{METHOD_LABELS[m]}</span>
           </label>
         ))}
       </div>

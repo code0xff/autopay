@@ -21,6 +21,12 @@ export default defineConfig({
       "https://*.coupang.com/*",
       "https://online-payment.kakaopay.com/*",
       "https://pay.toss.im/*",
+      // 네이버페이(핸드오프 전용, executor.md §3.3). 결제 버튼 클릭과 완료 신호
+      // 독립 파싱에만 쓰며, PIN 키패드는 읽거나 조작하지 않는다(사용자 직접 입력).
+      // 로그인 도메인(nid.naver.com)은 범위 밖이라 의도적으로 제외한다.
+      "https://pay.naver.com/*",
+      "https://order.pay.naver.com/*",
+      "https://smartstore.naver.com/*",
       // 내장 어시스턴트(docs/spec/assistant.md): SIWC 토큰 교환과 Responses API 호출.
       // 백그라운드에서만 호출하며 이 도메인의 페이지를 읽거나 조작하지는 않는다.
       "https://auth.openai.com/*",
