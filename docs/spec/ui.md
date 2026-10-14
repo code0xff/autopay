@@ -4,7 +4,7 @@
 
 사용자가 정책을 설정하고, 결제를 승인/거절하며, 결과를 인지하는 화면.
 `docs/design/ui-mockup.html`은 M1 초기(shadcn neutral) 목업이며 **2026-09-23
-NightBrowser 재도색 이후로는 갱신되지 않았다** — 시각 기준은 실제 구현
+Quartz(구 NightBrowser) 재도색 이후로는 갱신되지 않았다** — 시각 기준은 실제 구현
 (`src/ui/theme.css`)과 §3의 토큰 표를 따른다.
 
 **비책임**: 판정(policy)·실행(executor). UI는 상태 표시와 사용자 입력만.
@@ -24,16 +24,25 @@ NightBrowser 재도색 이후로는 갱신되지 않았다** — 시각 기준�
 - 세 표면 모두 확장 자체 컨텍스트(신뢰 영역). 페이지 주입 오버레이는
   격리가 약해 쓰지 않는다(`spec/agent-integration.md`).
 
-## 3. 디자인 토큰 (구현 기준, 2026-10-07부터 NightBrowser 적용)
+## 3. 디자인 토큰 (구현 기준, 2026-10-07부터 Quartz(구 NightBrowser) 적용, 2026-10-14 개정 반영)
 
-> `~/workspace/design/agent-browser/design.md`(NightBrowser — 둥근 모노크롬
+> `~/workspace/design/quartz/design.md`(Quartz — 둥근 모노크롬
 > 워크벤치) 적용. 2026-09-23의 Slate(보라 accent·pill 컨트롤)는 폐기됨.
 > 제품 표시 이름은 NightPay(내부 식별자는 autopay 유지).
 
 - **토큰**: `canvas`(#f4f4f3/#111112)·`surface`(#fff/#19191b)·`ink`(#171719/#f2f2f3)·
-  `ink-soft`(#66666c/#a3a3aa)·`line`(#dedee1/#343438)·`subtle`(#eeeeef/#232326)
-  (light/dark) — `src/ui/theme.css`가 단일 진실. 기존 토큰 이름은 유지하되
+  `ink-soft`(#66666c/#a3a3aa)·`line`(#dedee1/#343438)·`subtle`(#eeeeef/#232326)·
+  `chrome-line`(#e8e8ea/#29292d)·`error`(#b91c1c/#fca5a5) (light/dark) — `src/ui/theme.css`가 단일 진실. 기존 토큰 이름은 유지하되
   `accent`·`ok`·`warn`·`danger`는 모두 `ink` 계열로 수렴(상태색 없음).
+- **선 토큰 둘**: `line`은 카드·입력·버튼처럼 사물을 두르는 선, `chrome-line`은 영역을
+  가르는 선 — 앱바 아래·탭 줄 아래·패널 푸터 위·주문 입력창 테두리에만 쓴다.
+- **`error`**: 폼 검증 메시지(11px/16px, 입력 4px 아래 고정 슬롯)와 잘못된 입력의
+  테두리에만. 요청 상태·배지·토스트에는 쓰지 않는다.
+- **제목 스케일**: 페이지 18 / 소제목 16 / 섹션 14px, 600, 1.4(`--h-*` 토큰). 제목은 muted 금지.
+- **탭 줄**: 48px(`--tab-height`), 좌우 12px, 선택은 라벨 폭 1px 룰. 앱바 아이콘 버튼은
+  평소 테두리·배경 없음, 호버 시 soft. 주문 탭만 콘텐츠 패딩 16px(나머지 12px),
+  메시지 간격 16px·본문 line-height 1.65, 입력창은 12px 반경 한 상자(40px 고정 textarea).
+  실행 중에는 "● m:ss 실행 중…"(2.4s 하이라이트, reduced-motion이면 정적 muted).
 - **형태**: 카드·패널 12px, 버튼·입력·배지 8px, 다이얼로그 18px, 1px 테두리.
   폼 필드·페이지 액션 36px/14px, 목록 행·앱바 컴팩트 28px/12px.
 - **서체**: Pretendard(설치돼 있을 때) → 시스템 한글 폰트 스택. 금액·주소·시각은
@@ -43,7 +52,7 @@ NightBrowser 재도색 이후로는 갱신되지 않았다** — 시각 기준�
   반전 블록. 승인 대기 탭은 개수 숫자 대신 6px 점(개수는 접근성 이름·툴팁).
 - **주 액션**: 반전 블록(`primary`=text색), 보조는 윤곽 + soft 호버.
 - **포커스**: 필드는 1px 테두리를 `ink`로, 버튼은 1px `ink` 아웃라인.
-  탭 선택은 하단 2px 룰(반전 채움 아님).
+  탭 선택은 라벨 폭 1px 룰(반전 채움 아님).
 - **모션**: 120ms, `cubic-bezier(0.2, 0, 0, 1)`; `prefers-reduced-motion`에서 중단.
 - **테마**: light/dark 토글을 Side Panel 헤더 + Options 헤더에 탑재. 기본은
   system, 선택은 per-viewer로 저장(`localStorage`, try/catch).
@@ -57,8 +66,8 @@ NightBrowser 재도색 이후로는 갱신되지 않았다** — 시각 기준�
 사이드패널과 옵션 페이지는 같은 탭 앱을 띄운다(옵션은 가운데 680px). 기능이
 두 화면에 겹치거나 한쪽에만 있는 문제를 없애려고 2026-09-23 기능별 탭으로 재편.
 
-**헤더**: 로고(crow) + "NightPay" + 테마 토글. 그 아래 **탭**(동일 너비,
-선택 탭은 하단 2px 룰). 탭은 세션 내 상태로만 유지(영속 저장 없음).
+**헤더**: 로고(crow) + "NightPay" + 테마 토글. 그 아래 **탭**(동일 너비, 48px,
+선택 탭은 라벨 폭 1px 룰). 탭은 세션 내 상태로만 유지(영속 저장 없음).
 패널이 열릴 때(최초 로드) 및 잠금 해제 직후에는 항상 "홈"을
 자동 선택한다(내장 주문 탭은 MCP 브리지 토큰 없이도 동작하므로 토큰 유무로 나누지 않음). 이후 수동 전환과 3초 폴링 갱신은 선택된
 탭을 건드리지 않는다.
@@ -144,7 +153,7 @@ NightBrowser 재도색 이후로는 갱신되지 않았다** — 시각 기준�
 
 - [ ] Side Panel(승인+남은 한도+정책) + Options(전체 탭) + notifications 구현
 - [ ] Action popup 미사용(승인은 Side Panel에서)
-- [ ] NightBrowser 토큰(canvas/surface/ink/ink-soft/line/subtle) + 8/12px 반경 컨트롤 + Pretendard/시스템 한글 폰트 적용
+- [ ] Quartz 토큰(canvas/surface/ink/ink-soft/line/chrome-line/error/subtle) + 8/12px 반경 컨트롤 + Pretendard/시스템 한글 폰트 적용
 - [ ] light/dark 토글(기본 system, 저장) 동작
 - [ ] 승인 카드가 confirm/폰대기/완료/거절/실패 5상태를 표시
 - [ ] PII·비밀 마스킹, 알림 본문에 원문 없음

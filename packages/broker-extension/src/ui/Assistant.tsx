@@ -52,7 +52,6 @@ export function AssistantTab({ onOpenSettings }: { onOpenSettings: () => void })
   // 전송 직후 백그라운드 상태에 반영되기 전까지 화면에 먼저 보여줄 내 메시지.
   const [sending, setSending] = useState<string | null>(null);
   const scrollRef = useRef<HTMLDivElement>(null);
-  const inputRef = useRef<HTMLTextAreaElement>(null);
   // 사용자가 맨 아래 근처에 있을 때만 새 메시지를 따라 내려간다.
   const stickRef = useRef(true);
   const count = state?.messages.length ?? 0;
@@ -67,14 +66,6 @@ export function AssistantTab({ onOpenSettings }: { onOpenSettings: () => void })
     const el = scrollRef.current;
     if (el) stickRef.current = el.scrollHeight - el.scrollTop - el.clientHeight < 48;
   };
-  // 입력창은 내용만큼 자란다(상한은 CSS max-height).
-  // biome-ignore lint/correctness/useExhaustiveDependencies: text가 바뀔 때마다 높이를 다시 잰다
-  useEffect(() => {
-    const el = inputRef.current;
-    if (!el) return;
-    el.style.height = "auto";
-    el.style.height = `${el.scrollHeight}px`;
-  }, [text]);
   const signedIn = state?.signedIn ?? false;
   const noModels = (state?.models.length ?? 0) === 0;
   // 입력창의 모델 선택에 쓸 목록 — 아직 없으면 한 번 불러온다.
@@ -150,13 +141,7 @@ export function AssistantTab({ onOpenSettings }: { onOpenSettings: () => void })
             </div>
           ))}
           {sending !== null && <div className="msg user">{sending}</div>}
-          {(state.running || sending !== null) && (
-            <div className="msg working" aria-label="작업 중">
-              <span />
-              <span />
-              <span />
-            </div>
-          )}
+          {(state.running || sending !== null) && <RunStatus startedAt={state.runStartedAt} />}
         </div>
       )}
       {err && <div className="chat-error">{err}</div>}
@@ -171,8 +156,7 @@ export function AssistantTab({ onOpenSettings }: { onOpenSettings: () => void })
       )}
       <div className="composer">
         <textarea
-          ref={inputRef}
-          rows={3}
+          rows={2}
           value={text}
           placeholder="구매 요청이나 질문을 입력하세요"
           aria-label="요청 입력"
@@ -258,6 +242,29 @@ export function AssistantTab({ onOpenSettings }: { onOpenSettings: () => void })
           )}
         </div>
       </div>
+    </div>
+  );
+}
+
+// 실행 중 표시 — "● m:ss 실행 중…". 시계는 백그라운드가 기록한 실제 시작 시각부터 센다
+// (탭을 다시 열어도 0으로 돌아가지 않는다). 전송 직후 상태에 아직 반영 전이면 마운트 시각.
+function RunStatus({ startedAt }: { startedAt: number | null }) {
+  const fallback = useRef(Date.now());
+  const [now, setNow] = useState(Date.now());
+  useEffect(() => {
+    const id = setInterval(() => setNow(Date.now()), 1000);
+    return () => clearInterval(id);
+  }, []);
+  const secs = Math.max(0, Math.floor((now - (startedAt ?? fallback.current)) / 1000));
+  const clock = `${Math.floor(secs / 60)}:${String(secs % 60).padStart(2, "0")}`;
+  return (
+    <div className="run-status">
+      <span className="sr-only">실행 중</span>
+      <span className="run-dot" aria-hidden="true" />
+      <span aria-hidden="true">{clock}</span>
+      <span className="run-text" aria-hidden="true">
+        실행 중…
+      </span>
     </div>
   );
 }

@@ -135,7 +135,7 @@ export function PolicyForm({ policy, onSaved }: { policy: PaymentPolicy; onSaved
       </div>
       <div className="row" style={{ gap: 14, marginBottom: 10 }}>
         {(["coupay", "kakaopay", "tosspay"] as const).map((m) => (
-          <label key={m} className="listrow" style={{ gap: 6 }}>
+          <label key={m} className="row" style={{ gap: 6 }}>
             <input
               type="checkbox"
               checked={p.methods.includes(m)}
@@ -205,11 +205,16 @@ export function PolicyForm({ policy, onSaved }: { policy: PaymentPolicy; onSaved
       >
         정책 저장
       </button>
-      {msg && (
-        <div className={`badge ${msg.kind === "ok" ? "ok" : "danger"}`} style={{ marginTop: 10 }}>
-          {msg.text}
-        </div>
-      )}
+      {msg &&
+        (msg.kind === "ok" ? (
+          <div className="badge ok" style={{ marginTop: 10 }}>
+            {msg.text}
+          </div>
+        ) : (
+          <div className="form-error" role="alert" style={{ marginTop: 8 }}>
+            {msg.text}
+          </div>
+        ))}
     </div>
   );
 }

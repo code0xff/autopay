@@ -51,6 +51,8 @@ export interface AssistantState {
   loginPending: boolean;
   loginError: string | null;
   running: boolean;
+  /** 현재 실행의 실제 시작 시각(ms, epoch). 실행 중이 아니면 null. */
+  runStartedAt: number | null;
   model: string | null;
   models: ModelInfo[];
   messages: ChatMessage[];
@@ -112,6 +114,7 @@ export class Assistant {
   private readonly now: () => number;
   private readonly sleep: (ms: number) => Promise<void>;
   private running: Promise<void> | null = null;
+  private runStartedAt: number | null = null;
   private abort: AbortController | null = null;
   private refreshing: Promise<TokenSet> | null = null;
   private includeReasoning = true;
@@ -268,6 +271,7 @@ export class Assistant {
       loginPending: Boolean(await this.deps.session.get<PendingLogin | null>(LOGIN_KEY)),
       loginError: this.loginError,
       running: this.running !== null,
+      runStartedAt: this.running !== null ? this.runStartedAt : null,
       model: (await this.deps.kv.get<string>(MODEL_KEY)) ?? null,
       models: this.models,
       messages,
@@ -327,8 +331,10 @@ export class Assistant {
     chat.history.push({ role: "user", content: text });
     await this.saveChat(chat);
     this.abort = new AbortController();
+    this.runStartedAt = this.now();
     this.running = this.run(chat, this.abort.signal).finally(() => {
       this.running = null;
+      this.runStartedAt = null;
       this.abort = null;
       this.streaming = "";
     });

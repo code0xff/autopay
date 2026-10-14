@@ -1,8 +1,10 @@
-/* NightPay UI — NightBrowser 디자인 시스템 적용 (~/workspace/design/agent-browser/design.md).
+/* NightPay UI — Quartz 디자인 시스템 적용 (~/workspace/design/quartz/design.md, 2026-10-14 개정 반영).
    둥근 모노크롬 워크벤치: 색은 background/surface/text/muted/border/soft 여섯 역할뿐이고
-   accent·상태색(녹/호박/적)은 쓰지 않는다 — 상태는 색이 아니라 모양(점·윤곽·반전)과
+   accent·상태색(녹/호박/적)은 쓰지 않는다(예외: 폼 검증 오류 하나 — --error) — 상태는 색이 아니라 모양(점·윤곽·반전)과
    단어로 구분한다. 반경은 패널·카드 12px, 버튼·입력 8px, 다이얼로그 18px, 1px 테두리.
-   포커스는 필드=테두리를 text색으로, 버튼=1px 아웃라인. 선택된 탭은 하단 2px 룰.
+   포커스는 필드=테두리를 text색으로, 버튼=1px 아웃라인. 선택된 탭은 라벨 폭 1px 룰.
+   선 토큰은 둘 — --line은 카드·입력·버튼처럼 사물을 두르는 선, --chrome-line은 영역을 가르는
+   선(앱바 아래·탭 줄 아래·패널 푸터 위·입력창 테두리)에만 쓴다.
    글꼴: Pretendard(설치돼 있으면) → 시스템 한글 폰트, 숫자·주소는 JetBrains Mono 계열.
    원격 웹폰트는 로드하지 않는다 — 결제 브로커 익스텐션이 열릴 때마다 외부 CDN에
    요청을 보내지 않도록(오프라인 안전 + AGENTS §4 "불필요한 외부 호출 없음"). */
@@ -13,6 +15,8 @@
   --raised: #ffffff;
   --line: #dedee1;
   --line-strong: #dedee1;
+  --chrome-line: #e8e8ea;
+  --error: #b91c1c;
   --ink: #171719;
   --ink-soft: #66666c;
   --ink-faint: #66666c;
@@ -30,6 +34,11 @@
   --on-danger: #ffffff;
   --overlay: #17171966;
   --shadow-pop: 0 0 0 1px #dedee1, 0 12px 32px rgb(23 23 25 / 0.12);
+  --tab-height: 48px;
+  --h-page: 18px;
+  --h-sub: 16px;
+  --h-section: 14px;
+  --run-sweep: 2.4s;
   --radius-sm: 4px;
   --radius-md: 8px;
   --radius-lg: 12px;
@@ -49,6 +58,8 @@
     --raised: #19191b;
     --line: #343438;
     --line-strong: #343438;
+    --chrome-line: #29292d;
+    --error: #fca5a5;
     --ink: #f2f2f3;
     --ink-soft: #a3a3aa;
     --ink-faint: #a3a3aa;
@@ -76,6 +87,8 @@
   --raised: #19191b;
   --line: #343438;
   --line-strong: #343438;
+  --chrome-line: #29292d;
+  --error: #fca5a5;
   --ink: #f2f2f3;
   --ink-soft: #a3a3aa;
   --ink-faint: #a3a3aa;
@@ -148,7 +161,7 @@ label[for] {
   gap: 8px;
   padding: 8px 12px;
   background: var(--surface);
-  border-bottom: 1px solid var(--line);
+  border-bottom: 1px solid var(--chrome-line);
 }
 .logo {
   width: 25px;
@@ -169,12 +182,12 @@ label[for] {
   flex: 1;
 }
 .tabs {
-  /* NightBrowser 활동 탭 — 동일 너비, 선택은 반전이 아니라 하단 2px 룰 */
+  /* Quartz 활동 탭 — 48px 줄, 좌우 12px, 선택은 반전이 아니라 라벨 폭 1px 룰 */
   display: flex;
   margin: 0;
   padding: 0 12px;
   background: var(--surface);
-  border-bottom: 1px solid var(--line);
+  border-bottom: 1px solid var(--chrome-line);
 }
 .tabs button {
   flex: 1;
@@ -183,17 +196,15 @@ label[for] {
   font-size: 12px;
   font-weight: 400;
   border: 0;
-  border-bottom: 2px solid transparent;
-  margin-bottom: -1px;
   background: transparent;
   color: var(--ink-soft);
-  height: 36px;
+  height: var(--tab-height);
   border-radius: 0;
   display: inline-flex;
   align-items: center;
   justify-content: center;
   gap: 6px;
-  transition: color 120ms var(--ease-soft), border-color 120ms var(--ease-soft);
+  transition: color 120ms var(--ease-soft);
 }
 .tabs button:hover {
   color: var(--ink);
@@ -201,10 +212,22 @@ label[for] {
 .tabs button[aria-selected="true"] {
   color: var(--ink);
   font-weight: 500;
-  border-bottom-color: var(--ink);
 }
 .tabs button:focus-visible {
   outline-offset: -2px;
+}
+/* 선택 룰은 탭이 아니라 라벨 글자 폭만큼 — 라벨 아래 6px */
+.tabs .tab-label::after {
+  content: "";
+  position: absolute;
+  left: 0;
+  right: 0;
+  bottom: -8px;
+  height: 1px;
+  background: transparent;
+}
+.tabs button[aria-selected="true"] .tab-label::after {
+  background: var(--ink);
 }
 /* 승인 대기 — 숫자 대신 라벨 우상단의 6px 점(알림 배지 자리). 라벨 기준으로 띄워
    놓아 레이블 폭과 가운데 정렬은 그대로다. 개수는 접근성 이름에 있다. */
@@ -228,7 +251,7 @@ label[for] {
   margin: 0 auto;
 }
 .body {
-  padding: 16px;
+  padding: 12px;
   display: flex;
   flex-direction: column;
   gap: 12px;
@@ -250,11 +273,13 @@ label[for] {
 .muted {
   color: var(--ink-soft);
 }
+/* 제목 스케일(토큰) — 페이지 18 / 소제목 16 / 섹션 14, 600, 1.4. 제목은 muted를 쓰지 않는다.
+   카드 제목(.label)은 섹션 제목이다. */
 .label {
-  font-size: 12px;
-  font-weight: 400;
-  letter-spacing: 0;
-  color: var(--ink-soft);
+  font-size: var(--h-section);
+  font-weight: 600;
+  line-height: 1.4;
+  color: var(--ink);
 }
 .amount {
   font-family: var(--font-mono);
@@ -357,21 +382,39 @@ label[for] {
   border-color: var(--ink);
   outline: none;
 }
+/* 폼 검증 오류 — 입력 아래 고정 슬롯(11px/16px, 4px 아래). --error는 이것과 잘못된 입력의
+   테두리에만 쓴다(요청 상태·배지·토스트에는 쓰지 않는다). */
+.input[aria-invalid="true"] {
+  border-color: var(--error);
+}
+.form-error {
+  margin: 4px 0 2px;
+  font-size: 11px;
+  line-height: 16px;
+  color: var(--error);
+  overflow-wrap: anywhere;
+}
 .grid2 {
   display: grid;
   grid-template-columns: 1fr 1fr;
   gap: 12px;
 }
+/* 설정형 목록 — 행 사이에만 구분선, 위아래 12px, 목록 바깥 윤곽 없음 */
 .listrow {
   display: flex;
   align-items: center;
   justify-content: space-between;
   gap: 8px;
-  padding: 8px 0;
+  padding: 12px 0;
+}
+.listrow + .listrow {
   border-top: 1px solid var(--line);
 }
 .listrow:first-child {
-  border-top: 0;
+  padding-top: 0;
+}
+.listrow:last-child {
+  padding-bottom: 0;
 }
 /* 컴팩트 컨트롤(28px, 12px 글자) — 목록 행·앱바용 */
 .icon-btn {
@@ -395,7 +438,15 @@ label[for] {
   width: 28px;
   height: 28px;
   padding: 0;
-  border-color: transparent;
+  border: 0;
+  background: transparent;
+}
+.icon-btn-square:hover {
+  background: var(--subtle);
+}
+.icon-btn-square:focus-visible {
+  outline: 1px solid var(--ink);
+  outline-offset: 1px;
 }
 
 table {
@@ -471,7 +522,7 @@ tbody tr:hover {
   padding: 16px;
   display: flex;
   flex-direction: column;
-  gap: 12px;
+  gap: 16px;
 }
 /* 메시지가 쌓여도 줄어들지 않고 목록이 스크롤되게 한다(tool 줄은 overflow:hidden이라 min-height가 0). */
 .chat-scroll > * {
@@ -501,8 +552,9 @@ tbody tr:hover {
   margin-bottom: 4px;
 }
 .chat-empty-title {
-  font-size: 16px;
-  font-weight: 500;
+  font-size: var(--h-sub);
+  font-weight: 600;
+  line-height: 1.4;
 }
 .chat-empty .btn {
   margin-top: 8px;
@@ -512,7 +564,7 @@ tbody tr:hover {
   flex-wrap: wrap;
   justify-content: center;
   gap: 6px;
-  margin: 0 12px 8px;
+  margin: 0 16px 8px;
 }
 .chat-examples button {
   font: inherit;
@@ -526,16 +578,15 @@ tbody tr:hover {
   border: 1px solid var(--line);
   border-radius: var(--radius-md);
   background: transparent;
-  color: var(--ink-soft);
-  transition: background-color 120ms var(--ease-soft), color 120ms var(--ease-soft);
+  color: var(--ink);
+  transition: background-color 120ms var(--ease-soft);
 }
 .chat-examples button:hover {
   background: var(--subtle);
-  color: var(--ink);
 }
 .chat .msg {
   font-size: 14px;
-  line-height: 1.6;
+  line-height: 1.65;
   white-space: pre-wrap;
   overflow-wrap: anywhere;
 }
@@ -560,8 +611,9 @@ tbody tr:hover {
   white-space: pre-line;
 }
 .md h4 {
-  font-size: 14px;
+  font-size: var(--h-section);
   font-weight: 600;
+  line-height: 1.4;
 }
 .md ul,
 .md ol {
@@ -608,37 +660,68 @@ tbody tr:hover {
   border: 1px solid var(--ink);
   border-radius: var(--radius-md);
 }
-.chat .msg.working {
+/* 실행 중 표시 — "● m:ss 실행 중…". 점은 깜박이고, 글자는 2.4s 동안 muted↔text 하이라이트가
+   왼쪽에서 오른쪽으로 지나간다(텍스트에만 쓰는 background-clip 그라데이션 — 그 외 그라데이션 금지). */
+.run-status {
   display: flex;
-  gap: 4px;
-  padding: 6px 0;
+  align-items: center;
+  gap: 6px;
+  font-size: 12px;
+  color: var(--ink-soft);
+  font-variant-numeric: tabular-nums;
 }
-.chat .msg.working span {
+.run-dot {
   width: 6px;
   height: 6px;
   border-radius: 50%;
-  background: var(--ink-soft);
+  background: currentColor;
   animation: skeleton-blink 1.2s var(--ease-soft) infinite;
 }
-.chat .msg.working span:nth-child(2) {
-  animation-delay: 0.2s;
+.run-text {
+  background: linear-gradient(
+    90deg,
+    var(--ink-soft) 0%,
+    var(--ink-soft) 35%,
+    var(--ink) 50%,
+    var(--ink-soft) 65%,
+    var(--ink-soft) 100%
+  );
+  background-size: 200% 100%;
+  -webkit-background-clip: text;
+  background-clip: text;
+  -webkit-text-fill-color: transparent;
+  color: transparent;
+  animation: run-sweep var(--run-sweep) linear infinite;
 }
-.chat .msg.working span:nth-child(3) {
-  animation-delay: 0.4s;
+@keyframes run-sweep {
+  from {
+    background-position: 100% 0;
+  }
+  to {
+    background-position: 0 0;
+  }
+}
+@media (prefers-reduced-motion: reduce) {
+  .run-text {
+    background: none;
+    -webkit-text-fill-color: currentColor;
+    color: var(--ink-soft);
+  }
 }
 .chat-error {
-  margin: 0 12px 8px;
+  margin: 0 16px 8px;
   font-size: 12px;
   padding: 8px 12px;
   border: 1px solid var(--ink);
   border-radius: var(--radius-md);
 }
-/* 입력창 — 텍스트와 컨트롤(새 대화·모델·보내기)을 한 카드에 담는다 */
+/* 입력창 — 12px 반경 한 상자, 패딩 12px, 평소 chrome-line, 포커스 시 text 테두리.
+   textarea는 자기 테두리가 없고(상자가 포커스를 대신 보여준다) 40px 고정 + 내부 스크롤. */
 .composer {
-  margin: 0 12px 12px;
-  padding: 10px 10px 8px 12px;
-  border: 1px solid var(--line);
-  border-radius: var(--radius-xl);
+  margin: 0 16px 16px;
+  padding: 12px;
+  border: 1px solid var(--chrome-line);
+  border-radius: var(--radius-lg);
   background: var(--surface);
   transition: border-color 120ms var(--ease-soft);
 }
@@ -648,12 +731,12 @@ tbody tr:hover {
 .composer textarea {
   display: block;
   width: 100%;
-  min-height: 66px;
-  max-height: 200px;
-  padding: 2px 0 8px;
+  height: 40px;
+  padding: 0;
   border: 0;
   outline: none;
   resize: none;
+  overflow-y: auto;
   background: transparent;
   color: var(--ink);
   font: inherit;
@@ -667,14 +750,14 @@ tbody tr:hover {
   display: flex;
   align-items: center;
   gap: 6px;
-  margin-left: -6px;
-  min-height: 32px;
+  margin-top: 8px;
+  min-height: 28px;
 }
 .composer-model {
   font: inherit;
   font-size: 12px;
   max-width: 170px;
-  height: 32px;
+  height: 28px;
   /* 기본 화살표는 오른쪽 끝에 붙어 여백을 줄 수 없다 — 직접 그리고 자리를 잡아준다. */
   appearance: none;
   padding: 0 26px 0 10px;
@@ -692,8 +775,8 @@ tbody tr:hover {
 .composer-icon,
 .composer-send {
   flex-shrink: 0;
-  width: 32px;
-  height: 32px;
+  width: 28px;
+  height: 28px;
   border: 0;
   border-radius: 50%;
   display: grid;

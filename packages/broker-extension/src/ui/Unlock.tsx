@@ -3,6 +3,8 @@ import { lock, unlock } from "./rpc-client.js";
 
 // 잠금 화면 — 잠겨 있으면 NightPay는 비활성이고 이 화면만 보인다. 첫 실행(검증값 없음)이면
 // 패스프레이즈를 두 번 입력해 설정한다. 해제 상태는 브라우저를 닫을 때까지 유지된다.
+const MISMATCH = "두 패스프레이즈가 다릅니다";
+
 export function LockScreen({ firstRun, onDone }: { firstRun: boolean; onDone: () => void }) {
   const [pass, setPass] = useState("");
   const [confirm, setConfirm] = useState("");
@@ -11,7 +13,7 @@ export function LockScreen({ firstRun, onDone }: { firstRun: boolean; onDone: ()
   const submit = async () => {
     if (!pass) return;
     if (firstRun && pass !== confirm) {
-      setErr("두 패스프레이즈가 다릅니다");
+      setErr(MISMATCH);
       return;
     }
     setBusy(true);
@@ -31,6 +33,14 @@ export function LockScreen({ firstRun, onDone }: { firstRun: boolean; onDone: ()
       setBusy(false);
     }
   };
+  // 오류는 잘못 채운 입력 아래 고정 슬롯에 둔다(--error: 폼 검증 메시지와 그 입력의 테두리).
+  const confirmInvalid = Boolean(err) && firstRun && err === MISMATCH;
+  const passInvalid = Boolean(err) && !confirmInvalid;
+  const errorSlot = err && (
+    <div className="form-error" id="unlock-error" role="alert">
+      {err}
+    </div>
+  );
   return (
     <form
       className="lock"
@@ -48,36 +58,37 @@ export function LockScreen({ firstRun, onDone }: { firstRun: boolean; onDone: ()
             ? "NightPay를 여는 패스프레이즈를 정하세요. 잊으면 저장된 본인 식별 정보를 복구할 수 없습니다."
             : "잠금을 해제해야 NightPay가 결제 요청을 받고 승인할 수 있습니다."}
         </div>
-        <label className="field">
+        <label className="field" style={passInvalid ? { marginBottom: 0 } : undefined}>
           <span>패스프레이즈</span>
           <input
             className="input"
             type="password"
+            aria-invalid={passInvalid || undefined}
+            aria-describedby={passInvalid ? "unlock-error" : undefined}
             autoComplete={firstRun ? "new-password" : "current-password"}
             value={pass}
             onChange={(e) => setPass(e.target.value)}
           />
         </label>
+        {passInvalid && errorSlot}
         {firstRun && (
-          <label className="field">
+          <label className="field" style={confirmInvalid ? { marginBottom: 0 } : undefined}>
             <span>패스프레이즈 확인</span>
             <input
               className="input"
               type="password"
+              aria-invalid={confirmInvalid || undefined}
+              aria-describedby={confirmInvalid ? "unlock-error" : undefined}
               autoComplete="new-password"
               value={confirm}
               onChange={(e) => setConfirm(e.target.value)}
             />
           </label>
         )}
+        {confirmInvalid && errorSlot}
         <button type="submit" className="btn btn-primary btn-block" disabled={busy || !pass}>
           {firstRun ? "설정하고 시작" : "잠금 해제"}
         </button>
-        {err && (
-          <div className="badge danger" style={{ marginTop: 10 }}>
-            {err}
-          </div>
-        )}
       </div>
     </form>
   );
