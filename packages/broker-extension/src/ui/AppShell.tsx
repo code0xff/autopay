@@ -13,6 +13,7 @@ import {
   NotificationCheck,
   SiteAccessNotice,
 } from "./cards.js";
+import { METHOD_LABELS } from "./method-labels.js";
 import { cancelExecution, getState, resolveConfirmation } from "./rpc-client.js";
 
 // 사이드패널과 옵션 페이지가 같은 탭 앱을 띄운다 — 화면이 겹치거나 한쪽에만
@@ -277,7 +278,7 @@ function Pending({
                 ? "쿠페이 · 원터치"
                 : p.method === "naverpay"
                   ? "네이버페이 · 직접 입력"
-                  : p.method}
+                  : (METHOD_LABELS[p.method as keyof typeof METHOD_LABELS] ?? p.method)}
             </span>
           </div>
           <div className="row between" style={{ margin: "8px 0 4px" }}>
