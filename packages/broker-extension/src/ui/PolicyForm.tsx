@@ -1,6 +1,7 @@
 import type { PaymentPolicy } from "@autopay/shared";
 import { useEffect, useState } from "react";
 import { METHOD_LABELS } from "./method-labels.js";
+import { addMethodOrigins, removeMethodOrigins } from "./method-origins.js";
 import { setPolicy } from "./rpc-client.js";
 
 // 결제 정책 편집 폼 — 사이드패널(기본 화면)과 옵션 페이지가 같은 컴포넌트를 쓴다.
@@ -21,6 +22,29 @@ export function PolicyForm({ policy, onSaved }: { policy: PaymentPolicy; onSaved
   // 화면에서 바로 사라지는 것처럼 보인다(입력 자체가 막힌 것처럼 느껴짐).
   const [originsText, setOriginsText] = useState(policy.merchants.origins.join(", "));
   const [categoriesText, setCategoriesText] = useState(policy.categories.values.join(", "));
+  const [originsNote, setOriginsNote] = useState<string | null>(null);
+
+  // 결제수단 토글 — allowlist 모드면 그 수단의 기본 오리진을 폼 상태에서만 추가/제거(저장은 별도).
+  const toggleMethod = (m: PaymentPolicy["methods"][number], on: boolean) => {
+    const methods = on ? [...p.methods, m] : p.methods.filter((x) => x !== m);
+    let origins = p.merchants.origins;
+    let note: string | null = null;
+    const host = (o: string) => o.replace("https://", "");
+    if (on) {
+      const r = addMethodOrigins(p.merchants, m);
+      origins = r.origins;
+      if (r.added.length)
+        note = `${METHOD_LABELS[m]}를 켜서 ${r.added.map(host).join(", ")}을(를) 추가했어요`;
+    } else {
+      const r = removeMethodOrigins(p.merchants, m, methods);
+      origins = r.origins;
+      if (r.removed.length)
+        note = `${METHOD_LABELS[m]}를 꺼서 ${r.removed.map(host).join(", ")}을(를) 뺐어요`;
+    }
+    setP({ ...p, methods, merchants: { ...p.merchants, origins } });
+    setOriginsText(origins.join(", "));
+    setOriginsNote(note);
+  };
 
   // 저장된 정책이 갱신되면 폼에 반영(저장 후·재로드 시 최신값 표시).
   // biome-ignore lint/correctness/useExhaustiveDependencies: policy 스냅샷이 바뀔 때만 동기화
@@ -125,11 +149,17 @@ export function PolicyForm({ policy, onSaved }: { policy: PaymentPolicy; onSaved
             className="input mono"
             value={originsText}
             onChange={(e) => {
+              setOriginsNote(null);
               setOriginsText(e.target.value);
               setP({ ...p, merchants: { ...p.merchants, origins: toList(e.target.value) } });
             }}
           />
         </label>
+      )}
+      {p.merchants.mode === "allowlist" && originsNote && (
+        <div className="muted" style={{ fontSize: 12, marginBottom: 8 }}>
+          {originsNote}
+        </div>
       )}
 
       <div className="label" style={{ margin: "16px 0 10px" }}>
@@ -141,12 +171,7 @@ export function PolicyForm({ policy, onSaved }: { policy: PaymentPolicy; onSaved
             <input
               type="checkbox"
               checked={p.methods.includes(m)}
-              onChange={(e) =>
-                setP({
-                  ...p,
-                  methods: e.target.checked ? [...p.methods, m] : p.methods.filter((x) => x !== m),
-                })
-              }
+              onChange={(e) => toggleMethod(m, e.target.checked)}
             />
             <span>{METHOD_LABELS[m]}</span>
           </label>

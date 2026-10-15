@@ -35,7 +35,7 @@ deny 검사를 먼저, 통과하면 confirm 여부를 판정한다. **여러 위
 1. amount_mismatch  : verifiedAmount 주어졌고 request.totalAmount !== verifiedAmount → deny
 2. method_not_allowed    : request.method ∉ policy.methods → deny
 3. merchant_not_allowed  : policy.merchants.mode==="allowlist"
-                           && merchant.origin ∉ origins → deny
+                           && merchant.origin ∉ origins → deny   (정확 일치 — UI 기본 오리진은 ui.md 참조)
 4. category_not_allowed  : 아래 "카테고리 규칙" 위반 → deny
 5. over_per_transaction  : amount > limits.perTransaction → deny
 6. over_count            : usage.countToday + 1 > limits.maxTransactionsPerDay → deny
