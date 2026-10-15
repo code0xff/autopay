@@ -143,10 +143,12 @@ export function PolicyForm({ policy, onSaved }: { policy: PaymentPolicy; onSaved
       {p.merchants.mode === "allowlist" && (
         <label className="field">
           <span>
-            허용 오리진 목록 (쉼표로 구분, 예: https://coupang.com, https://www.coupang.com)
+            허용 오리진 목록 (쉼표로 구분. https://*.example.com 은 example.com과 모든 하위 도메인을
+            허용)
           </span>
           <input
             className="input mono"
+            placeholder="https://*.coupang.com, https://shop.example"
             value={originsText}
             onChange={(e) => {
               setOriginsNote(null);

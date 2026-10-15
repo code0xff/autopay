@@ -56,7 +56,7 @@ describe("Background RPC (compose)", () => {
     const state = (await bg.handle({ type: "getState" })) as UiState;
     expect(state.policy.merchants).toEqual({
       mode: "allowlist",
-      origins: ["https://coupang.com", "https://www.coupang.com", "https://checkout.coupang.com"],
+      origins: ["https://*.coupang.com"],
     });
     expect(state.policy.categories).toEqual({ mode: "denylist", values: [] }); // 전부 허용
     expect(state.policy.limits).toEqual({

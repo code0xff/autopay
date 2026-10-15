@@ -29,7 +29,7 @@ export function evaluate(
   // 3. merchant_not_allowed
   if (
     policy.merchants.mode === "allowlist" &&
-    !policy.merchants.origins.includes(request.merchant.origin)
+    !originAllowed(request.merchant.origin, policy.merchants.origins)
   ) {
     return { type: "deny", violation: "merchant_not_allowed" };
   }
@@ -73,4 +73,26 @@ function violatesCategory(request: PaymentRequest, policy: PaymentPolicy): boole
     return !request.items.every((i) => i.category !== undefined && values.includes(i.category));
   }
   return request.items.some((i) => i.category !== undefined && values.includes(i.category));
+}
+
+/**
+ * 머천트 allowlist 매칭: 정확 일치, 또는 `https://*.D` 항목에 대해 요청 호스트가
+ * D 이거나 `.D`로 끝나는 https 오리진. 문자열 접미사가 아니라 호스트 라벨 경계로 비교한다
+ * (`https://evilcoupang.com`은 `*.coupang.com`에 불일치). 순수 함수.
+ */
+function originAllowed(origin: string, entries: readonly string[]): boolean {
+  if (entries.includes(origin)) return true;
+  let host: string;
+  try {
+    const u = new URL(origin);
+    if (u.protocol !== "https:") return false;
+    host = u.hostname.toLowerCase();
+  } catch {
+    return false;
+  }
+  return entries.some((e) => {
+    if (!e.startsWith("https://*.")) return false;
+    const d = e.slice("https://*.".length).toLowerCase();
+    return host === d || host.endsWith(`.${d}`);
+  });
 }

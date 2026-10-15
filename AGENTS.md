@@ -301,7 +301,7 @@ FDS/안티봇 회피, 카드번호·CVC 평문 보관/자동입력.
 ### 3.5 정책 스키마
 
 정책은 다음으로 구성된다: **한도**(건당/일/월/일 횟수), **허용 머천트**
-(allowlist | any), **카테고리**(allowlist | denylist), **결제수단**
+(allowlist | any; allowlist 항목은 정확 오리진 또는 `https://*.도메인` 와일드카드 — 2026-10-15 사용자 결정, `docs/spec/policy.md`), **카테고리**(allowlist | denylist), **결제수단**
 (kakaopay/tosspay/coupay/naverpay — 기본 허용은 coupay만), **확인 규칙**(임계값 초과 시 확인·항상 확인),
 **알림**(채널·거절 통지. MVP는 chrome만).
 

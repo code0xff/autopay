@@ -43,6 +43,23 @@ export const OriginUrl = z
     { message: "must be an https origin without credentials, path, query, or fragment" },
   );
 
+// ── 머천트 allowlist 항목: 정확한 https 오리진 또는 `https://*.<도메인>` 와일드카드 ──
+// 와일드카드는 선두 `*.` 한 라벨만, 그 뒤 최소 2라벨(TLD 단독 `*.com` 거부), 포트·경로 없음.
+// (2026-10-15 사용자 결정, docs/spec/policy.md). 요청의 merchant.origin은 OriginUrl 그대로.
+const WILDCARD_ORIGIN = /^https:\/\/\*\.([a-z0-9-]+(?:\.[a-z0-9-]+)+)$/i;
+export const MerchantOriginPattern = z.string().refine(
+  (s) => {
+    const m = WILDCARD_ORIGIN.exec(s);
+    if (m)
+      return (m[1] as string)
+        .split(".")
+        .every((l) => l.length > 0 && !l.startsWith("-") && !l.endsWith("-"));
+    if (s.includes("*")) return false; // 허용 형태 외의 `*`는 전부 거절
+    return OriginUrl.safeParse(s).success;
+  },
+  { message: "must be an https origin or https://*.<domain> wildcard (no TLD-only wildcard)" },
+);
+
 export const LineItem = z
   .object({
     title: z.string().min(1).max(200), // 길이 상한(로그·audit 유출 표면 축소)
@@ -88,7 +105,7 @@ export const PaymentPolicy = z
     merchants: z
       .object({
         mode: z.enum(["allowlist", "any"]),
-        origins: z.array(OriginUrl),
+        origins: z.array(MerchantOriginPattern),
       })
       .strict(),
     categories: z

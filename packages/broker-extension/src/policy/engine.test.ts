@@ -215,3 +215,36 @@ describe("policy.evaluate", () => {
     expect(u).toEqual(uSnap);
   });
 });
+
+describe("merchant wildcard allowlist", () => {
+  const wp = pol({
+    merchants: { mode: "allowlist", origins: ["https://*.coupang.com", "https://shop.example"] },
+  });
+  const at = (origin: string) => evaluate(req({ merchant: { origin, name: "M" } }), wp, baseUsage);
+  const denied = { type: "deny", violation: "merchant_not_allowed" };
+  it("apex 일치", () => expect(at("https://coupang.com")).not.toEqual(denied));
+  it("서브도메인 일치", () => expect(at("https://www.coupang.com")).not.toEqual(denied));
+  it("중첩 서브도메인 일치", () =>
+    expect(at("https://a.b.checkout.coupang.com")).not.toEqual(denied));
+  it("대소문자 무시", () => expect(at("https://WWW.Coupang.com")).not.toEqual(denied));
+  it("lookalike 거절", () => {
+    expect(at("https://evilcoupang.com")).toEqual(denied);
+    expect(at("https://coupang.com.evil.example")).toEqual(denied);
+    expect(at("https://notcoupang.com")).toEqual(denied);
+    expect(at("https://coupang.co")).toEqual(denied);
+  });
+  it("http 거절", () => {
+    expect(at("http://www.coupang.com")).toEqual(denied);
+    expect(at("http://coupang.com")).toEqual(denied);
+  });
+  it("정확 항목은 그대로 동작", () => {
+    expect(at("https://shop.example")).not.toEqual(denied);
+    expect(at("https://sub.shop.example")).toEqual(denied);
+  });
+  it("mode=any는 영향 없음", () => {
+    const p = pol({ merchants: { mode: "any", origins: [] } });
+    expect(
+      evaluate(req({ merchant: { origin: "https://x.example", name: "M" } }), p, baseUsage),
+    ).not.toEqual(denied);
+  });
+});

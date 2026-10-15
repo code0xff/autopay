@@ -12,7 +12,7 @@ describe("method default origins", () => {
   });
   it("이미 있는 오리진은 중복 추가하지 않는다", () => {
     const r = addMethodOrigins(al([NAVER[0] as string]), "naverpay");
-    expect(r.added).toEqual([NAVER[1]]);
+    expect(r.added).toEqual([]);
     expect(r.origins.filter((o) => o === NAVER[0])).toHaveLength(1);
   });
   it("기본값이 없는 수단은 변화 없음", () => {
@@ -29,6 +29,16 @@ describe("method default origins", () => {
     const r = removeMethodOrigins(al([...shared]), "kakaopay", ["coupay"]);
     expect(r.origins).toEqual([...shared]);
     expect(r.removed).toEqual([]);
+  });
+  it("기본값은 와일드카드", () => {
+    expect(METHOD_DEFAULT_ORIGINS.coupay).toEqual(["https://*.coupang.com"]);
+    expect(METHOD_DEFAULT_ORIGINS.naverpay).toEqual(["https://*.naver.com"]);
+    expect(METHOD_DEFAULT_ORIGINS.kakaopay).toEqual([]);
+    expect(METHOD_DEFAULT_ORIGINS.tosspay).toEqual([]);
+  });
+  it("와일드카드 항목도 끄면 제거되고, 다른 수단이 쓰면 유지", () => {
+    const r = removeMethodOrigins(al(["https://*.coupang.com"]), "coupay", ["naverpay"]);
+    expect(r).toEqual({ origins: [], removed: ["https://*.coupang.com"] });
   });
   it("any 모드에서는 아무것도 하지 않는다", () => {
     const m = { mode: "any" as const, origins: ["https://x.example"] };

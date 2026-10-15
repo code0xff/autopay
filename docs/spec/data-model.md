@@ -63,7 +63,7 @@ export const PaymentPolicy = z.object({
   }),
   merchants: z.object({
     mode: z.enum(["allowlist", "any"]),
-    origins: z.array(OriginUrl),
+    origins: z.array(MerchantOriginPattern), // 정확 https 오리진 또는 https://*.도메인 (2026-10-15 사용자 결정)
   }),
   categories: z.object({
     mode: z.enum(["allowlist", "denylist"]),
@@ -145,6 +145,9 @@ export type AuditRecord = z.infer<typeof AuditRecord>;
 - **인바운드 객체는 `.strict()`** — 미지의 필드(cardNumber/cvv/billingKey 등)를
   조용히 버리지 않고 **거절**한다(fail-closed). `safeParse.success`만 확인해도
   비밀 필드가 실린 페이로드는 통과하지 못한다.
+- **`MerchantOriginPattern`(정책 allowlist 항목)**: `OriginUrl` 또는 `https://*.<도메인>`(선두 `*.` 한 라벨,
+  뒤 2라벨 이상, 포트·경로 없음; 맨 `*`·`*.com` 거부). 2026-10-15 사용자 결정 — 편의 우선, 잔여 리스크로
+  `blog/cafe.naver.com` 같은 사용자 콘텐츠 서브도메인이 포함됨. 매칭 규칙은 `policy.md`.
 - **`origin`은 `OriginUrl`** — https 오리진만 허용(자격증명 `user:pass@`·경로·
   쿼리·프래그먼트 불가). URL에 비밀/PII가 실려 정책·감사에 남는 것을 차단.
 

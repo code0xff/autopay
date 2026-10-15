@@ -4,6 +4,7 @@ import {
   BridgeToolCall,
   BridgeToolResult,
   Decision,
+  MerchantOriginPattern,
   PaymentRequest,
 } from "./schema.js";
 
@@ -159,5 +160,39 @@ describe("bridge protocol schemas", () => {
     expect(
       BridgeFrame.safeParse({ type: "call", call: { id: "c1", tool: "bad", args: {} } }).success,
     ).toBe(false);
+  });
+});
+
+describe("MerchantOriginPattern (allowlist 항목)", () => {
+  const ok = (s: string) => MerchantOriginPattern.safeParse(s).success;
+  it("정확 오리진과 https://*.도메인 허용", () => {
+    expect(ok("https://shop.example")).toBe(true);
+    expect(ok("https://*.coupang.com")).toBe(true);
+    expect(ok("https://*.shop.co.kr")).toBe(true);
+  });
+  it("과도하거나 잘못된 와일드카드 거절", () => {
+    for (const b of [
+      "*",
+      "https://*",
+      "https://*.com",
+      "http://*.coupang.com",
+      "https://*.coupang.com/",
+      "https://*.coupang.com:8443",
+      "https://*.coupang.com/x",
+      "https://**.coupang.com",
+      "https://a.*.coupang.com",
+      "https://*coupang.com",
+      "https://*.*.coupang.com",
+      "https://x@*.coupang.com",
+      "https://*.",
+      "https://*..com",
+    ])
+      expect(ok(b)).toBe(false);
+  });
+  it("요청의 merchant.origin은 와일드카드 불가", () => {
+    const r = PaymentRequest.safeParse({
+      merchant: { origin: "https://*.coupang.com", name: "S" },
+    });
+    expect(r.success).toBe(false);
   });
 });

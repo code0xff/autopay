@@ -35,7 +35,7 @@ deny 검사를 먼저, 통과하면 confirm 여부를 판정한다. **여러 위
 1. amount_mismatch  : verifiedAmount 주어졌고 request.totalAmount !== verifiedAmount → deny
 2. method_not_allowed    : request.method ∉ policy.methods → deny
 3. merchant_not_allowed  : policy.merchants.mode==="allowlist"
-                           && merchant.origin ∉ origins → deny   (정확 일치 — UI 기본 오리진은 ui.md 참조)
+                           && merchant.origin ∉ origins → deny   (정확 일치 또는 와일드카드 — 아래 "머천트 와일드카드" 참조. UI 기본 오리진은 ui.md)
 4. category_not_allowed  : 아래 "카테고리 규칙" 위반 → deny
 5. over_per_transaction  : amount > limits.perTransaction → deny
 6. over_count            : usage.countToday + 1 > limits.maxTransactionsPerDay → deny
@@ -113,3 +113,19 @@ confirmation: requireUserConfirmationAbove 30_000, alwaysConfirm false
 | 24 | 다중 item 중 하나가 allowlist 밖 | `deny(category_not_allowed)` |
 | 25 | alwaysConfirm=true + over perTx | `deny(over_per_transaction)` (confirm이 deny를 못 덮음) |
 | 26 | 순수성: 입력 객체 불변 | evaluate가 request·policy·usage를 변형하지 않음 |
+
+## 머천트 와일드카드 (2026-10-15 사용자 결정)
+
+allowlist 항목은 정확한 https 오리진 외에 `https://*.<도메인>` 형태를 허용한다.
+
+- 매칭: 요청 오리진이 항목과 정확히 같거나, 항목이 `https://*.D`이고 요청 오리진이 **https**이며
+  호스트가 `D`(apex)이거나 `.D`로 끝날 때(중첩 서브도메인 포함). 호스트 라벨 경계로 비교하므로
+  `https://evilcoupang.com`, `https://coupang.com.evil.example`은 `*.coupang.com`에 불일치. http는 거절.
+- 스키마(`MerchantOriginPattern`): 선두 `*.` 한 라벨만, 그 뒤 2라벨 이상(`*.com` 같은 TLD 단독 거부),
+  포트·경로·자격증명 불가, 맨 `*`·`https://*` 거부. 요청의 `merchant.origin`은 여전히 `OriginUrl`(와일드카드 불가).
+- 기본값: coupay → `https://*.coupang.com`, naverpay → `https://*.naver.com`, kakaopay/tosspay → 없음.
+- 결정 배경: 좁은 allowlist(도메인 3개 나열)의 마찰보다 편의를 택했다.
+- **잔여 리스크**: `*.naver.com`은 `blog.naver.com`·`cafe.naver.com` 등 사용자 콘텐츠 서브도메인을 포함한다.
+  머천트 allowlist가 넓어진 만큼 한도·확인·out-of-band 승인이 더 중요한 방어선이 된다.
+
+테스트: apex·서브도메인·중첩·대소문자·lookalike·http 거절·정확 항목 유지(`engine.test.ts`).

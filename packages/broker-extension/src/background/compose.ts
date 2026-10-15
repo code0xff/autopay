@@ -42,7 +42,7 @@ const DEFAULT_POLICY: PaymentPolicy = {
   limits: { perTransaction: 20_000, daily: 50_000, monthly: 100_000, maxTransactionsPerDay: 3 },
   merchants: {
     mode: "allowlist",
-    origins: ["https://coupang.com", "https://www.coupang.com", "https://checkout.coupang.com"],
+    origins: ["https://*.coupang.com"],
   },
   categories: { mode: "denylist", values: [] }, // denylist + 빈 값 = 전부 허용
   methods: ["coupay"],
