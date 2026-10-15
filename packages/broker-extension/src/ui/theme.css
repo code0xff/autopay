@@ -186,7 +186,7 @@ label[for] {
   flex: 1;
 }
 .tabs {
-  /* Quartz 활동 탭 — 48px 줄, 좌우 12px, 선택은 반전이 아니라 라벨 폭 1px 룰 */
+  /* Quartz 활동 탭 — 48px 줄, 좌우 12px, 선택은 반전이 아니라 고정 40px 1px 룰 */
   display: flex;
   margin: 0;
   padding: 0 12px;
@@ -220,12 +220,14 @@ label[for] {
 .tabs button:focus-visible {
   outline-offset: -2px;
 }
-/* 선택 룰은 탭이 아니라 라벨 글자 폭만큼 — 라벨 아래 6px */
+/* 선택 룰은 탭 전체 폭이 아니라 라벨 가운데 정렬된 고정 40px — 모든 탭 동일 폭,
+   라벨보다 양옆으로 길다(라벨 아래 8px) */
 .tabs .tab-label::after {
   content: "";
   position: absolute;
-  left: 0;
-  right: 0;
+  left: 50%;
+  width: 40px;
+  margin-left: -20px;
   bottom: -8px;
   height: 1px;
   background: transparent;
