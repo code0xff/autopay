@@ -136,17 +136,17 @@ export function AssistantTab({ onOpenSettings }: { onOpenSettings: () => void })
         <div className="chat-scroll" ref={scrollRef} onScroll={onChatScroll} aria-live="polite">
           {state.messages.map((m, i) => (
             // biome-ignore lint/suspicious/noArrayIndexKey: 대화는 뒤에만 추가되는 목록이라 인덱스가 안정적
-            <div key={i} className={`msg ${m.role}`}>
+            <div key={i} className={`msg ${m.role} enter`}>
               {m.role === "assistant" ? <Markdown text={m.text} /> : m.text}
             </div>
           ))}
-          {sending !== null && <div className="msg user">{sending}</div>}
+          {sending !== null && <div className="msg user enter">{sending}</div>}
           {(state.running || sending !== null) && <RunStatus startedAt={state.runStartedAt} />}
         </div>
       )}
-      {err && <div className="chat-error">{err}</div>}
+      {err && <div className="chat-error enter">{err}</div>}
       {state.messages.length === 0 && sending === null && (
-        <div className="chat-examples">
+        <div className="chat-examples enter">
           {EXAMPLES.map((ex) => (
             <button key={ex} type="button" onClick={() => void send(ex)}>
               {ex}

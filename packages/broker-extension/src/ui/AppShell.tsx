@@ -75,7 +75,7 @@ export function AppShell({ wide = false }: { wide?: boolean }) {
           <LockScreen firstRun={!state.hasPassphrase} onDone={refresh} />
         </div>
       ) : (
-        <>
+        <div className="app-enter enter">
           <nav className="tabs" role="tablist" aria-label="NightPay">
             {TABS.map((t) => (
               <button
@@ -118,7 +118,11 @@ export function AppShell({ wide = false }: { wide?: boolean }) {
               </div>
             )
           ) : (
-            <div className={tab === "assistant" ? "body body-chat" : "body"}>
+            <div
+              // 탭이 바뀔 때만 key가 바뀌어 페이드가 재생된다 — 3초 폴링(state 갱신)은 key를 건드리지 않는다.
+              key={tab}
+              className={tab === "assistant" ? "body body-chat tab-fade" : "body tab-fade"}
+            >
               {tab === "home" && <Home state={state} onRefresh={refresh} />}
               {tab === "assistant" && <AssistantTab onOpenSettings={() => choose("settings")} />}
               {tab === "policy" && <PolicyForm policy={state.policy} onSaved={refresh} />}
@@ -137,7 +141,7 @@ export function AppShell({ wide = false }: { wide?: boolean }) {
               )}
             </div>
           )}
-        </>
+        </div>
       )}
     </div>
   );
@@ -185,7 +189,7 @@ function Executing({ state, onRefresh }: { state: UiState; onRefresh: () => void
   return (
     <>
       {state.executing.map((e) => (
-        <div className="card" key={e.requestId}>
+        <div className="card enter" key={e.requestId}>
           <div className="row between">
             <span className="label">진행 중인 결제</span>
             <span className="badge warn">입력 대기</span>
@@ -265,7 +269,7 @@ function Pending({
   return (
     <>
       {state.pending.map((p) => (
-        <div className="card" key={p.requestId}>
+        <div className="card enter" key={p.requestId}>
           <div className="row between">
             <span className="label">결제 승인 요청</span>
             <span className={`badge ${p.method === "coupay" ? "warn" : "info"}`}>

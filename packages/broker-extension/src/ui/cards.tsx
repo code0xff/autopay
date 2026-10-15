@@ -162,7 +162,7 @@ export function NotificationCheck() {
         </div>
       )}
       {err && (
-        <div className="badge danger" style={{ marginTop: 10 }}>
+        <div className="badge danger enter" style={{ marginTop: 10 }}>
           {err}
         </div>
       )}
@@ -223,7 +223,10 @@ export function BridgeCard({
         토큰 등록
       </button>
       {msg && (
-        <div className={`badge ${msg.kind === "ok" ? "ok" : "danger"}`} style={{ marginTop: 10 }}>
+        <div
+          className={`badge enter ${msg.kind === "ok" ? "ok" : "danger"}`}
+          style={{ marginTop: 10 }}
+        >
           {msg.text}
         </div>
       )}

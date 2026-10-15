@@ -141,6 +141,14 @@ Quartz(구 NightBrowser) 재도색 이후로는 갱신되지 않았다** — 시
 - 정책 편집 → 저장 시 `shared` 스키마 검증 후 반영. 잘못된 값은 인라인 오류.
 - 테마 토글 → data-theme 스탬프 + 저장. 기본 system.
 - 스위치·칩 편집은 즉시 상태 반영(임시), 저장 액션으로 확정.
+- **모션(Quartz Motion, 절제)** — 토큰 `--motion-ease: cubic-bezier(0.2,0,0,1)`,
+  `--motion-fast 120ms`·`--motion-base 160ms`·`--motion-panel 180ms`(`theme.css :root`).
+  탭 전환: 본문 컨테이너만 `key={tab}`으로 리마운트해 불투명도 120ms 페이드(`.tab-fade`),
+  탭 줄·밑줄은 애니메이션 없음. 등장: 6px 상승+페이드 160ms(`.enter`) — 잠금 해제 후 앱,
+  승인·진행 카드, 오류/결과 배지, 주문 탭의 메시지·예시 칩. 스켈레톤→실제 콘텐츠는 페이드 120ms.
+  마운트 시 1회만 재생되므로 목록 key는 안정적이어야 한다(requestId·대화 인덱스 — 3초 폴링이
+  리마운트하지 않음). 패널 슬라이드·바운스·무한 애니메이션 금지.
+  `prefers-reduced-motion: reduce`에서는 모두 `animation: none`.
 
 ## 6. 불변식
 
